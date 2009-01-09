@@ -1,0 +1,46 @@
+<RCC>
+    <qresource prefix="/" >
+		<file>icons/singletomulti.png</file>
+		<file>icons/simplify.png</file>
+		<file>icons/erase.png</file>
+		<file>icons/conversion.png</file>
+		<file>icons/checkgeometry.png</file>
+		<file>icons/polystolines.png</file>
+		<file>icons/multitosingle.png</file>
+		<file>icons/meancoords.png</file>
+		<file>icons/selectlocation.png</file>
+		<file>icons/union.png</file>
+		<file>icons/dissolve.png</file>
+		<file>icons/clip.png</file>
+		<file>icons/symdiff.png</file>
+		<file>icons/intersect.png</file>
+		<file>icons/analysis.png</file>
+		<file>icons/geoprocessing.png</file>
+		<file>icons/sampling.png</file>
+		<file>icons/datamanagement.png</file>
+		<file>icons/ftoolslogo.png</file>
+        <file>icons/centroids.png</file>
+        <file>icons/calcgeom.png</file>
+        <file>icons/define.png</file>
+        <file>icons/dynamicbuffer.png</file>
+        <file>icons/extractnodes.png</file>
+        <file>icons/fieldstats.png</file>
+        <file>icons/help.png</file>
+        <file>icons/intersectlines.png</file>
+        <file>icons/joinattr.png</file>
+        <file>icons/listunique.png</file>
+        <file>icons/multiconvex.png</file>
+        <file>icons/pointdistance.png</file>
+        <file>icons/pointpoly.png</file>
+        <file>icons/project.png</file>
+        <file>icons/random.png</file>
+        <file>icons/randompoints.png</file>
+        <file>icons/regularpoints.png</file>
+        <file>icons/selectsubset.png</file>
+        <file>icons/spatialjoin.png</file>
+        <file>icons/sumlines.png</file>
+        <file>icons/vectorgrid.png</file>
+        <file>icons/vectorsplit.png</file>
+		<file>icons/nearestneigh.png</file>
+    </qresource>
+</RCC>

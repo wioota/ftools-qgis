@@ -122,9 +122,14 @@ class GeometryDialog(QDialog, Ui_Dialog):
 
 	def geometry( self, myLayer, myParam, myField ):
 		vlayer = ftools_utils.getVectorLayerByName( myLayer )
-		self.crs = vlayer.dataProvider().crs()
 		error = False
-		self.testThread = geometryThread( self.iface.mainWindow(), self, self.myFunction, vlayer, myParam, myField )
+		check = QFile( self.shapefileName )
+		if check.exists():
+			if not QgsVectorFileWriter.deleteShapeFile( self.shapefileName ):
+				QMessageBox.warning( self, "Geoprocessing", self.tr( "Unable to delete existing shapefile." ) )
+				return
+		self.testThread = geometryThread( self.iface.mainWindow(), self, self.myFunction, vlayer, myParam, 
+		myField, self.shapefilename, self.encoding )
 		QObject.connect( self.testThread, SIGNAL( "runFinished(PyQt_PyObject)" ), self.runFinishedFromThread )
 		QObject.connect( self.testThread, SIGNAL( "runStatus(PyQt_PyObject)" ), self.runStatusFromThread )
 		QObject.connect( self.testThread, SIGNAL( "runRange(PyQt_PyObject)" ), self.runRangeFromThread )
@@ -135,22 +140,12 @@ class GeometryDialog(QDialog, Ui_Dialog):
 	def cancelThread( self ):
 		self.testThread.stop()
 		
-	def runFinishedFromThread( self, output ):
+	def runFinishedFromThread( self, success ):
 		self.testThread.stop()
 		if output == "math_error":
 			QMessageBox.warning( self, "Geoprocessing", self.tr( "Error processing specified tolerance!" ) + "\n"
 			+ self.tr( "Please choose larger tolerance..." ) )
-		else:
-			if QFile( self.shapefileName ).exists():
-				if QgsVectorFileWriter.deleteShapeFile( self.shapefileName ):
-					QMessageBox.warning( self, "Geoprocessing", self.tr( "Unable to create geometry result." ) )
-					return
-			QgsVectorFileWriter.writeAsShapefile( output, self.shapefileName, self.encoding, None, False )
-			# This is a hack since memory layer does not support projection information yet
-			outputWkt = self.crs.toWkt()
-			outputPrj = open( self.shapefileName.rstrip( ".shp" ) + ".prj", "w" )
-			outputPrj.write( outputWkt )
-			outputPrj.close()
+		else: #maybe add something here about checking if success is true or false
 			self.cancel_close.setText( "Close" )
 			QObject.disconnect( self.cancel_close, SIGNAL( "clicked()" ), self.cancelThread )
 			addToTOC = QMessageBox.question( self, "Geoprocessing", self.tr( "Created output shapefile:" ) + "\n" + unicode( self.shapefileName ) 
@@ -165,7 +160,7 @@ class GeometryDialog(QDialog, Ui_Dialog):
 		self.progressBar.setRange( range_vals[ 0 ], range_vals[ 1 ] )
 		
 class geometryThread( QThread ):
-	def __init__( self, parentThread, parentObject, function, vlayer, myParam, myField ):
+	def __init__( self, parentThread, parentObject, function, vlayer, myParam, myField, myName, myEncoding ):
 		QThread.__init__( self, parentThread )
 		self.parent = parentObject
 		self.running = False
@@ -173,45 +168,39 @@ class geometryThread( QThread ):
 		self.vlayer = vlayer
 		self.myParam = myParam
 		self.myField = myField
+		self.myName = myName
+		self.myEncoding = myEncoding
 
 	def run( self ):
 		self.running = True
 		if self.myFunction == 1: # Singleparts to multipart
-			tempLayer = QgsVectorLayer( ftools_utils.getVectorTypeAsString( self.vlayer ), "tempLayer", "memory" )
-			output = self.single_to_multi( self.vlayer, self.myField, tempLayer )
+			success = self.single_to_multi()
 		elif self.myFunction == 2: # Multipart to singleparts
-			tempLayer = QgsVectorLayer( ftools_utils.getVectorTypeAsString( self.vlayer ), "tempLayer", "memory" )
-			output = self.multi_to_single( self.vlayer, tempLayer )
+			success = self.multi_to_single()
 		elif self.myFunction == 3: # Extract nodes
-			tempLayer = QgsVectorLayer( "Point", "tempLayer", "memory" )
-			output = self.extract_nodes( self.vlayer, tempLayer )
+			success = self.extract_nodes()
 		elif self.myFunction == 4: # Polygons to lines
-			tempLayer = QgsVectorLayer( "LineString", "tempLayer", "memory" )
-			output = self.polygons_to_lines( self.vlayer, tempLayer )
+			success = self.polygons_to_lines()
 		elif self.myFunction == 5: # Export/Add geometry columns
-			tempLayer = QgsVectorLayer( ftools_utils.getVectorTypeAsString( self.vlayer ), "tempLayer", "memory" )
-			output = self.export_geometry_info( self.vlayer, tempLayer )
+			success = self.export_geometry_info()
 		elif self.myFunction == 6: # Simplify geometries
-			tempLayer = QgsVectorLayer( ftools_utils.getVectorTypeAsString( self.vlayer ), "tempLayer", "memory" )
-			output = self.simplify_geometry( self.vlayer, self.myParam, tempLayer )
+			success = self.simplify_geometry()
 		elif self.myFunction == 7: # Polygon centroids
-			tempLayer = QgsVectorLayer( "Point", "tempLayer", "memory" )
-			output = self.polygon_centroids( self.vlayer, tempLayer )
-		self.emit( SIGNAL( "runFinished(PyQt_PyObject)" ), output )
+			success = self.polygon_centroids()
+		self.emit( SIGNAL( "runFinished(PyQt_PyObject)" ), success )
 		self.emit( SIGNAL( "runStatus(PyQt_PyObject)" ), 0 )
 
 	def stop(self):
 		self.running = False
 		
-	def single_to_multi( self, vlayer, myField, tempLayer):
-		vprovider = vlayer.dataProvider()
+	def single_to_multi( self ):
+		vprovider = self.vlayer.dataProvider()
 		allAttrs = vprovider.attributeIndexes()
 		vprovider.select( allAttrs )
 		fields = vprovider.fields()
-		tempProvider = tempLayer.dataProvider()
-		for (index, field) in fields.iteritems():
-			tempProvider.addAttributes({ unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
-		crs = vprovider.crs()
+		writer = QgsVectorFileWriter( self.shapefileName, self.encoding, 
+		fields, vprovider.geometryType(), vprovider.crs() )
+		#crs = vprovider.crs()
 		inFeat = QgsFeature()
 		outFeat = QgsFeature()
 		inGeom = QgsGeometry()
@@ -246,9 +235,9 @@ class geometryThread( QThread ):
 				outFeat.setAttributeMap( atts )
 				outGeom = QgsGeometry( self.convertGeometry( multi_feature, vType ) )
 				outFeat.setGeometry( outGeom )
-				tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+				writer.addFeature( outFeat )
+		del writer
+		return True
 
 	def multi_to_single(self, vlayer, tempLayer):
 		vprovider = vlayer.dataProvider()

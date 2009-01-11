@@ -129,7 +129,7 @@ class GeometryDialog(QDialog, Ui_Dialog):
 				QMessageBox.warning( self, "Geoprocessing", self.tr( "Unable to delete existing shapefile." ) )
 				return
 		self.testThread = geometryThread( self.iface.mainWindow(), self, self.myFunction, vlayer, myParam, 
-		myField, self.shapefilename, self.encoding )
+		myField, self.shapefileName, self.encoding )
 		QObject.connect( self.testThread, SIGNAL( "runFinished(PyQt_PyObject)" ), self.runFinishedFromThread )
 		QObject.connect( self.testThread, SIGNAL( "runStatus(PyQt_PyObject)" ), self.runStatusFromThread )
 		QObject.connect( self.testThread, SIGNAL( "runRange(PyQt_PyObject)" ), self.runRangeFromThread )
@@ -142,17 +142,23 @@ class GeometryDialog(QDialog, Ui_Dialog):
 		
 	def runFinishedFromThread( self, success ):
 		self.testThread.stop()
-		if output == "math_error":
+		if success == "math_error":
 			QMessageBox.warning( self, "Geoprocessing", self.tr( "Error processing specified tolerance!" ) + "\n"
 			+ self.tr( "Please choose larger tolerance..." ) )
-		else: #maybe add something here about checking if success is true or false
+			if not QgsVectorFileWriter.deleteShapeFile( self.shapefileName ):
+				QMessageBox.warning( self, "Geoprocessing", self.tr( "Unable to delete incomplete shapefile." ) )
+		else: 
 			self.cancel_close.setText( "Close" )
 			QObject.disconnect( self.cancel_close, SIGNAL( "clicked()" ), self.cancelThread )
-			addToTOC = QMessageBox.question( self, "Geoprocessing", self.tr( "Created output shapefile:" ) + "\n" + unicode( self.shapefileName ) 
-			+ "\n\n" + self.tr( "Would you like to add the new layer to the TOC?" ), QMessageBox.Yes, QMessageBox.No, QMessageBox.NoButton )
-			if addToTOC == QMessageBox.Yes:
-				ftools_utils.addShapeToCanvas( unicode( self.shapefileName ) )
-		
+			if success:
+				addToTOC = QMessageBox.question( self, "Geoprocessing", self.tr( "Created output shapefile:" ) + "\n" + 
+				unicode( self.shapefileName ) + "\n\n" + self.tr( "Would you like to add the new layer to the TOC?" ), 
+				QMessageBox.Yes, QMessageBox.No, QMessageBox.NoButton )
+				if addToTOC == QMessageBox.Yes:
+					ftools_utils.addShapeToCanvas( unicode( self.shapefileName ) )
+			else:
+				QMessageBox.warning( self, "Geoprocessing", self.tr( "Error writing output shapefile." ) )
+				
 	def runStatusFromThread( self, status ):
 		self.progressBar.setValue( status )
         
@@ -198,23 +204,22 @@ class geometryThread( QThread ):
 		allAttrs = vprovider.attributeIndexes()
 		vprovider.select( allAttrs )
 		fields = vprovider.fields()
-		writer = QgsVectorFileWriter( self.shapefileName, self.encoding, 
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
 		fields, vprovider.geometryType(), vprovider.crs() )
-		#crs = vprovider.crs()
 		inFeat = QgsFeature()
 		outFeat = QgsFeature()
 		inGeom = QgsGeometry()
 		outGeom = QgsGeometry()
-		index = vprovider.fieldNameIndex( myField )
+		index = vprovider.fieldNameIndex( self.myField )
 		if not index == -1:
-			unique = ftools_utils.getUniqueValues( vprovider, int(index) )
+			unique = ftools_utils.getUniqueValues( vprovider, int( index ) )
 		else:
-			unique = range( 0, vlayer.featureCount() )
-		nFeat = vprovider.featureCount() * len(unique)
+			unique = range( 0, self.vlayer.featureCount() )
+		nFeat = vprovider.featureCount() * len( unique )
 		nElement = 0
 		self.emit( SIGNAL( "runStatus(PyQt_PyObject)" ), 0 )
 		self.emit( SIGNAL( "runRange(PyQt_PyObject)" ), ( 0, nFeat ) )
-		if not len( unique ) == vlayer.featureCount():
+		if not len( unique ) == self.vlayer.featureCount():
 			for i in unique:
 				vprovider.rewind()
 				multi_feature= []
@@ -236,18 +241,16 @@ class geometryThread( QThread ):
 				outGeom = QgsGeometry( self.convertGeometry( multi_feature, vType ) )
 				outFeat.setGeometry( outGeom )
 				writer.addFeature( outFeat )
-		del writer
+			del writer
 		return True
 
-	def multi_to_single(self, vlayer, tempLayer):
-		vprovider = vlayer.dataProvider()
+	def multi_to_single( self ):
+		vprovider = self.vlayer.dataProvider()
 		allAttrs = vprovider.attributeIndexes()
 		vprovider.select( allAttrs )
 		fields = vprovider.fields()
-		tempProvider = tempLayer.dataProvider()
-		for (index, field) in fields.iteritems():
-			tempProvider.addAttributes({ unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
-		crs = vprovider.crs()
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, vprovider.geometryType(), vprovider.crs() )
 		inFeat = QgsFeature()
 		outFeat = QgsFeature()
 		inGeom = QgsGeometry()
@@ -265,19 +268,17 @@ class geometryThread( QThread ):
 			outFeat.setAttributeMap( atMap )
 			for i in featList:
 				outFeat.setGeometry( i )
-				tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+				writer.addFeature( outFeat )
+		del writer
+		return True
 
-	def extract_nodes(self, vlayer, tempLayer):
-		vprovider = vlayer.dataProvider()
+	def extract_nodes( self ):
+		vprovider = self.vlayer.dataProvider()
 		allAttrs = vprovider.attributeIndexes()
 		vprovider.select( allAttrs )
 		fields = vprovider.fields()
-		tempProvider = tempLayer.dataProvider()
-		for (index, field) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
-		crs = vprovider.crs()
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, QGis.WKBPoint, vprovider.crs() )
 		inFeat = QgsFeature()
 		outFeat = QgsFeature()
 		inGeom = QgsGeometry()
@@ -295,19 +296,17 @@ class geometryThread( QThread ):
 			outFeat.setAttributeMap( atMap )
 			for i in pointList:
 				outFeat.setGeometry( outGeom.fromPoint( i ) )
-				tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+				writer.addFeature( outFeat )
+		del writer
+		return True
 
-	def polygons_to_lines( self, vlayer, tempLayer ):
-		vprovider = vlayer.dataProvider()
+	def polygons_to_lines( self ):
+		vprovider = self.vlayer.dataProvider()
 		allAttrs = vprovider.attributeIndexes()
 		vprovider.select( allAttrs )
 		fields = vprovider.fields()
-		tempProvider = tempLayer.dataProvider()
-		for (index, field) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
-		crs = vprovider.crs()
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, QGis.WKBLineString, vprovider.crs() )
 		inFeat = QgsFeature()
 		outFeat = QgsFeature()
 		inGeom = QgsGeometry()
@@ -328,19 +327,17 @@ class geometryThread( QThread ):
 			outFeat.setAttributeMap( atMap )
 			for h in lineList:
 				outFeat.setGeometry( outGeom.fromPolyline( h ) )
-				tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+				writer.addFeature( outFeat )
+		del writer
+		return True
 
-	def export_geometry_info( self, vlayer, tempLayer ):
-		vprovider = vlayer.dataProvider()
+	def export_geometry_info( self ):
+		vprovider = self.vlayer.dataProvider()
 		allAttrs = vprovider.attributeIndexes()
 		vprovider.select( allAttrs )
-		( fields, index1, index2 ) = self.checkGeometryFields( vlayer )
-		tempProvider = tempLayer.dataProvider()
-		for (index, field) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
-		crs = vprovider.crs()
+		( fields, index1, index2 ) = self.checkGeometryFields( self.vlayer )
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, vprovider.geometryType(), vprovider.crs() )
 		inFeat = QgsFeature()
 		outFeat = QgsFeature()
 		inGeom = QgsGeometry()
@@ -358,19 +355,18 @@ class geometryThread( QThread ):
 			outFeat.setAttributeMap( atMap )
 			outFeat.addAttribute( index1, QVariant( attr1 ) )
 			outFeat.addAttribute( index2, QVariant( attr2 ) )
-			tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+			writer.addFeature( outFeat )
+		del writer
+		return True
 
-	def simplify_geometry( self, vlayer, tolerance, tempLayer ):
-		vprovider = vlayer.dataProvider()
+	def simplify_geometry( self ):
+		vprovider = self.vlayer.dataProvider()
+		tolerance = self.myParam
 		allAttrs = vprovider.attributeIndexes()
 		vprovider.select( allAttrs )
 		fields = vprovider.fields()
-		tempProvider = tempLayer.dataProvider()
-		for (index, field) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
-		crs = vprovider.crs()
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, vprovider.geometryType(), vprovider.crs() )
 		inFeat = QgsFeature()
 		outFeat = QgsFeature()
 		nFeat = vprovider.featureCount()
@@ -388,19 +384,17 @@ class geometryThread( QThread ):
 				return "math_error"
 			outFeat.setAttributeMap( atMap )
 			outFeat.setGeometry( outGeom )
-			tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+			writer.addFeature( outFeat )
+		del writer
+		return True
 
-	def polygon_centroids( self, vlayer, tempLayer ):
-		vprovider = vlayer.dataProvider()
+	def polygon_centroids( self ):
+		vprovider = self.vlayer.dataProvider()
 		allAttrs = vprovider.attributeIndexes()
 		vprovider.select( allAttrs )
 		fields = vprovider.fields()
-		tempProvider = tempLayer.dataProvider()
-		for (index, field) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
-		crs = vprovider.crs()
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, QGis.WKBPoint, vprovider.crs() )
 		inFeat = QgsFeature()
 		outfeat = QgsFeature()
 		nFeat = vprovider.featureCount()
@@ -453,11 +447,11 @@ class geometryThread( QThread ):
 				outfeat.setGeometry( QgsGeometry.fromPoint( QgsPoint( cx, cy ) ) )
 				atMap = inFeat.attributeMap()
 				outfeat.setAttributeMap( atMap )
-				tempProvider.addFeatures( [ outfeat ] )
-			nElement += 1  
+				writer.addFeature( outfeat )
+			nElement += 1
 			self.emit( SIGNAL( "runStatus(PyQt_PyObject)" ),  nElement )
-		tempLayer.updateExtents()
-		return tempLayer
+		del writer
+		return True
 
 	def extractAsSimple( self, geom, tolerance ):
 		temp_geom1 = []

@@ -138,12 +138,10 @@ class GeoprocessingDialog( QDialog, Ui_Dialog ):
 #7: Symetrical Difference
 #8: Clip
 
-	def geoprocessing(self,  myLayerA,  myLayerB,  myParam,  myMerge):
+	def geoprocessing( self,  myLayerA,  myLayerB,  myParam,  myMerge ):
 		print "starting geoprocessing..."
-		vlayerA = ftools_utils.getVectorLayerByName( myLayerA )
-		self.crs = vlayerA.dataProvider().crs()
-		self.testThread = geoprocessingThread( self.iface.mainWindow(), self, self.myFunction, vlayerA, 
-		myLayerB, myParam, myMerge )
+		self.testThread = geoprocessingThread( self.iface.mainWindow(), self, self.myFunction, myLayerA, 
+		myLayerB, myParam, myMerge, self.shapefileName, self.encoding )
 		QObject.connect( self.testThread, SIGNAL( "runFinished(PyQt_PyObject)" ), self.runFinishedFromThread )
 		QObject.connect( self.testThread, SIGNAL( "runStatus(PyQt_PyObject)" ), self.runStatusFromThread )
 		QObject.connect( self.testThread, SIGNAL( "runRange(PyQt_PyObject)" ), self.runRangeFromThread )
@@ -156,25 +154,19 @@ class GeoprocessingDialog( QDialog, Ui_Dialog ):
 	def cancelThread( self ):
 		self.testThread.stop()
 		
-	def runFinishedFromThread( self, output ):
+	def runFinishedFromThread( self, success ):
 		self.testThread.stop()
-		check = QFile( self.shapefileName )
-		if check.exists():
-			if QgsVectorFileWriter.deleteShapeFile( self.shapefileName ):
-				QMessageBox.warning( self, "Geoprocessing", self.tr( "Unable to create geoprocessing result." ) )
-				return
-		QgsVectorFileWriter.writeAsShapefile( output, self.shapefileName, self.encoding, None, False )
-		# This is a hack since memory layer does not support projection information yet
-		outputWkt = self.crs.toWkt()
-		outputPrj = open( self.shapefileName.rstrip( ".shp" ) + ".prj", "w" )
-		outputPrj.write( outputWkt )
-		outputPrj.close()
 		self.cancel_close.setText( "Close" )
+		if success:
+			QObject.disconnect( self.cancel_close, SIGNAL( "clicked()" ), self.cancelThread )
+			addToTOC = QMessageBox.question( self, "Geoprocessing", self.tr( "Created output shapefile:" ) + "\n" + 
+			unicode( self.shapefileName ) + "\n\n" + self.tr( "Would you like to add the new layer to the TOC?" ), 
+			QMessageBox.Yes, QMessageBox.No, QMessageBox.NoButton )
+			if addToTOC == QMessageBox.Yes:
+				ftools_utils.addShapeToCanvas( unicode( self.shapefileName ) )
+		else:
+			QMessageBox.warning( self, "Geoprocessing", self.tr( "Error writing output shapefile." ) )
 		QObject.disconnect( self.cancel_close, SIGNAL( "clicked()" ), self.cancelThread )
-		addToTOC = QMessageBox.question( self, "Geoprocessing", self.tr( "Created output shapefile:" ) + "\n" + unicode( self.shapefileName ) 
-		+ "\n\n" + self.tr( "Would you like to add the new layer to the TOC?" ), QMessageBox.Yes, QMessageBox.No, QMessageBox.NoButton )
-		if addToTOC == QMessageBox.Yes:
-			ftools_utils.addShapeToCanvas( unicode( self.shapefileName ) )
 		
 	def runStatusFromThread( self, status ):
 		self.progressBar.setValue( status )
@@ -183,55 +175,56 @@ class GeoprocessingDialog( QDialog, Ui_Dialog ):
 		self.progressBar.setRange( range_vals[ 0 ], range_vals[ 1 ] )
 		
 class geoprocessingThread( QThread ):
-	def __init__( self, parentThread, parentObject, function, vlayerA, myLayerB, myParam, myMerge ):
+	def __init__( self, parentThread, parentObject, function, myLayerA, myLayerB, 
+	myParam, myMerge, myName, myEncoding ):
 		QThread.__init__( self, parentThread )
 		self.parent = parentObject
 		self.running = False
 		self.myFunction = function
-		self.vlayerA = vlayerA
+		self.myLayerA = myLayerA
 		self.myLayerB = myLayerB
 		self.myParam = myParam
 		self.myMerge = myMerge
+		self.myName = myName
+		self.myEncoding = myEncoding
 
 	def run( self ):
 		self.running = True
+		self.vlayerA = ftools_utils.getVectorLayerByName( self.myLayerA )
 		if self.myFunction == 1 or self.myFunction == 2 or self.myFunction == 4:
-			tempLayer = QgsVectorLayer( "Polygon", "TempLayer", "memory" )
 			( self.myParam, useField ) = self.checkParameter( self.vlayerA, self.myParam )
 			if not self.myParam is None:
 				if self.myFunction == 1:
-					output = self.buffering( tempLayer, self.vlayerA,  self.myParam, useField, self.myMerge )
+					success = self.buffering( useField )
 				elif self.myFunction == 2:
-					output = self.convex_hull( tempLayer, self.vlayerA,  self.myParam, useField )
+					success = self.convex_hull( useField )
 				elif self.myFunction == 4:
-					output = self.dissolve( tempLayer, self.vlayerA, self.myParam, useField )
+					success = self.dissolve( useField )
 		else:
 			self.vlayerB = ftools_utils.getVectorLayerByName( self.myLayerB )
-			tempLayer = QgsVectorLayer(ftools_utils.getVectorTypeAsString( self.vlayerA ), "TempLayer", "memory")
 			if self.myFunction == 3:
-				output = self.difference( tempLayer, self.vlayerA, self.vlayerB )
+				success = self.difference()
 			elif self.myFunction == 5:
-				output = self.intersect( tempLayer, self.vlayerA, self.vlayerB )
+				success = self.intersect()
 			elif self.myFunction == 6:
-				output = self.union( tempLayer, self.vlayerA, self.vlayerB )
+				success = self.union()
 			elif self.myFunction == 7:    
-				output = self.symetrical_difference( tempLayer, self.vlayerA, self.vlayerB )
+				success = self.symetrical_difference()
 			elif self.myFunction == 8:    
-				output = self.clip( tempLayer, self.vlayerA, self.vlayerB )
-		self.emit( SIGNAL( "runFinished(PyQt_PyObject)" ), output )
+				success = self.clip()
+		self.emit( SIGNAL( "runFinished(PyQt_PyObject)" ), success )
 		self.emit( SIGNAL( "runStatus(PyQt_PyObject)" ), 0 )
 
 	def stop(self):
 		self.running = False
 
-	def buffering( self, tempLayer, vlayerA,  myParam, useField, myMerge ):
-		vproviderA = vlayerA.dataProvider()
+	def buffering( self, useField ):
+		vproviderA = self.vlayerA.dataProvider()
 		allAttrs = vproviderA.attributeIndexes()
 		vproviderA.select( allAttrs )
 		fields = vproviderA.fields()
-		tempProvider = tempLayer.dataProvider()
-		for ( index, field ) in fields.iteritems():
-			tempProvider.addAttributes({ unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, QGis.WKBPolygon, vproviderA.crs() )
 		outFeat = QgsFeature()
 		inFeat = QgsFeature()
 		inGeom = QgsGeometry()
@@ -240,7 +233,7 @@ class geoprocessingThread( QThread ):
 		nElement = 0
 		self.emit( SIGNAL( "runStatus(PyQt_PyObject)" ), 0)
 		self.emit( SIGNAL( "runRange(PyQt_PyObject)" ), ( 0, nFeat ) )
-		if myMerge:
+		if self.myMerge:
 			first = True
 			vproviderA.rewind()
 			while vproviderA.nextFeature( inFeat ):
@@ -250,9 +243,9 @@ class geoprocessingThread( QThread ):
 				print '%d%%' % int( float( nElement ) / float( nFeat ) * 100.00 ),
 				atMap = inFeat.attributeMap()
 				if useField:
-					value = atMap[ myParam ].toDouble()[ 0 ]
+					value = atMap[ self.myParam ].toDouble()[ 0 ]
 				else:
-					value = myParam
+					value = self.myParam
 				inGeom = inFeat.geometry()
 				outGeom = inGeom.buffer( float( value ), 5 )
 				if first:
@@ -261,7 +254,7 @@ class geoprocessingThread( QThread ):
 				else:
 					tempGeom = tempGeom.combine( QgsGeometry( outGeom ) )
 			outFeat.setGeometry( tempGeom )
-			tempProvider.addFeatures( [ outFeat ] )
+			writer.addFeature( outFeat )
 		else:
 			vproviderA.rewind()
 			while vproviderA.nextFeature( inFeat ):
@@ -271,35 +264,30 @@ class geoprocessingThread( QThread ):
 				print '%d%%' % int( float( nElement ) / float( nFeat ) * 100.00 ),
 				atMap = inFeat.attributeMap()
 				if useField:
-					value = atMap[ myParam ].toDouble()[ 0 ]
+					value = atMap[ self.myParam ].toDouble()[ 0 ]
 				else:
-					value = myParam
+					value = self.myParam
 				inGeom = inFeat.geometry()
 				outGeom = inGeom.buffer( float( value ), 5 )
 				outFeat.setGeometry( outGeom )
 				outFeat.setAttributeMap( atMap )
-				tempProvider.addFeatures( [ outFeat ] )
-			tempLayer.updateExtents()
-		return tempLayer
+				writer.addFeature( outFeat )
+			del writer
+		return True
 
-	def convex_hull(self, tempLayer, vlayerA,  myParam, useField ):
-		test = open( "/home/cfarmer/Desktop/test.txt", "w" )
-		test.write( str( myParam ) )
-		test.write( str( useField) )
-		test.close()
-		vproviderA = vlayerA.dataProvider()
+	def convex_hull(self, useField ):
+		vproviderA = self.vlayerA.dataProvider()
 		allAttrsA = vproviderA.attributeIndexes()
 		vproviderA.select( allAttrsA )
 		fields = vproviderA.fields()
-		tempProvider = tempLayer.dataProvider()
-		for ( index, field ) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, QGis.WKBPolygon, vproviderA.crs() )
 		inFeat = QgsFeature()
 		outFeat = QgsFeature()
 		inGeom = QgsGeometry()
 		outGeom = QgsGeometry()
 		if useField:
-			unique = ftools_utils.getUniqueValues( vproviderA, myParam )
+			unique = ftools_utils.getUniqueValues( vproviderA, self.myParam )
 			nFeat = vproviderA.featureCount() * len( unique )
 			nElement = 0
 			self.emit( SIGNAL( "runStatus(PyQt_PyObject)" ), 0)
@@ -315,7 +303,7 @@ class geoprocessingThread( QThread ):
 					print '%s\r' % ''*20,
 					print '%d%%' % int( float( nElement ) / float( nFeat ) * 100.00 ),
 					atMap = inFeat.attributeMap()
-					idVar = atMap[ myParam ]
+					idVar = atMap[ self.myParam ]
 					if idVar.toString().trimmed() == i.toString().trimmed():
 						if first:
 							outID = idVar
@@ -330,7 +318,7 @@ class geoprocessingThread( QThread ):
 					outFeat.addAttribute( 0, QVariant( outID ) )
 					outFeat.addAttribute( 1, QVariant( area ) )
 					outFeat.addAttribute( 2, QVariant( perim ) )
-					tempProvider.addFeatures( [ outFeat ] )
+					writer.addFeature( outFeat )
 		else:
 			hull = []
 			vproviderA.rewind()
@@ -348,28 +336,27 @@ class geoprocessingThread( QThread ):
 				hull.extend( points )
 			outGeom = outGeom.fromMultiPoint( hull ).convexHull()
 			outFeat.setGeometry(outGeom)
-			tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+			writer.addFeature( outFeat )
+		del writer
+		return True
 
-	def dissolve( self, tempLayer, vlayerA, myParam, useField ):
-		vproviderA = vlayerA.dataProvider()
+	def dissolve( self, useField ):
+		vproviderA = self.vlayerA.dataProvider()
 		allAttrsA = vproviderA.attributeIndexes()
 		vproviderA.select( allAttrsA )
 		fields = vproviderA.fields()
-		tempProvider = tempLayer.dataProvider()
-		for ( index, field ) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, vproviderA.geometryType(), vproviderA.crs() )
 		inFeat = QgsFeature()
 		outFeat = QgsFeature()
 		inGeom = QgsGeometry()
 		outGeom = QgsGeometry()
 		vproviderA.rewind()
 		if useField:
-			unique = ftools_utils.getUniqueValues( vproviderA, int( myParam ) )
+			unique = ftools_utils.getUniqueValues( vproviderA, int( self.myParam ) )
 		else:
 			unique = [ 1 ]
-		nFeat = vproviderA.featureCount() * len(unique)
+		nFeat = vproviderA.featureCount() * len( unique )
 		nElement = 0
 		self.emit( SIGNAL( "runStatus(PyQt_PyObject)" ), 0)
 		self.emit( SIGNAL( "runRange(PyQt_PyObject)" ), ( 0, nFeat ) )
@@ -397,21 +384,20 @@ class geoprocessingThread( QThread ):
 						else:
 							outFeat.setGeometry( QgsGeometry( outFeat.geometry().combine( inFeat.geometry() ) ) )
 			outFeat.setAttributeMap( attrs )
-			tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+			writer.addFeature( outFeat )
+		del writer
+		return True
 
-	def difference(self, tempLayer, vlayerA, vlayerB ):
-		vproviderA = vlayerA.dataProvider()
+	def difference( self ):
+		vproviderA = self.vlayerA.dataProvider()
 		allAttrsA = vproviderA.attributeIndexes()
 		vproviderA.select( allAttrsA )
-		vproviderB = vlayerB.dataProvider()
+		vproviderB = self.vlayerB.dataProvider()
 		allAttrsB = vproviderB.attributeIndexes()
 		vproviderB.select( allAttrsB )
 		fields = vproviderA.fields()
-		tempProvider = tempLayer.dataProvider()
-		for ( index, field ) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, vproviderA.geometryType(), vproviderA.crs() )
 		inFeatA = QgsFeature()
 		inFeatB = QgsFeature()
 		outFeat = QgsFeature()
@@ -436,21 +422,20 @@ class geoprocessingThread( QThread ):
 					geom = geom.difference( inFeatB.geometry() )
 			outFeat.setGeometry( geom )
 			outFeat.setAttributeMap( atMap )
-			tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+			writer.addFeature( outFeat )
+		del writer
+		return True
 
-	def intersect( self, tempLayer, vlayerA, vlayerB ):
-		vproviderA = vlayerA.dataProvider()
+	def intersect( self ):
+		vproviderA = self.vlayerA.dataProvider()
 		allAttrsA = vproviderA.attributeIndexes()
 		vproviderA.select( allAttrsA )
-		vproviderB = vlayerB.dataProvider()
+		vproviderB = self.vlayerB.dataProvider()
 		allAttrsB = vproviderB.attributeIndexes()
 		vproviderB.select( allAttrsB )
-		fields = ftools_utils.combineVectorFields( vlayerA, vlayerB )
-		tempProvider = tempLayer.dataProvider()
-		for ( index, field ) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
+		fields = ftools_utils.combineVectorFields( self.vlayerA, self.vlayerB )
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, vproviderA.geometryType(), vproviderA.crs() )
 		inFeatA = QgsFeature()
 		inFeatB = QgsFeature()
 		outFeat = QgsFeature()
@@ -476,21 +461,20 @@ class geoprocessingThread( QThread ):
 					result = geom.intersection( inFeatB.geometry() )
 					outFeat.setGeometry( result )
 					outFeat.setAttributeMap( ftools_utils.combineVectorAttributes( atMapA, atMapB ) )
-					tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+					writer.addFeature( outFeat )
+		del writer
+		return True
 
-	def union(self, tempLayer, vlayerA, vlayerB ):
-		vproviderA = vlayerA.dataProvider()
+	def union( self ):
+		vproviderA = self.vlayerA.dataProvider()
 		allAttrsA = vproviderA.attributeIndexes()
 		vproviderA.select( allAttrsA )
-		vproviderB = vlayerB.dataProvider()
+		vproviderB = self.vlayerB.dataProvider()
 		allAttrsB = vproviderB.attributeIndexes()
 		vproviderB.select( allAttrsB )
-		fields = ftools_utils.combineVectorFields( vlayerA, vlayerB )
-		tempProvider = tempLayer.dataProvider()
-		for ( index, field ) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
+		fields = ftools_utils.combineVectorFields( self.vlayerA, self.vlayerB )
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, vproviderA.geometryType(), vproviderA.crs() )
 		inFeatA = QgsFeature()
 		inFeatB = QgsFeature()
 		outFeat = QgsFeature()
@@ -515,7 +499,7 @@ class geoprocessingThread( QThread ):
 			if len( intersects ) <= 0:
 				outFeat.setGeometry( geom )
 				outFeat.setAttributeMap( atMapA )
-				tempProvider.addFeatures( [ outFeat ] )
+				writer.addFeature( outFeat )
 			else:
 				for _id in intersects:
 					vproviderB.featureAtId( int( _id ), inFeatB , True, allAttrsB )
@@ -526,11 +510,11 @@ class geoprocessingThread( QThread ):
 						result = geom.intersection( inFeatB.geometry() )
 						outFeat.setGeometry( result )
 						outFeat.setAttributeMap( ftools_utils.combineVectorAttributes( atMapA, atMapB ) )
-						tempProvider.addFeatures( [ outFeat ] )
+						writer.addFeature( outFeat )
 				if found:
 					outFeat.setGeometry( diffGeom )
 					outFeat.setAttributeMap( atMapA )
-					tempProvider.addFeatures( [ outFeat ] )
+					writer.addFeature( outFeat )
 		length = len( atMapA.values() )
 		vproviderB.rewind()
 		while vproviderB.nextFeature( inFeatA ):
@@ -544,7 +528,7 @@ class geoprocessingThread( QThread ):
 			if len(intersects) <= 0:
 				outFeat.setGeometry( geom )
 				outFeat.setAttributeMap( atMapA )
-				tempProvider.addFeatures( [ outFeat ] )
+				writer.addFeature( outFeat )
 			else:
 				for _id in intersects:
 					vproviderA.featureAtId( int( _id ), inFeatB , True, allAttrsA )
@@ -553,21 +537,20 @@ class geoprocessingThread( QThread ):
 						geom = geom.difference( inFeatB.geometry() )
 				outFeat.setGeometry( geom )
 				outFeat.setAttributeMap( atMap )
-				tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+				writer.addFeature( outFeat )
+		del writer
+		return True
 
-	def symetrical_difference( self, tempLayer, vlayerA, vlayerB ):
-		vproviderA = vlayerA.dataProvider()
+	def symetrical_difference( self ):
+		vproviderA = self.vlayerA.dataProvider()
 		allAttrsA = vproviderA.attributeIndexes()
 		vproviderA.select( allAttrsA )
-		vproviderB = vlayerB.dataProvider()
+		vproviderB = self.vlayerB.dataProvider()
 		allAttrsB = vproviderB.attributeIndexes()
 		vproviderB.select( allAttrsB )
-		fields = ftools_utils.combineVectorFields( vlayerA, vlayerB )
-		tempProvider = tempLayer.dataProvider()
-		for ( index, field ) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
+		fields = ftools_utils.combineVectorFields( self.vlayerA, self.vlayerB )
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, vproviderA.geometryType(), vproviderA.crs() )
 		inFeatA = QgsFeature()
 		inFeatB = QgsFeature()
 		outFeat = QgsFeature()
@@ -593,7 +576,7 @@ class geoprocessingThread( QThread ):
 					geom = geom.difference( inFeatB.geometry() )        
 			outFeat.setGeometry( geom )
 			outFeat.setAttributeMap( atMapA )
-			tempProvider.addFeatures( [ outFeat ] )
+			writer.addFeature( outFeat )
 		length = len( atMapA.values() )
 		vproviderB.rewind()
 		while vproviderB.nextFeature( inFeatA ):
@@ -611,21 +594,20 @@ class geoprocessingThread( QThread ):
 					geom = geom.difference( inFeatB.geometry() )      
 			outFeat.setGeometry( geom )
 			outFeat.setAttributeMap( atMap )
-			tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+			writer.addFeature( outFeat )
+		del writer
+		return True
 
-	def clip( self, tempLayer, vlayerA, vlayerB ):
-		vproviderA = vlayerA.dataProvider()
+	def clip( self ):
+		vproviderA = self.vlayerA.dataProvider()
 		allAttrsA = vproviderA.attributeIndexes()
 		vproviderA.select( allAttrsA )
-		vproviderB = vlayerB.dataProvider()
+		vproviderB = self.vlayerB.dataProvider()
 		allAttrsB = vproviderB.attributeIndexes()
 		vproviderB.select( allAttrsB )
 		fields = vproviderA.fields()
-		tempProvider = tempLayer.dataProvider()
-		for ( index, field ) in fields.iteritems():
-			tempProvider.addAttributes( { unicode( field.name() ) : ftools_utils.convertFieldNameType( unicode( field.typeName() ) ) } )
+		writer = QgsVectorFileWriter( self.myName, self.myEncoding, 
+		fields, vproviderA.geometryType(), vproviderA.crs() )
 		inFeatA = QgsFeature()
 		inFeatB = QgsFeature()
 		outFeat = QgsFeature()
@@ -651,9 +633,9 @@ class geoprocessingThread( QThread ):
 					outGeom = geom.intersection( inFeatB.geometry() )
 					outFeat.setGeometry( outGeom )
 					outFeat.setAttributeMap( atMap )
-					tempProvider.addFeatures( [ outFeat ] )
-		tempLayer.updateExtents()
-		return tempLayer
+					writer.addFeature( outFeat )
+		del writer
+		return True
 
 	def checkParameter( self, layer, param ):
 		if self.myFunction == 1:

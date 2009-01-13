@@ -21,7 +21,7 @@ def description():
 	return "Tools for spatial data analysis and management"
 
 def version():
-	return "0.5"
+	return "0.5.1"
   
 def qgisMinimumVersion():
 	return "1.0.0"

@@ -84,7 +84,6 @@ class Dialog(QDialog, Ui_Dialog):
 		settings = QSettings()
 		dirName = settings.value("/UI/lastShapefileDir").toString()
 		fileDialog.setDirectory(dirName)
-		fileDialog.setFileMode(QFileDialog.AnyFile)
 		encodingBox = QComboBox()
 		l = QLabel("Encoding:",fileDialog)
 		fileDialog.layout().addWidget(l)
@@ -137,7 +136,8 @@ class Dialog(QDialog, Ui_Dialog):
 		fileDialog.setConfirmOverwrite(False)
 		if not fileDialog.exec_() == 1:
 			return
-		self.folderName = unicode(fileDialog.selectedFiles().first())
+		folders = fileDialog.selectedFiles()
+		self.folderName = unicode(folders.first())
 		self.encoding = unicode(encodingBox.currentText())
 		self.outShape.clear()
 		self.outShape.insert(self.folderName)

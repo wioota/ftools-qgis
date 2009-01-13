@@ -112,9 +112,6 @@ class Dialog(QDialog, Ui_Dialog):
 		fileDialog = QFileDialog()
 		outName = fileDialog.getSaveFileName(self, "Output Distance Matrix",".", "Delimited txt file (*.csv)")
 		fileCheck = QFile(outName)
-		#if fileCheck.exists():
-			#QMessageBox.warning(self, "Create Point Distance Matrix", "Cannot overwrite existing shapefile...")
-		#else:
 		filePath = QFileInfo(outName).absoluteFilePath()
 		if filePath.right(4) != ".csv": filePath = filePath + ".csv"
 		if not outName.isEmpty():

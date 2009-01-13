@@ -1,6 +1,6 @@
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-
+import ftools_utils
 from qgis.core import *
 from qgis.gui import *
 
@@ -84,69 +84,11 @@ class Dialog(QDialog, Ui_Dialog):
 			return
 
 	def outFile(self):
-		fileDialog = QFileDialog()
-		settings = QSettings()
-		dirName = settings.value("/UI/lastShapefileDir").toString()
-		fileDialog.setDirectory(dirName)
-		fileDialog.setDefaultSuffix(QString("shp"))
-		fileDialog.setFileMode(QFileDialog.AnyFile)
-		encodingBox = QComboBox()
-		l = QLabel("Encoding:",fileDialog)
-		fileDialog.layout().addWidget(l)
-		fileDialog.layout().addWidget(encodingBox)
-		encodingBox.addItem("BIG5") 
-		encodingBox.addItem("BIG5-HKSCS")
-		encodingBox.addItem("EUCJP")
-		encodingBox.addItem("EUCKR")
-		encodingBox.addItem("GB2312")
-		encodingBox.addItem("GBK") 
-		encodingBox.addItem("GB18030")
-		encodingBox.addItem("JIS7") 
-		encodingBox.addItem("SHIFT-JIS")
-		encodingBox.addItem("TSCII")
-		encodingBox.addItem("UTF-8")
-		encodingBox.addItem("UTF-16")
-		encodingBox.addItem("KOI8-R")
-		encodingBox.addItem("KOI8-U") 
-		encodingBox.addItem("ISO8859-1")
-		encodingBox.addItem("ISO8859-2")
-		encodingBox.addItem("ISO8859-3")
-		encodingBox.addItem("ISO8859-4")
-		encodingBox.addItem("ISO8859-5")
-		encodingBox.addItem("ISO8859-6")
-		encodingBox.addItem("ISO8859-7")
-		encodingBox.addItem("ISO8859-8") 
-		encodingBox.addItem("ISO8859-8-I")
-		encodingBox.addItem("ISO8859-9")
-		encodingBox.addItem("ISO8859-10")
-		encodingBox.addItem("ISO8859-13")
-		encodingBox.addItem("ISO8859-14")
-		encodingBox.addItem("ISO8859-15")
-		encodingBox.addItem("IBM 850")
-		encodingBox.addItem("IBM 866")
-		encodingBox.addItem("CP874") 
-		encodingBox.addItem("CP1250")
-		encodingBox.addItem("CP1251")
-		encodingBox.addItem("CP1252")
-		encodingBox.addItem("CP1253")
-		encodingBox.addItem("CP1254")
-		encodingBox.addItem("CP1255")
-		encodingBox.addItem("CP1256")
-		encodingBox.addItem("CP1257") 
-		encodingBox.addItem("CP1258") 
-		encodingBox.addItem("Apple Roman")
-		encodingBox.addItem("TIS-620")
-		encodingBox.setItemText(encodingBox.currentIndex(), QString(QTextCodec.codecForLocale().name()))
-		filtering = QString("Shapefiles (*.shp)")
-		fileDialog.setAcceptMode(QFileDialog.AcceptSave)
- 		fileDialog.setFilter(filtering)
-		fileDialog.setConfirmOverwrite(True)
-		if not fileDialog.exec_() == 1:
-			return
-		self.shapefileName = unicode(fileDialog.selectedFiles().first())
-		self.encoding = unicode(encodingBox.currentText())
 		self.outShape.clear()
-		self.outShape.insert(self.shapefileName)
+		( self.shapefileName, self.encoding ) = ftools_utils.saveDialog( self )
+		if self.shapefileName is None or self.encoding is None:
+			return
+		self.outShape.setText( QString( self.shapefileName ) )
 
 	def reProject(self, inName, outPath, outProj, predefined, progressBar):
 		vlayer = self.getVectorLayerByName(inName)

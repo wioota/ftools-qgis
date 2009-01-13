@@ -28,7 +28,6 @@
 #function { 
  float:center;
  background-color: white;
- <!--border:1px solid #999999;-->
  clear:both;
  display:block;
  padding:0 0 0.5em;
@@ -198,7 +197,7 @@ p.navbuttons a:hover, p.navbuttons a:active {
 		<div id="contentcontainer">
 			<div id="home" style="display:show" class="content-box">
   				<h1>fTools help</h1>
-  					<h3> Note: To use fTools properly, you must remove all other version of fTools 
+  					<h3> Note: To use fTools properly, you must remove all other versions of fTools 
   					from your /plugins directory</h3>
 					<p>The goal of fTools is to provide a one-stop resource for many common
 					 vector-based GIS tasks, without the need for additional software, libraries,
@@ -355,7 +354,7 @@ p.navbuttons a:hover, p.navbuttons a:active {
 								<li>and more...</li>
 							</ul>
 						</li>
-						<li>As well as several bug fixes, corrections, and improvements</li>
+						<li>As well as several new bug fixes, corrections, and improvements</li>
 					</ul>
 			</div>
 		</div>

@@ -32,7 +32,7 @@ class Dialog(QDialog, Ui_Dialog):
 		QObject.connect(self.btnWeb, SIGNAL("clicked()"), self.openWeb)
 		QObject.connect(self.btnHelp, SIGNAL("clicked()"), self.openHelp)
 		self.fToolsLogo.setPixmap(QPixmap(":/icons/ftoolslogo.png"))
-		self.label_3.setText("fTools 0.4.3")
+		self.label_3.setText("fTools 0.5")
 		self.textEdit.setText(self.getText())
 
 	def getText(self):
@@ -45,7 +45,7 @@ class Dialog(QDialog, Ui_Dialog):
 		aboutText.append("If you would like to report a bug, make suggestions for improving fTools, or have a question about ")
 		aboutText.append("the tools, please email me: carson.farmer@gmail.com\n\n")
 		licenceString = QString("LICENSING INFORMATION:\n")
-		licenceString.append("fTools is copyright (C) 2008  Carson J.Q. Farmer\n")
+		licenceString.append("fTools is copyright (C) 2009  Carson J.Q. Farmer\n")
 		licenceString.append("Geoprocessing functions adapted from 'Geoprocessing Plugin',\n")
 		licenceString.append("(C) 2008 by Dr. Horst Duester, Stefan Ziegler\n\n")
 		licenceString.append("licensed under the terms of GNU GPL 2\n")

@@ -376,7 +376,7 @@ class geoprocessingThread( QThread ):
 					else:
 						outFeat.setGeometry( QgsGeometry( outFeat.geometry().combine( inFeat.geometry() ) ) )
 				else:
-					if inFeat.attributeMap()[ myParam ].toString().trimmed() == item.toString().trimmed():
+					if inFeat.attributeMap()[ self.myParam ].toString().trimmed() == item.toString().trimmed():
 						if first:
 							outFeat.setGeometry( QgsGeometry( inFeat.geometry() ) )
 							first = False

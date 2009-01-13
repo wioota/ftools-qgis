@@ -1,7 +1,7 @@
 #-----------------------------------------------------------
 # 
-# fTools_preview3
-# Copyright (C) 2008  Carson Farmer
+# fTools
+# Copyright (C) 2009  Carson Farmer
 # EMAIL: carson.farmer (at) gmail.com
 # WEB  : http://www.ftools.ca/fTools.html
 #

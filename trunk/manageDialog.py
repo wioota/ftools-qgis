@@ -7,39 +7,36 @@ import spatialDataFrame
 import saveRLayer
 from frmManageR import Ui_Dialog
 try:
-    from rpy import *
+    import rpy2.robjects as robjects
+    import rpy2.rpy_classic as rpy
+    r = rpy.r
 except ImportError:
-    try:
-        import rpy2.robjects as robjects
-        import rpy2.rpy_classic as rpy
-        r = rpy.r
-    except ImportError:
-        QMessageBox.warning( None , "manageR", "Unable to load manageR: Required package rpy2 was unable to load"
-        + "\nPlease ensure that both R, and the corresponding version of Rpy are correctly installed.")
+    QMessageBox.warning( None , "manageR", "Unable to load manageR: Required package rpy2 was unable to load"
+    + "\nPlease ensure that both R, and the corresponding version of Rpy are correctly installed.")
 
 
 class Dialog( QDialog, Ui_Dialog ):
     def __init__( self, iface ):
-        QDialog.__init__ (self )
+        QDialog.__init__ ( self )
         rpy.set_default_mode( 2 )
         self.iface = iface
         self.mapCanvas = self.iface.mapCanvas()
-        self.setupUi(self)
+        self.setupUi( self )
         self.initialiseVariables()
         self.adjustUI()
 		# create the required connections
-        QObject.connect(self.txtInput, SIGNAL("returnPressed()"), self.entered)
-        QObject.connect(self.btnData, SIGNAL("clicked()"), self.getDataFrame)
-        QObject.connect(self.btnAbout, SIGNAL("clicked()"), self.helprun)
-        QObject.connect(self.btnLoad, SIGNAL("clicked()"), self.load)
-        QObject.connect(self.btnExport, SIGNAL("clicked()"), self.export)
-        QObject.connect(self.btnClose, SIGNAL("clicked()"), self.closeEvent)
-        QObject.connect(self.btnSave, SIGNAL("clicked()"), self.save)
-        QObject.connect(self.btnMulti, SIGNAL("clicked()"), self.expand)
-        QObject.connect(self.btnSingle, SIGNAL("clicked()"), self.expand)
-        QObject.connect(self.btnEntered, SIGNAL("clicked()"), self.entered)
-        QObject.connect(self.mapCanvas, SIGNAL("layersChanged()"), self.update)
-        QObject.connect(self.inShape, SIGNAL("currentIndexChanged(QString)"), self.updateInShape)
+        QObject.connect( self.txtInput, SIGNAL( "returnPressed()" ), self.entered )
+        QObject.connect( self.btnData, SIGNAL( "clicked()" ), self.getDataFrame )
+        QObject.connect( self.btnAbout, SIGNAL( "clicked()" ), self.helprun )
+        QObject.connect( self.btnLoad, SIGNAL( "clicked()" ), self.load )
+        QObject.connect( self.btnExport, SIGNAL( "clicked()" ), self.export )
+        QObject.connect( self.btnClose, SIGNAL( "clicked()" ), self.closeEvent )
+        QObject.connect( self.btnSave, SIGNAL( "clicked()" ), self.save )
+        QObject.connect( self.btnMulti, SIGNAL( "clicked()" ), self.expand )
+        QObject.connect( self.btnSingle, SIGNAL( "clicked()" ), self.expand )
+        QObject.connect( self.btnEntered, SIGNAL( "clicked()" ), self.entered )
+        QObject.connect( self.mapCanvas, SIGNAL( "layersChanged()" ), self.update )
+        QObject.connect( self.inShape, SIGNAL( "currentIndexChanged(QString)" ), self.updateInShape )
         self.txtMain.append( self.welcomeString() )
         # populate layer list
         self.update()
@@ -47,49 +44,51 @@ class Dialog( QDialog, Ui_Dialog ):
     def initialiseVariables( self ):
         self.commandList = []
         self.commandIndex = 0
-        self.currentInShape = QgsVectorLayer("", "", "")
+        self.currentInShape = QgsVectorLayer( "", "", "" )
         self.currentOutShape = None
         self.instVersion = "0.5"
     
     def adjustUI( self ):
-        self.setWindowIcon(QIcon(":icons/manage.png"))
-        self.setWindowFlags(Qt.Window)
+        self.setWindowIcon( QIcon( ":icons/manage.png" ) )
+        self.setWindowFlags( Qt.Window )
         self.txtMulti.hide()
         self.multiArrow.hide()
         self.btnSingle.hide()
-        self.btnAbout.setIcon(QIcon(":icons/managehelp.png"))
-        self.btnSingle.setIcon(QIcon(":icons/multi.png"))
+        self.btnAbout.setIcon( QIcon( ":icons/managehelp.png" ) )
+        self.btnSingle.setIcon( QIcon( ":icons/multi.png" ) )
         self.btnEntered.hide()
-        self.btnEntered.setIcon(QIcon(":icons/entered.png"))
-        self.btnMulti.setIcon(QIcon(":icons/single.png"))    
+        self.btnEntered.setIcon( QIcon( ":icons/entered.png" ) )
+        self.btnMulti.setIcon( QIcon( ":icons/single.png" ) )    
 
     def helprun( self ):
         text = QString()
-        text.append("manageR v" + self.instVersion + " - Interface to the R statistical analysis program\n")
-    	text.append("Copyright (C) 2008 Carson J.Q. Farmer\ncarson.farmer@gmail.com\nhttp://www.ftools.ca/manageR.html\n")
-        text.append("A QGIS plugin for loosely coupling QGIS with the R statistical ")
-        text.append("programming language. Allows upload of QGIS layers directly ")
-        text.append("into R, and the ability to perform R operations on the data ")
-        text.append("directly from within QGIS. It interfaces with R using RPy, ")
-        text.append("which is a Python interface to the R Programming Language.\n\n")
-        text.append("Features:\n- Perform complex statistical analysis functions on raster, vector and spatial database formats\n")
-        text.append("- Use the R statistical environment to graph, plot, and map spatial and aspatial data from within QGIS\n")
-        text.append("- Export R (sp) vector layers directly to QGIS map canvas as QGIS vector layers\n")
-        text.append("- Perform almost all available R commands from within QGIS, including multi-line commands\n")
-        text.append("- Read QGIS vector layers directly from map canvas as R (sp) vector layers, ")
-        text.append("allowing analysis to be carried out on any vector format supported by QGIS")
+        text.append( "manageR v" + self.instVersion + " - Interface to the R statistical analysis program\n" )
+    	text.append( "Copyright (C) 2008 Carson J.Q. Farmer\ncarson.farmer@gmail.com\nwww.ftools.ca/manageR.html\n" )
+        text.append( "A QGIS plugin for loosely coupling QGIS with the R statistical " )
+        text.append( "programming language. Allows upload of QGIS layers directly " )
+        text.append( "into R, and the ability to perform R operations on the data " )
+        text.append( "directly from within QGIS. It interfaces with R using RPy, " )
+        text.append( "which is a Python interface to the R Programming Language.\n\n" )
+        text.append( "Features:\n- Perform complex statistical analysis functions on raster, " )
+        text.append( "vector and spatial database formats\n- Use the R statistical environment to graph, plot, " )
+        text.append( "and map spatial and aspatial data from within QGIS\n" )
+        text.append( "- Export R (sp) vector layers directly to QGIS map canvas as QGIS vector layers\n" )
+        text.append( "- Perform almost all available R commands from within QGIS, including multi-line commands\n" )
+        text.append( "- Read QGIS vector layers directly from map canvas as R (sp) vector layers, " )
+        text.append( "allowing analysis to be carried out on any vector format supported by QGIS" )
         QMessageBox.information( self, "manageR", text )
         
     def welcomeString( self ):        text = QString()
-        text.append("Welcome to manageR " + self.instVersion + "\n QGIS interface to the R statistical analysis program\n")
-        text.append("Copyright (C) 2008  Carson Farmer\n")
-        text.append("Licensed under the terms of GNU GPL 2\nmanageR is free software; you can redistribute it ")
-        text.append("and/or modify it under the terms of ")
-        text.append("the GNU General Public License as published by the Free Software Foundation; either ")
-        text.append("version 2 of the License, or (at your option) any later version.")
-        text.append("For licensing information for R type 'license()' or 'licence()' into the manageR console.")
-        text.append("For licensing information for Rpy see http://rpy.sourceforge.net/rpy/README\n")
-        text.append("Currently running " + unicode(r.version[12][0]) + "\n")
+        text.append( "Welcome to manageR " + self.instVersion )
+        text.append( "\n QGIS interface to the R statistical analysis program\n" )
+        text.append( "Copyright (C) 2008  Carson Farmer\n" )
+        text.append( "Licensed under the terms of GNU GPL 2\nmanageR is free software; you can redistribute it " )
+        text.append( "and/or modify it under the terms of " )
+        text.append( "the GNU General Public License as published by the Free Software Foundation; either " )
+        text.append( "version 2 of the License, or (at your option) any later version." )
+        text.append( "For licensing information for R type 'license()' or 'licence()' into the manageR console." )
+        text.append( "For licensing information for Rpy see http://rpy.sourceforge.net/rpy/README\n" )
+        text.append( "Currently running " + unicode(r.version[12][0]) + "\n" )
         return text
 
     def expand( self ):
@@ -169,10 +168,10 @@ class Dialog( QDialog, Ui_Dialog ):
 # TODO: Find a better way to implement this
     def updateObs(self):
         self.outShape.clear()
-        rpy.set_default_mode(2)
+        rpy.set_default_mode( 2 )
         items = list()
-        if type(r.ls()) == type(" "):
-            items.append(r.ls())
+        if type( r.ls() ) == type( " " ):
+            items.append( r.ls() )
         else:
             items = r.ls()
         for i in items:

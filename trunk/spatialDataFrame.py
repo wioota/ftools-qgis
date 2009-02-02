@@ -15,7 +15,7 @@ def getSpatialDataFrame( robjects, inLayer, keepGeom ):
 			extra = "Unable to determine projection information\nPlease specify using:\nlayer@proj4string <- CRS('+proj=longlat +datum=NAD83') for example."
 		else:
 			if not sRs.geographicFlag():
-				projString = unicode( sRs.toProj4() )
+				projString = str( sRs.toProj4() )
 			else:
 				# TODO: Find better way to handle geographic coordinate systems
 				# As far as I can tell, R does not like geographic coodinate systems input
@@ -29,8 +29,8 @@ def getSpatialDataFrame( robjects, inLayer, keepGeom ):
 	df = {}
 	types = {}
 	for (id, field) in fields.iteritems():
-		df[unicode(field.name()).encode('utf-8')] = []
-		types[unicode(field.name()).encode('utf-8')] = field.type()
+		df[str(field.name())] = []
+		types[str(field.name())] = int( field.type() )
 	fid = {"fid": []}
 	Coords = []
 	if inLayer.selectedFeatureCount() > 0:
@@ -45,30 +45,30 @@ def getSpatialDataFrame( robjects, inLayer, keepGeom ):
 	else:
 		feat = QgsFeature()
 		while provider.nextFeature(feat):
-			for (key, value) in df.iteritems():
+			for key in df.keys():
 				attrib = convertAttribute(feat.attributeMap()[provider.fieldNameIndex(key)])
-				#QMessageBox.information(None, 'test', str(type(attrib)))
 				df[key].append(attrib)
 			fid["fid"].append(feat.id())
 			if keepGeom:
 				if not getNextGeometry(Coords, feat):
 					return (False, "Error! ", "Unable to convert layer geometry", extra)
-		for (key, value) in df.iteritems():
+					
+		for key in df.keys():
 			if types[key] == 10:
-				df[key] = array.array('u', value)
+				df[ key ] = robjects.StrVector( df[ key ] )
 			else:
-				df[key] = array.array('f', value)
-		fid["fid"] = array.array('i', fid["fid"])
+				df[ key ] = robjects.FloatVector( df[ key ] )
+		fid[ "fid" ] = robjects.IntVector( fid["fid"] )
 	#try:
-	QMessageBox.information(None, 'test', str(df))
+	#QMessageBox.information(None, 'test', str(df))
 	data = robjects.r['data.frame'](**df)
-	data.row_names = fid["fid"]
+	data.row_names = fid[ "fid" ]
 	#except:
 	#	return (False, "Error! ", "Unable to convert layer attributes", extra)
 	if keepGeom:
-		return (createSpatialDataset(feat.geometry().type(), Coords, data, projString), len(fid["fid"]), len(df.keys()), extra)
+		return (createSpatialDataset(robjects, feat.geometry().type(), Coords, data, projString), len(fid["fid"]), len(df.keys()), extra)
 	else:
-		return (data, len(fid["fid"]), len(df.keys()), extra)
+		return (data, len(fid[ "fid" ]), len(df.keys()), extra)
 
 # Gets field list (as python dictionary)
 # for input vector layer
@@ -89,12 +89,12 @@ def getPolygonCoords(geom, fid):
 		polygon = geom.asMultiPolygon() #multi_geom is a multipolygon
 		for lines in polygon:
 			for line in lines:
-				keeps.append(rpy.r.Polygon(rpy.r.matrix(rpy.r.unlist([convertToXY(point) for point in line]), nrow=len([convertToXY(point) for point in line]), byrow=True)))
-		return rpy.r.Polygons(keeps, fid)
+				keeps.append(robjects.r.Polygon(robjects.r.matrix(robjects.r.unlist([convertToXY(point) for point in line]), nrow=len([convertToXY(point) for point in line]), byrow=True)))
+		return robjects.r.Polygons(keeps, fid)
 	else:
 		lines = geom.asPolygon() #multi_geom is a polygon
-		Polygon = [rpy.r.Polygon(rpy.r.matrix(rpy.r.unlist([convertToXY(point) for point in line]), nrow=len([convertToXY(point) for point in line]), byrow=True)) for line in lines]
-		return rpy.r.Polygons(Polygon, fid)
+		Polygon = [robjects.r.Polygon(robjects.r.matrix(robjects.r.unlist([convertToXY(point) for point in line]), nrow=len([convertToXY(point) for point in line]), byrow=True)) for line in lines]
+		return robjects.r.Polygons(Polygon, fid)
 
 # Function to retrieve QgsGeometry (line) coordinates
 # and convert to a format that can be used by R
@@ -105,12 +105,12 @@ def getLineCoords(geom, fid):
 		lines = geom.asMultiPolyline() #multi_geom is a multipolyline
 		for line in lines:
 			for line in lines:
-				keeps.append(rpy.r.Polygon(rpy.r.matrix(rpy.r.unlist([convertToXY(point) for point in line]), nrow=len([convertToXY(point) for point in line]), byrow=True)))
-		return rpy.r.Lines(keeps, fid)
+				keeps.append(robjects.r.Polygon(robjects.r.matrix(robjects.r.unlist([convertToXY(point) for point in line]), nrow=len([convertToXY(point) for point in line]), byrow=True)))
+		return robjects.r.Lines(keeps, fid)
 	else:
 		line = geom.asPolyline() #multi_geom is a line
-		Line = rpy.r.Line(rpy.r.matrix(rpy.r.unlist([convertToXY(point) for point in line]), nrow = len([convertToXY(point) for point in line]), byrow=True))
-		return rpy.r.Lines(Line, fid)
+		Line = robjects.r.Line(robjects.r.matrix(robjects.r.unlist([convertToXY(point) for point in line]), nrow = len([convertToXY(point) for point in line]), byrow=True))
+		return robjects.r.Lines(Line, fid)
 
 # Function to retrieve QgsGeometry (point) coordinates
 # and convert to a format that can be used by R
@@ -143,18 +143,18 @@ def getNextGeometry(Coords, feat):
 # Helper function to create Spatial*DataFrame from
 # input spatial and attribute information
 # Return: Object of class Spatial*DataFrame (R class)
-def createSpatialDataset(vectType, Coords, data, projString):
+def createSpatialDataset(robjects, vectType, Coords, data, projString):
 	if vectType == 0:
 		# For points, coordinates must be input as a matrix, hense the extra bits below...
 		# Not sure if this will work for multipoint features?
-		spatialData = rpy.r.SpatialPoints(rpy.r.matrix(rpy.r.unlist(Coords), nrow = len(Coords), byrow = True), proj4string = rpy.r.CRS(projString))
-		return rpy.r.SpatialPointsDataFrame(spatialData, data, match_ID = True)
+		spatialData = robjects.r.SpatialPoints(robjects.r.matrix(robjects.r.unlist(Coords), nrow = len(Coords), byrow = True), proj4string = robjects.r.CRS(projString))
+		return robjects.r.SpatialPointsDataFrame(spatialData, data, match_ID = True)
 	elif vectType == 1:
-		spatialData = rpy.r.SpatialLines(Coords, proj4string = rpy.r.CRS(projString))
-		return rpy.r.SpatialLinesDataFrame(spatialData, data, match_ID = True)
+		spatialData = robjects.r.SpatialLines(Coords, proj4string = robjects.r.CRS(projString))
+		return robjects.r.SpatialLinesDataFrame(spatialData, data, match_ID = True)
 	elif vectType == 2:
-		spatialData = rpy.r.SpatialPolygons(Coords, proj4string = rpy.r.CRS(projString))
-		return rpy.r.SpatialPolygonsDataFrame(spatialData, data, match_ID = True)
+		spatialData = robjects.r.SpatialPolygons(Coords, proj4string = robjects.r.CRS(projString))
+		return robjects.r.SpatialPolygonsDataFrame(spatialData, data, match_ID = True)
 	else:
 		return
 
@@ -166,17 +166,17 @@ def convertToXY(inPoint):
 # Function to convert attribute to string or double
 # for input into R object
 # Return: Double or String
-def convertAttribute(attribute):
+def convertAttribute( attribute ):
 	Qtype = attribute.type()
 	if Qtype == 10:
-		return unicode(attribute.toString())
+		return attribute.toString()
 	else:
 		return attribute.toDouble()[0]
 
 # Checks if an R spatial object is a vector or raster layer
 # Return: True if vector, False if Raster, None if not of class (R class) Spatial*DataFrame
 def checkObs(inName):
-	check = with_mode(NO_DEFAULT, r('function(x) class(x)'))(rpy.r.get(i))
+	check = with_mode(NO_DEFAULT, r('function(x) class(x)'))(robjects.r.get(i))
 	if check == "SpatialPointsDataFrame" or check == "SpatialPolygonsDataFrame" or check == "SpatialLinesDataFrame":
 		return True
 	elif check == "SpatialGridDataFrame" or check == "SpatialPixelsDataFrame":

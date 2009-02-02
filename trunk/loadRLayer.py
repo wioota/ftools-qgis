@@ -1,9 +1,8 @@
 from PyQt4.QtCore import *
 from qgis.core import *
-try:
-	from rpy import *
-except:
-	from rpy2.rpy_classic import *
+import rpy2.rpy_classic as rpy
+import rpy2.robjects as robjects
+r = rpy.r
 
 # Main function used to convert R spatial object to QgsVectorLayer
 # Uses QgsMemoryProvider to store the layer in memory
@@ -138,8 +137,8 @@ def convertToQgsPoints(inList):
 # Check that the sp package is loaded into R, 
 # and if it is not, attempt to load it.
 # Return: True if it is successfully loaded, False otherwise
-def checkPack(inPack):
-	if r.require(inPack):
+def checkPack( inPack ):
+	if robjects.r( 'require()' )**inPack:
 		return True
 	else:
 		return False

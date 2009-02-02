@@ -6,10 +6,10 @@ import loadRLayer
 import spatialDataFrame
 import saveRLayer
 from frmManageR import Ui_Dialog
+rpy_flag = None # will take care of which module is loaded
 try:
     import rpy2.robjects as robjects
     import rpy2.rpy_classic as rpy
-    r = rpy.r
 except ImportError:
     QMessageBox.warning( None , "manageR", "Unable to load manageR: Required package rpy2 was unable to load"
     + "\nPlease ensure that both R, and the corresponding version of Rpy are correctly installed.")
@@ -18,12 +18,12 @@ except ImportError:
 class Dialog( QDialog, Ui_Dialog ):
     def __init__( self, iface ):
         QDialog.__init__ ( self )
-        rpy.set_default_mode( 2 )
         self.iface = iface
         self.mapCanvas = self.iface.mapCanvas()
         self.setupUi( self )
         self.initialiseVariables()
         self.adjustUI()
+        rpy.set_default_mode( 2 )
 		# create the required connections
         QObject.connect( self.txtInput, SIGNAL( "returnPressed()" ), self.entered )
         QObject.connect( self.btnData, SIGNAL( "clicked()" ), self.getDataFrame )
@@ -88,7 +88,7 @@ class Dialog( QDialog, Ui_Dialog ):
         text.append( "version 2 of the License, or (at your option) any later version." )
         text.append( "For licensing information for R type 'license()' or 'licence()' into the manageR console." )
         text.append( "For licensing information for Rpy see http://rpy.sourceforge.net/rpy/README\n" )
-        text.append( "Currently running " + unicode(r.version[12][0]) + "\n" )
+        text.append( "Currently running " + unicode(rpy.r.version[12][0]) + "\n" )
         return text
 
     def expand( self ):
@@ -139,17 +139,17 @@ class Dialog( QDialog, Ui_Dialog ):
         askSave = QMessageBox.question( self, "manageR", "Save workspace image?", 
         QMessageBox.Yes, QMessageBox.No, QMessageBox.Cancel )
         if askSave == QMessageBox.Yes:
-            r.save_image( file_ = ".Rdata" )
+            robjects.r( 'save.image( file = ".Rdata" )' )
             if self.chkClear.isChecked():
-                r.rm( list_ = r.ls( all_ = True ) )
-                r.gc()
-            r.graphics_off()
+                robjects.r( 'rm( list = ls( all = True ) )' )
+                robjects.r( 'gc()' )
+            robjects.r( 'graphics.off()' )
             self.reject()
         elif not askSave == QMessageBox.Cancel:
             if self.chkClear.isChecked():
-                r.rm( list_ = r.ls( all_ = True ) )
-                r.gc()
-            r.graphics_off()
+                robjects.r( 'rm( list = ls( all = True ) )' )
+                robjects.r( 'gc()' )
+            robjects.r( 'graphics.off()' )
             self.reject()
             
     def update(self):
@@ -170,10 +170,10 @@ class Dialog( QDialog, Ui_Dialog ):
         self.outShape.clear()
         rpy.set_default_mode( 2 )
         items = list()
-        if type( r.ls() ) == type( " " ):
-            items.append( r.ls() )
+        if type( rpy.r.ls() ) == type( " " ):
+            items.append( rpy.r.ls() )
         else:
-            items = r.ls()
+            items = rpy.r.ls()
         for i in items:
             exec "check = robjects.r(''' class(" + i + ")[1] ''')"
             if check == '[1] "SpatialPointsDataFrame"' or check == '[1] "SpatialPolygonsDataFrame"' or check == '[1] "SpatialLinesDataFrame"' or check == '[1] "SpatialGridDataFrame"' or check == '[1] "SpatialPixelsDataFrame"':
@@ -228,9 +228,9 @@ class Dialog( QDialog, Ui_Dialog ):
                 mlayer = self.currentInShape
                 if mlayer.type() == mlayer.VectorLayer:
                     #self.txtMain.append("Loading " + unicode(layerName) + " ...")
-                    ( spatialDataFrame, rows, columns, extra ) = spatialDataFrame.getSpatialDataFrame( rpy, mlayer, True )
-                    if not spatialDataFrame == False:
-                        r.assign(unicode(mlayer.name()), spatialDataFrame)
+                    ( spDataFrame, rows, columns, extra ) = spatialDataFrame.getSpatialDataFrame( robjects, mlayer, True )
+                    if not spDataFrame == False:
+                        rpy.r.assign(unicode(mlayer.name()), spDataFrame)
                         self.updateObs()
                         self.txtMain.append("QGis Vector Layer")
                         self.txtMain.append("with " + unicode(rows) + " rows and " + unicode(columns) + " columns")

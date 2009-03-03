@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/" >
+        <file>voronoipolygons.png</file>
+        <file>voronoipolygonshelp.png</file>
+    </qresource>
+</RCC>

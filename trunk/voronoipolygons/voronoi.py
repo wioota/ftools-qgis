@@ -100,7 +100,7 @@ TOLERANCE = 1e-9
 BIG_FLOAT = 1e38
 
 #------------------------------------------------------------------
-class Context(object):
+class Context( object ):
     def __init__(self):
         self.doPrint = 0
         self.debug   = 0
@@ -110,12 +110,41 @@ class Context(object):
         self.lines     = []    # equation of line 3-tuple (a b c), for the equation of the line a*x+b*y = c  
         self.edges     = []    # edge 3-tuple: (line index, vertex 1 index, vertex 2 index)   if either vertex index is -1, the edge extends to infiinity
         self.triangles = []    # 3-tuple of vertex indices
+#        self.extra_edges = []  # list of additional vertex 2-tubles (x,y) based on bounded voronoi tesselation
+#        self.set_bounds(None)
+#        self.use_bound = False
+        self.xmin = self.ymin = self.xmax = self.ymax = None
 
     def circle(self,x,y,rad):
         pass
 
-    def clip_line(self,edge):
+    def clip_line(self,edge,lid,rid):
         pass
+        # here is where I will create false verticies if
+        # the voronoi line extends to infinity...
+        # the extra verticies will be added to the
+        # extra edges list as 2-tuples
+#        a,b,c = edge.a,edge.b,edge.c
+#        if lid == -1:
+#            x = self.xMin
+#            y = (c-a*x) / b
+#            if y < self.yMin or y > self.yMax:
+#                if y < self.yMin: y = self.yMin
+#                elif y > self.yMax: y = self.yMax
+#                x = (c-b*y) / a
+#            self.extra_edges.append((x,y))
+#            lid = -(len(self.extra_edges)-1)
+#        if rid == -1:
+#            x = self.xMax
+#            y = (c-a*x) / b
+#            if y < self.yMin or y > self.yMax:
+#                if y < self.yMin: y = self.yMin
+#                elif y > self.yMax: y = self.yMax
+#                x = (c-b*y) / a
+#            self.extra_edges.append((x,y))
+#            rid = -(len(self.extra_edges)-1)
+#        print lid,rid
+#        return (lid,rid)
 
     def line(self,x0,y0,x1,y1):
         pass
@@ -132,6 +161,11 @@ class Context(object):
 
     def outVertex(self,s):
         self.vertices.append((s.x,s.y))
+        if s.x < self.xmin: self.xmin = s.x
+        elif s.x > self.xmax: self.xmax = s.x
+        if s.y < self.ymin: self.ymin = s.y
+        elif s.y > self.ymax: self.ymax = s.y
+        
         if(self.debug):
             print  "vertex(%d) at %f %f" % (s.sitenum, s.x, s.y)
         elif(self.triangulate):
@@ -163,6 +197,10 @@ class Context(object):
         sitenumR = -1
         if edge.ep[Edge.RE] is not None:
             sitenumR = edge.ep[Edge.RE].sitenum
+            
+#        if sitenumL == -1 or sitenumR == -1 and self.use_bound:
+#            sitenumL,sitenumR = self.clip_line(edge,sitenumL,sitenumR)
+
         self.edges.append((edge.edgenum,sitenumL,sitenumR))
         if(not self.triangulate):
             if self.plot:
@@ -171,6 +209,16 @@ class Context(object):
                 print "e %d" % edge.edgenum,
                 print " %d " % sitenumL,
                 print "%d" % sitenumR
+
+    def set_bounds(self,bounds):
+        if not bounds == None:
+            self.xmin = bounds.xmin
+            self.ymin = bounds.ymin
+            self.xmax = bounds.xmax
+            self.ymax = bounds.ymax
+        else:
+            self.xmin = self.ymin = self.xmax = self.ymax = None
+        
 
 #------------------------------------------------------------------
 def voronoi(siteList,context):
@@ -721,7 +769,7 @@ class SiteList(object):
 
 
 #------------------------------------------------------------------
-def computeVoronoiDiagram(points):
+def computeVoronoiDiagram( points ):
     """ Takes a list of point objects (which must have x and y fields).
         Returns a 3-tuple of:
 
@@ -734,21 +782,22 @@ def computeVoronoiDiagram(points):
                the indices of the vetices at the end of the edge.  If 
                v1 or v2 is -1, the line extends to infinity.
     """
-    siteList = SiteList(points)
+    siteList = SiteList( points )
     context  = Context()
-    voronoi(siteList,context)
-    return (context.vertices,context.lines,context.edges)
+    context.set_bounds( siteList )
+    voronoi( siteList, context )
+    return ( context.vertices, context.lines, context.edges, (context.xmin,context.ymin,context.xmax,context.ymax))
 
 #------------------------------------------------------------------
-def computeDelaunayTriangulation(points):
+def computeDelaunayTriangulation( points ):
     """ Takes a list of point objects (which must have x and y fields).
         Returns a list of 3-tuples: the indices of the points that form a
         Delaunay triangle.
     """
-    siteList = SiteList(points)
+    siteList = SiteList( points )
     context  = Context()
     context.triangulate = True
-    voronoi(siteList,context)
+    voronoi( siteList, context )
     return context.triangles
 
 #-----------------------------------------------------------------------------

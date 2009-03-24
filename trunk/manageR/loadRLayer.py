@@ -11,7 +11,6 @@ get_full_row_ = robjects.r(''' function( d, i ) data.frame( d[ i, ] ) ''')
 get_point_row_ = robjects.r(''' function( d, i ) d[ i, ] ''')
 class_ = robjects.r['class']
 names_ = robjects.r['names']
-getSlots_ = robjects.r['getSlots']
 dim_ = robjects.r['dim']
 as_character_ = robjects.r['as.character']
 
@@ -65,21 +64,20 @@ def addAttributeSorted( attributeList, provider ):
 # Get list of attributes for R layer
 # Return: Attribute list in format to be used my memory provider
 def getAttributesList( rlayer ):
-	slots = names_( getSlots_( class_( rlayer ) ) )
-	if not "data" in slots:
-		return ( False, dict() )
-	else:
-		typeof_ = robjects.r['typeof']
-		sapply_ = robjects.r['sapply']
+	typeof_ = robjects.r['typeof']
+	sapply_ = robjects.r['sapply']
+	try:
 		in_types = sapply_( slot_( rlayer, "data" ), typeof_ )
-		in_names = names_( rlayer )
-		#known = [ "double", "character", "integer" ]
-		out_fields = dict()
-		for i in range( 0, len( in_types ) ):
-			if in_types[ i ] == "double": out_fields[ in_names[ i ] ] = "double"
-			elif in_types[ i ] == "integer": out_fields[ in_names[ i ] ] = "int"
-			else: out_fields[ in_names[ i ] ] =  "string" # i == "character"
-		return True, out_fields
+	except:
+		return False, dict()
+	in_names = names_( rlayer )
+	#known = [ "double", "character", "integer" ]
+	out_fields = dict()
+	for i in range( 0, len( in_types ) ):
+		if in_types[ i ] == "double": out_fields[ in_names[ i ] ] = "double"
+		elif in_types[ i ] == "integer": out_fields[ in_names[ i ] ] = "int"
+		else: out_fields[ in_names[ i ] ] =  "string" # i == "character"
+	return True, out_fields
 
 # Check if the input layer is an sp vector layer
 # Return: True if it is, as well as the vector type

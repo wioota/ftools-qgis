@@ -1,7 +1,7 @@
 from PyQt4.QtCore import *
 #from PyQt4.QtGui import *
 from qgis.core import *
-import Numeric, array
+#import Numeric, array
 
 import rpy2.robjects as robjects
 import rpy2.rinterface as rinterface

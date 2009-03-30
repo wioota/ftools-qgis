@@ -7,10 +7,10 @@
 # into R, and the ability to perform R operations on the data
 # directly from within QGIS.
 #
-# Copyright (C) 2008  Carson Farmer
+# Copyright (C) 2009 Carson J.Q. Farmer
 #
-# EMAIL: carson_DOT_farmer_AT_gmail_DOT_com
-# WEB  : www.geog.uvic.ca/spar/carson
+# EMAIL: carson.farmer@gmail.com
+# WEB  : http://www.ftools.ca/manageR.html
 #
 #-----------------------------------------------------------
 # 
@@ -44,7 +44,7 @@ def version():
   return "Version 0.6"
   
 def qgisMinimumVersion():
-  return "1.0.0"
+  return "1.0"
 
 def classFactory( iface ):
   return manageRPlugin( iface, version() )

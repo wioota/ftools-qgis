@@ -51,7 +51,7 @@ class manageR( QDialog ):
     message.append( "<br/><a href='http://www.ftools.ca/manageR.html'>www.ftools.ca/manageR.html</a>" )
     message.append( "<br/></h4></center>" )
     message.append( "<h4>Description:</h4>" )
-    message.append( "manageR adds comprehensive statstical capabilities to Quantum GIS by loosely coupling QGIS with the R statistical programming environment." )
+    message.append( "manageR adds comprehensive statistical capabilities to Quantum GIS by loosely coupling QGIS with the R statistical programming environment." )
     message.append( "<h4>Usage:</h4>" )
     message.append( "<tt>Ctrl+L</tt><br/>" )
     message.append( "<tt>Ctrl+T</tt><br/>" )
@@ -59,7 +59,7 @@ class manageR( QDialog ):
     message.append( "<tt>Ctrl+F</tt><br/>" )
     message.append( "<tt>Shift+Return</tt>" )
     message.append( "<h4>Details:</h4>" )
-    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the manageR R environment. To limit the import to the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting R layers from the manageR R environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. To enter multiline R commands, use the <tt>Shift</tt> modifier when entering <tt>Return</tt> to signify continuation of command on the following line." )
+    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the manageR R environment. To limit the import to the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting R layers from the manageR R environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. To enter multi-line R commands, use the <tt>Shift</tt> modifier when entering <tt>Return</tt> to signify continuation of command on the following line." )
     message.append( "<h4>Features:</h4>" )
     message.append( "<ul><li>Perform complex statistical analysis functions on raster, vector and spatial database formats</li>" )
     message.append( "<li>Use the R statistical environment to graph, plot, and map spatial and aspatial data from within QGIS</li>" )
@@ -84,7 +84,9 @@ class manageR( QDialog ):
     dialog.setLayout( vbox )
     dialog.setWindowTitle( 'manageR Help' )
     dialog.setGeometry(200,200,400,400)
-    dialog.exec_()
+    dialog.setWindowModality( Qt.NonModal )
+    dialog.setModal( False )
+    dialog.show()
     
   def launchBrowser( self, url ):
     QDesktopServices.openUrl( url )
@@ -111,17 +113,17 @@ class manageR( QDialog ):
     CTRL-M to export an R layer to the map canvas
     CTRL-F to export an R layer to file
     '''
-    if e.modifiers() == Qt.ControlModifier and e.key() == Qt.Key_L:
+    if ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_L:
       mlayer = self.mapCanvas.currentLayer()
       self.importRObjects( mlayer, False )
-    elif e.modifiers() == Qt.ControlModifier and e.key() == Qt.Key_T:
+    elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_T:
       mlayer = self.mapCanvas.currentLayer()
       self.importRObjects( mlayer, True )
-    elif e.modifiers() == Qt.ControlModifier and e.key() == Qt.Key_M:
+    elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_M:
       self.exportRObjects( False )
-    elif e.modifiers() == Qt.ControlModifier and e.key() == Qt.Key_F:
+    elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_F:
       self.exportRObjects( True )
-    elif e.modifiers() == Qt.ControlModifier and e.key() == Qt.Key_H:
+    elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_H:
       self.helpDialog()
     else:
       QDialog.keyPressEvent( self, e )
@@ -157,7 +159,12 @@ class manageR( QDialog ):
         robjects.r( 'save.image(file=".Rdata")' )
       robjects.r( 'rm(list=ls(all=T))' )
       robjects.r( 'gc()' )
-      robjects.r( 'graphics.off()' )
+      try:
+        for i in list(robjects.r('dev.list()')):
+          robjects.r('dev.next()')
+          robjects.r('dev.off()')
+      except:
+        pass
       e.accept()
 
 # This is used whenever we check for sp objects in manageR
@@ -232,7 +239,7 @@ class manageR( QDialog ):
     Vector layers can be saved to file or mapcanvas, raster 
     layers can be saved to file only
     Saving to file uses the R gdal functions, saving to map 
-    canvas is a native manageR implimentation
+    canvas is a native manageR implementation
     '''
     self.wgt_console.cursor.select( QTextCursor.LineUnderCursor )
     self.wgt_console.cursor.removeSelectedText()
@@ -262,7 +269,7 @@ class manageR( QDialog ):
       self.wgt_console.displayPrompt()
       return
     if not self.export_type == manageR.VECTOR and not self.export_type == manageR.RASTER:
-      self.wgt_console.appendText( "Unrecognized sp object, unable to save to file.", QConsole.ERR_TYPE )
+      self.wgt_console.appendText( "Unrecognised sp object, unable to save to file.", QConsole.ERR_TYPE )
       self.wgt_console.displayPrompt()
       return
     if not to_file and self.export_type == manageR.RASTER:

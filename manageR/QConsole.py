@@ -23,6 +23,8 @@ class QConsole( QTextEdit ):
     self.setDefaultFont()
     self.setUndoRedoEnabled( False )
     self.setAcceptRichText( False )
+    self.setVerticalScrollBarPolicy( Qt.ScrollBarAlwaysOn )
+    self.scrollbar = self.verticalScrollBar()
     # initialise required variables
     self.history = QStringList()
     self.historyIndex = 0
@@ -36,6 +38,7 @@ class QConsole( QTextEdit ):
     self.setPrompt()
     self.cursor = self.textCursor()
     self.function = function
+    QObject.connect( self, SIGNAL( "textChanged()" ), self.moveToEnd )
   
   def reset( self ):
     '''
@@ -60,13 +63,14 @@ class QConsole( QTextEdit ):
     self.setFont( font )
     self.document().setDefaultFont( font )
     
-  def setPrompt( self, newPrompt = "> ", display = False ):
+  def setPrompt( self, newPrompt = "> ", alternatePrompt = "+ ", display = False ):
     '''
     Sets console prompt style
     If display is true, prompt is displayed immediately
     Default prompt is '>' (R style)
     '''
     self.prompt = newPrompt
+    self.alternatePrompt = alternatePrompt
     self.prompt_length = len( self.prompt )
     if display:
       self.displayPrompt()
@@ -90,35 +94,46 @@ class QConsole( QTextEdit ):
     self.cursor = self.textCursor()
     # if the cursor isn't in the edition zone, don't do anything
     if not self.isInEditionZone():
-      if e.key() == Qt.Key_C and e.modifiers() == Qt.ControlModifier:
+      if e.key() == Qt.Key_C and ( e.modifiers() == Qt.ControlModifier or \
+         e.modifiers() == Qt.MetaModifier ):
         QTextEdit.keyPressEvent( self, e )
-      if self.cursor.blockNumber() == self.document().blockCount()-1 and self.cursor.columnNumber() < self.prompt_length:
+      if self.cursor.blockNumber() == self.document().blockCount()-1 and \
+         self.cursor.columnNumber() < self.prompt_length:
         self.cursor.insertText( self.prompt )
     else:
       if self.cursor.columnNumber() >= self.prompt_length and self.cursor.anchor:
         # if Ctrl + C is pressed, then undo the current command
-        if e.key() == Qt.Key_C and e.modifiers() == Qt.ControlModifier and not self.cursor.hasSelection():
+        if e.key() == Qt.Key_C and ( e.modifiers() == Qt.ControlModifier or \
+           e.modifiers() == Qt.MetaModifier ) and not self.cursor.hasSelection():
           self.runningCommand = ""
           self.displayPrompt()
         # if Return is pressed, then perform the commands
         elif e.key() == Qt.Key_Return:
           command = self.currentCommand()
+          self.runningCommand += command
           self.updateHistory( command )
-          if e.modifiers() == Qt.ShiftModifier:
-            self.cursor.insertText( "\n.." )
-            self.runningCommand += command + "\n"
+          if e.modifiers() == Qt.ShiftModifier or \
+             not self.runningCommand.count("{") == self.runningCommand.count("}") or \
+             not self.runningCommand.count("[") == self.runningCommand.count("]") or \
+             not self.runningCommand.count("(") == self.runningCommand.count(")"):
+            self.currentPrompt = self.alternatePrompt
+            self.cursor.insertText( "\n" + self.currentPrompt )
+            self.runningCommand += "\n"
           else:
+            print command
             if not self.runningCommand is "":
-              command = self.runningCommand + command
+              command = self.runningCommand
             self.executeCommand( command, False )
             self.runningCommand = ""
             self.displayPrompt()
+            self.currentPrompt = self.prompt
+          self.cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
         # if Up or Down is pressed
         elif e.key() == Qt.Key_Down or e.key() == Qt.Key_Up:
           # remove the current command
           self.cursor.select( QTextCursor.LineUnderCursor )
           self.cursor.removeSelectedText()
-          self.cursor.insertText( self.prompt )
+          self.cursor.insertText( self.currentPrompt )
           # update the historyIndex (up or down)
           if e.key() == Qt.Key_Down and self.historyIndex < len( self.history ):
             self.historyIndex += 1
@@ -131,7 +146,8 @@ class QConsole( QTextEdit ):
             self.insertPlainText( self.history[ self.historyIndex ] )
         # if backspace is pressed, delete until we get to the prompt
         elif e.key() == Qt.Key_Backspace:
-          if not self.cursor.hasSelection() and self.cursor.columnNumber() == self.prompt_length:
+          if not self.cursor.hasSelection() and \
+             self.cursor.columnNumber() == self.prompt_length:
             return
           QTextEdit.keyPressEvent( self, e )
         # if the left key is pressed, move left until we get to the prompt
@@ -170,6 +186,7 @@ class QConsole( QTextEdit ):
       else:
         return
     self.setTextCursor( self.cursor )
+    self.emit( SIGNAL("textChanged()") )
 
   def mousePressEvent( self, e ):
     self.cursor = self.textCursor()
@@ -184,6 +201,15 @@ class QConsole( QTextEdit ):
       menu.exec_( e.globalPos() )
     else:
       QTextEdit.mousePressEvent( self, e )
+      
+  def moveToEnd( self ):
+#    self.scrollbar.setValue( self.scrollbar.maximum() )
+    print "moved to end"
+#    self.update()
+    cursor = self.textCursor()
+    cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
+    self.setTextCursor( cursor )
+#    self.ensureCursorVisible()
 
   def insertFromMimeData( self, source ):
     self.cursor = self.textCursor()
@@ -231,6 +257,9 @@ class QConsole( QTextEdit ):
       self.setTextColor( self.cmdColour )
     if not out_text == "":
       self.append( out_text )
+    cursor = self.textCursor()
+    cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
+    self.setTextCursor( cursor )
 
   def isInEditionZone( self ):
     '''

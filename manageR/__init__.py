@@ -41,7 +41,7 @@ def description():
   return "Interface to the R statistical analysis program"
 
 def version():
-  return "Version 0.6"
+  return "Version 0.6.1"
   
 def qgisMinimumVersion():
   return "1.0"

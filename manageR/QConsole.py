@@ -28,7 +28,7 @@ class QConsole( QTextEdit ):
     # initialise required variables
     self.history = QStringList()
     self.historyIndex = 0
-    self.runningCommand = ""
+    self.runningCommand = QString()
     self.cmdColour = cmdColour
     self.errColour = errColour
     self.outColour = outColour
@@ -38,7 +38,7 @@ class QConsole( QTextEdit ):
     self.setPrompt()
     self.cursor = self.textCursor()
     self.function = function
-    QObject.connect( self, SIGNAL( "textChanged()" ), self.moveToEnd )
+    #QObject.connect( self, SIGNAL( "textChanged()" ), self.moveToEnd )
   
   def reset( self ):
     '''
@@ -47,7 +47,7 @@ class QConsole( QTextEdit ):
     # clear all contents
     self.clear()
     # init attributes
-    self.runningCommand = ""
+    self.runningCommand.clear()
     self.historyIndex = 0
     self.history.clear()
 
@@ -71,18 +71,26 @@ class QConsole( QTextEdit ):
     '''
     self.prompt = newPrompt
     self.alternatePrompt = alternatePrompt
-    self.prompt_length = len( self.prompt )
+    self.currentPrompt = self.prompt
+    self.currentPromptLength = len( self.currentPrompt )
     if display:
       self.displayPrompt()
+      
+  def switchPrompt( self, default = True ):
+    if default:
+      self.currentPrompt = self.prompt
+    else:
+      self.currentPrompt = self.alternatePrompt
+    self.currentPromptLength = len( self.currentPrompt )
 
   def displayPrompt( self ):
     '''
     Displays console prompt specified by setPrompt
     Prompt is display in colour specified by cmdColour
     '''
-    self.runningCommand = ""
+    self.runningCommand.clear()
     self.setTextColor( self.cmdColour )
-    self.append( self.prompt )
+    self.append( self.currentPrompt )
     self.moveCursor( QTextCursor.End, QTextCursor.MoveAnchor )
 
   def keyPressEvent( self, e ):
@@ -98,36 +106,44 @@ class QConsole( QTextEdit ):
          e.modifiers() == Qt.MetaModifier ):
         QTextEdit.keyPressEvent( self, e )
       if self.cursor.blockNumber() == self.document().blockCount()-1 and \
-         self.cursor.columnNumber() < self.prompt_length:
-        self.cursor.insertText( self.prompt )
+         self.cursor.columnNumber() < self.currentPromptLength:
+        self.cursor.select( QTextCursor.LineUnderCursor )
+        self.cursor.removeSelectedText()
+        self.cursor.insertText( self.currentPrompt )
     else:
-      if self.cursor.columnNumber() >= self.prompt_length and self.cursor.anchor:
+      if self.cursor.columnNumber() >= self.currentPromptLength and self.cursor.anchor:
         # if Ctrl + C is pressed, then undo the current command
         if e.key() == Qt.Key_C and ( e.modifiers() == Qt.ControlModifier or \
            e.modifiers() == Qt.MetaModifier ) and not self.cursor.hasSelection():
-          self.runningCommand = ""
+          self.runningCommand.clear()
           self.displayPrompt()
         # if Return is pressed, then perform the commands
         elif e.key() == Qt.Key_Return:
           command = self.currentCommand()
-          self.runningCommand += command
-          self.updateHistory( command )
+          check = self.runningCommand.split("\n").last()
+          if not self.runningCommand.isEmpty():
+            if not command == check:
+              self.runningCommand.append( command )
+              self.updateHistory( command )
+          else:
+            self.runningCommand = command
+            self.updateHistory( command )
           if e.modifiers() == Qt.ShiftModifier or \
              not self.runningCommand.count("{") == self.runningCommand.count("}") or \
              not self.runningCommand.count("[") == self.runningCommand.count("]") or \
              not self.runningCommand.count("(") == self.runningCommand.count(")"):
-            self.currentPrompt = self.alternatePrompt
+            self.switchPrompt( False )
             self.cursor.insertText( "\n" + self.currentPrompt )
-            self.runningCommand += "\n"
+            self.runningCommand.append( "\n" )
           else:
-            print command
-            if not self.runningCommand is "":
+            if not self.runningCommand.isEmpty():
               command = self.runningCommand
             self.executeCommand( command, False )
-            self.runningCommand = ""
+            self.runningCommand.clear()
+            self.switchPrompt( True )
             self.displayPrompt()
-            self.currentPrompt = self.prompt
           self.cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
+          self.moveToEnd()
         # if Up or Down is pressed
         elif e.key() == Qt.Key_Down or e.key() == Qt.Key_Up:
           # remove the current command
@@ -147,11 +163,11 @@ class QConsole( QTextEdit ):
         # if backspace is pressed, delete until we get to the prompt
         elif e.key() == Qt.Key_Backspace:
           if not self.cursor.hasSelection() and \
-             self.cursor.columnNumber() == self.prompt_length:
+             self.cursor.columnNumber() == self.currentPromptLength:
             return
           QTextEdit.keyPressEvent( self, e )
         # if the left key is pressed, move left until we get to the prompt
-        elif e.key() == Qt.Key_Left and self.cursor.columnNumber() > self.prompt_length:
+        elif e.key() == Qt.Key_Left and self.cursor.columnNumber() > self.currentPromptLength:
           if e.modifiers() == Qt.ShiftModifier:
             anchor = QTextCursor.KeepAnchor
           else:
@@ -171,7 +187,7 @@ class QConsole( QTextEdit ):
           else:
             anchor = QTextCursor.MoveAnchor
           self.cursor.movePosition( QTextCursor.StartOfLine, anchor, 1 )
-          self.cursor.movePosition( QTextCursor.Right, anchor, self.prompt_length )
+          self.cursor.movePosition( QTextCursor.Right, anchor, self.currentPromptLength )
         # use normal operation for end key
         elif e.key() == Qt.Key_End:
           if e.modifiers() == Qt.ShiftModifier:
@@ -186,7 +202,6 @@ class QConsole( QTextEdit ):
       else:
         return
     self.setTextCursor( self.cursor )
-    self.emit( SIGNAL("textChanged()") )
 
   def mousePressEvent( self, e ):
     self.cursor = self.textCursor()
@@ -210,6 +225,7 @@ class QConsole( QTextEdit ):
     cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
     self.setTextCursor( cursor )
 #    self.ensureCursorVisible()
+    self.emit( SIGNAL("textChanged()") )
 
   def insertFromMimeData( self, source ):
     self.cursor = self.textCursor()
@@ -217,8 +233,14 @@ class QConsole( QTextEdit ):
     QTextCursor.MoveAnchor, 1 )
     self.setTextCursor( self.cursor )
     if source.hasText():
-      self.runningCommand += source.text()
-    QTextEdit.insertFromMimeData( self, source )
+      pastList = QStringList()
+      pasteList = source.text().split("\n")
+      self.runningCommand.append( source.text() )
+      for line in pasteList:
+        self.updateHistory( line )
+    newSource = QMimeData()
+    newSource.setText( source.text().replace( "\n", "\n"+self.alternatePrompt ) )
+    QTextEdit.insertFromMimeData( self, newSource )
   
   def currentCommand( self ):
     '''
@@ -228,7 +250,7 @@ class QConsole( QTextEdit ):
     '''
     block = self.cursor.block()
     text = block.text()
-    return text.right( text.length()-self.prompt_length )
+    return text.right( text.length()-self.currentPromptLength )
 
   def executeCommand( self, text, echo ):
     '''
@@ -270,7 +292,7 @@ class QConsole( QTextEdit ):
     index = self.textCursor().columnNumber()
     row = self.textCursor().blockNumber()
     self.setTextCursor( self.cursor )
-    return row == self.document().blockCount()-1 and index >= self.prompt_length
+    return row == self.document().blockCount()-1 and index >= self.currentPromptLength
 
   def updateHistory( self, command ):
     '''

@@ -40,7 +40,6 @@ class QConsole( QTextEdit ):
     self.function = function
     #QObject.connect( self, SIGNAL( "textChanged()" ), self.moveToEnd )
 
-  
   def reset( self ):
     '''
     Clear and reset console history and display
@@ -111,7 +110,7 @@ class QConsole( QTextEdit ):
     '''
     self.cursor = self.textCursor()
     # if the cursor isn't in the edition zone, don't do anything
-    if not self.isInEditionZone():
+    if not self.isCursorInEditionZone():
       if e.key() == Qt.Key_C and ( e.modifiers() == Qt.ControlModifier or \
          e.modifiers() == Qt.MetaModifier ):
         QTextEdit.keyPressEvent( self, e )
@@ -215,7 +214,10 @@ class QConsole( QTextEdit ):
 
   def mousePressEvent( self, e ):
     self.cursor = self.textCursor()
-    if not self.isInEditionZone() and e.button() == Qt.RightButton:
+    if ( not self.isCursorInEditionZone() or \
+       ( self.isCursorInEditionZone() and \
+       not self.isAnchorInEditionZone() ) ) and \
+       e.button() == Qt.RightButton:
       QTextEdit.mousePressEvent( self, e )
       menu = self.createStandardContextMenu()
       actions = menu.actions()
@@ -229,7 +231,6 @@ class QConsole( QTextEdit ):
       
   def moveToEnd( self ):
 #    self.scrollbar.setValue( self.scrollbar.maximum() )
-    print "moved to end"
 #    self.update()
     cursor = self.textCursor()
     cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
@@ -293,7 +294,7 @@ class QConsole( QTextEdit ):
     cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
     self.setTextCursor( cursor )
 
-  def isInEditionZone( self ):
+  def isCursorInEditionZone( self ):
     '''
     Tests whether the cursor is in the edition zone or not
     Return True if yes, False otherwise
@@ -303,6 +304,13 @@ class QConsole( QTextEdit ):
     row = self.textCursor().blockNumber()
     self.setTextCursor( self.cursor )
     return row == self.document().blockCount()-1 and index >= self.currentPromptLength
+    
+  def isAnchorInEditionZone( self ):
+    self.cursor = self.textCursor()
+    index = self.textCursor().columnNumber()
+    block = self.document().lastBlock()
+    row = self.cursor.anchor()
+    return row >= ( block.position() + self.currentPromptLength )
 
   def updateHistory( self, command ):
     '''
@@ -318,7 +326,7 @@ class QConsole( QTextEdit ):
     Redefines insert() slot to avoid 
     inserting text outside of the edition zone
     '''
-    if self.isInEditionZone():
+    if self.isCursorInEditionZone():
       QTextEdit.insertPlainText( self, text )
 
 class QScratchPad( QWidget ):

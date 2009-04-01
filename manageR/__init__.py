@@ -32,19 +32,24 @@
 # 
 #---------------------------------------------------------------------
 
-from manageR import manageRPlugin
+import ConfigParser
+import os.path
+p = ConfigParser.ConfigParser()
+here = os.path.join(os.path.dirname(__file__),"config.ini")
+p.read(here)
 
 def name():
-  return "manageR"
+  return p.get('general','name')
 
 def description():
-  return "Interface to the R statistical analysis program"
+  return p.get('general','description')
 
 def version():
-  return "Version 0.6.2"
-  
+  return p.get('general','version')
+
 def qgisMinimumVersion():
-  return "1.0"
+  return p.get("general","qgisMinimumVersion")
 
 def classFactory( iface ):
+  from manageR import manageRPlugin
   return manageRPlugin( iface, version() )

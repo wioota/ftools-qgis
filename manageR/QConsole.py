@@ -39,6 +39,7 @@ class QConsole( QTextEdit ):
     self.cursor = self.textCursor()
     self.function = function
     #QObject.connect( self, SIGNAL( "textChanged()" ), self.moveToEnd )
+
   
   def reset( self ):
     '''
@@ -62,6 +63,15 @@ class QConsole( QTextEdit ):
     font.setFixedPitch( True )
     self.setFont( font )
     self.document().setDefaultFont( font )
+    
+  def setThemeColors( self, pair ):
+    p = QPalette( QColor( pair[0] ) )
+    self.setPalette( p )
+    self.setAutoFillBackground( True )
+    self.setTextColor( QColor( pair[1] ) )
+    self.cmdColour = QColor( pair[1] )
+    self.errColour = QColor( pair[1] )
+    self.outColour = QColor( pair[1] )
     
   def setPrompt( self, newPrompt = "> ", alternatePrompt = "+ ", display = False ):
     '''

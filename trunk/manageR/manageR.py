@@ -29,6 +29,5 @@ class manageRPlugin:
         d = manageRDialog.manageR( self.iface, self.version )
         d.setWindowModality( Qt.NonModal )
         d.setModal( False )
-        #d.exec_()
         d.show()
 

@@ -14,6 +14,12 @@ except ImportError:
   QMessageBox.warning( None , "manageR", "Unable to load manageR: Required package rpy2 was unable to load"
   + "\nPlease ensure that both R, and the corresponding version of Rpy are correctly installed.")
 
+import ConfigParser
+import os.path
+parser = ConfigParser.ConfigParser()
+here = os.path.join( os.path.dirname( __file__ ),"config.ini" )
+parser.read( here )
+
 class manageR( QDialog ):
   VECTOR = 0
   RASTER = 1
@@ -30,6 +36,9 @@ class manageR( QDialog ):
     self.setWindowIcon( QIcon( ":manager.png" ) )
     self.setWindowFlags( Qt.Window )
     self.wgt_console = QConsole( self, self.runCommand )
+    back = parser.get('theme','background')
+    fore = parser.get('theme','foreground')
+    self.wgt_console.setThemeColors( ( back, fore ) )
     self.wgt_console.append( self.welcomeString() )
     self.wgt_console.append( "" )
     self.wgt_console.displayPrompt()
@@ -39,7 +48,7 @@ class manageR( QDialog ):
     self.setGeometry( 100, 100, 550, 400 )
     self.startTimer( 50 )
     # create the required connections
-    
+
   def timerEvent( self, e ):
     robjects.rinterface.process_revents()
 
@@ -102,7 +111,6 @@ class manageR( QDialog ):
     text.append( "Currently running " + unicode( robjects.r.version[ 12 ][ 0 ] ) + "\n\n" )
     text.append( "Use Ctrl+H for manageR information and help")
     return text
-
 
   def keyPressEvent( self, e ):
     '''

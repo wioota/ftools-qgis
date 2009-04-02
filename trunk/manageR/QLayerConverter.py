@@ -125,7 +125,7 @@ class QVectorLayerConverter( QObject ):
     length = len( fid[ "fid" ] )
     width = len( df.keys() )
     name = self.mlayer.name()
-    source = self.mlayer.source()
+    source = self.mlayer.publicSource()
     name = QFileInfo( name ).baseName()
     
     message.append( QString( "Name: " + str( name ) + "\nSource: " + str( source ) ) )

@@ -32,7 +32,6 @@ class QConsole( QTextEdit ):
     self.cmdColour = cmdColour
     self.errColour = errColour
     self.outColour = outColour
-    self.startTimer( 50 )
     # prepare prompt
     self.reset()
     self.setPrompt()
@@ -150,7 +149,7 @@ class QConsole( QTextEdit ):
             self.executeCommand( command, False )
             self.runningCommand.clear()
             self.switchPrompt( True )
-            self.displayPrompt()
+            #self.displayPrompt()
           self.cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
           self.moveToEnd()
         # if Up or Down is pressed
@@ -266,15 +265,13 @@ class QConsole( QTextEdit ):
   def executeCommand( self, text, echo ):
     '''
     Sends the specified command to the console interpreter
-    (requires that self.function is defined)
-    Emits 'command_complete' signal when complete
+    Emits 'runCommand' signal
     '''
-    if not text == "":
-      if echo:
-        self.appendText( text )
-      if not self.function == None:
-        success, output = self.function( text )
-        self.appendText( output, success )
+#    if not text == "":
+    if echo:
+      self.appendText( text )
+    self.emit( SIGNAL( "executeCommand(PyQt_PyObject)" ), text )
+        #self.appendText( output )
 
   def appendText( self, out_text, out_type ):
     '''

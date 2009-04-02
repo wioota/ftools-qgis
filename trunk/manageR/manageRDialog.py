@@ -38,10 +38,11 @@ class manageR( QDialog ):
     self.wgt_console = QConsole( self, self.runCommand )
     back = parser.get('theme','background')
     fore = parser.get('theme','foreground')
-    self.wgt_console.setThemeColors( ( back, fore ) )
+    #self.wgt_console.setThemeColors( ( back, fore ) )
     self.wgt_console.append( self.welcomeString() )
     self.wgt_console.append( "" )
     self.wgt_console.displayPrompt()
+    self.connect( self.wgt_console, SIGNAL( "executeCommand(PyQt_PyObject)" ), self.runCommand )
     gbox = QGridLayout()
     gbox.addWidget( self.wgt_console )
     self.setLayout( gbox )
@@ -50,7 +51,10 @@ class manageR( QDialog ):
     # create the required connections
 
   def timerEvent( self, e ):
-    robjects.rinterface.process_revents()
+    try:
+      robjects.rinterface.process_revents()
+    except:
+      pass
 
   def helpDialog( self ):
     message = QString( "<center><h2>manageR " + self.version + "</h2>" )
@@ -136,7 +140,7 @@ class manageR( QDialog ):
     else:
       QDialog.keyPressEvent( self, e )
 
-  def runCommand( console, text ):
+  def runCommand( self, text ):
     if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) and text.count( ")" ) == 1:
       return False, "System exit not allowed"
     success = True
@@ -144,7 +148,9 @@ class manageR( QDialog ):
     rbuf = QString()
     def f( x ):
       rbuf.append( x )
+      self.emit( SIGNAL( "threadOutput( PyQt_PyObject )" ), x )
     robjects.rinterface.setWriteConsole(f)
+    print text
     try:
       r_code = "withVisible( " + unicode( text ) + " )"
       output = robjects.r( r_code )
@@ -153,9 +159,28 @@ class manageR( QDialog ):
       if visible:
         out_text.append( unicode( output.r["value"][0] ) )
     except robjects.rinterface.RRuntimeError, rre:
+      print "error"
       out_text = QString( str(rre) )
       success = False
-    return success, out_text
+    self.emit( SIGNAL( "threadComplete()" ) )
+    #return success, out_text
+#    self.thread = commandThread( self.iface.mainWindow(), self, text )
+#    QObject.connect( self.thread, SIGNAL( "threadComplete()" ), self.threadComplete )
+#    QObject.connect( self.thread, SIGNAL( "threadError(PyQt_PyObject)" ), self.threadError )
+#    QObject.connect( self.thread, SIGNAL( "threadOutput(PyQt_PyObject)" ), self.threadOutput )
+#    self.thread.start()
+#    return True, ""
+    
+  def threadError( self, error ):
+    self.thread.stop()
+    self.wgt_console.appendText( error, QConsole.ERR_TYPE )
+      
+  def threadOutput( self, output ):
+    self.wgt_console.appendText( output, QConsole.OUT_TYPE )
+      
+  def threadComplete( self ):
+    self.thread.stop()
+    self.wgt_console.displayPrompt()
 
   def closeEvent( self, e ):
     ask_save = QMessageBox.question( self, "manageR", "Save workspace image?", 
@@ -376,3 +401,41 @@ class manageR( QDialog ):
     self.export_layer = layers.currentText()
     self.export_type = r_layers[ unicode( self.export_layer ) ]
     return True
+    
+class commandThread( QThread ):
+
+  def __init__( self, thread, parent, text ):
+    QThread.__init__( self, thread )
+    self.parent = parent
+    self.running = False
+    self.command = text
+    self.words = QString( text )
+
+  def stop( self ):
+    self.running = False
+
+  def run( self ):
+    print "***" + self.words + "***"
+    try:
+      self.running = True
+      if ( self.words.startsWith( 'quit(' ) or self.words.startsWith( 'q(' ) ) and self.words.count( ")" ) == 1:
+        self.emit( SIGNAL( "threadError( PyQt_PyObject )" ), "System exit not allowed" )
+      def f( x ):
+        print x
+        if x.contains("<Return>"):
+          self.emit( SIGNAL( "threadComplete()" ) )
+        self.emit( SIGNAL( "threadOutput( PyQt_PyObject )" ), x )
+      robjects.rinterface.setWriteConsole( f )
+      try:
+        r_code = "withVisible( " + unicode( self.words ) + " )"
+        output = robjects.r( r_code )
+        visible = output.r["visible"][0][0]
+        if visible:
+          self.emit( SIGNAL( "threadOutput( PyQt_PyObject )" ), unicode( output.r["value"][0] ) )
+      except robjects.rinterface.RRuntimeError, rre:
+  #      self.emit( SIGNAL( "threadError( PyQt_PyObject )" ), QString( str(rre) ) )
+        pass
+      self.emit( SIGNAL( "threadComplete()" ) )
+    except Exception, e:
+      self.emit( SIGNAL( "threadError( PyQt_PyObject )" ), str(e) )
+

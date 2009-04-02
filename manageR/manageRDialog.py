@@ -239,6 +239,8 @@ class manageR( QDialog ):
     self.wgt_console.cursor.select( QTextCursor.LineUnderCursor )
     self.wgt_console.cursor.removeSelectedText()
     self.wgt_console.cursor.insertText( self.wgt_console.prompt + "Importing data from canvas..." )
+    self.repaint()
+    self.repaint()
     if mlayer is None:
       self.wgt_console.appendText( "No layer selected in layer list", QConsole.ERR_TYPE )
       self.wgt_console.displayPrompt()
@@ -289,6 +291,8 @@ class manageR( QDialog ):
     else:
       put_text = "to canvas..."
     self.wgt_console.cursor.insertText( self.wgt_console.prompt + "Exporting layer " + put_text )
+    self.repaint()
+    self.repaint()
     result = self.exportRObjectsDialog( to_file )
     # If there is no input layer, don't do anything
     if result is None: # this needs to be updated to reflect where we  get the R objects from...
@@ -317,9 +321,6 @@ class manageR( QDialog ):
       self.wgt_console.appendText( "Unable to export raster layers to map canvas at this time.", QConsole.ERR_TYPE )
       self.wgt_console.displayPrompt()
       return
-    self.wgt_console.cursor.select( QTextCursor.LineUnderCursor )
-    self.wgt_console.cursor.removeSelectedText()
-    self.wgt_console.cursor.insertText( self.wgt_console.prompt + "Exporting data from: " + str( self.export_layer ) )
     if not to_file:
       if self.export_type == manageR.VECTOR:
         self.q_layer_creator = RVectorLayerConverter( robjects.r[ str( self.export_layer ) ], self.export_layer )

@@ -144,25 +144,23 @@ class manageR( QDialog ):
     try:
       if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) and text.count( ")" ) == 1:
         self.threadError( "System exit not allowed" )
-        
-      def write( output ):
-        if not QString( output ).startsWith("Error"):
-          self.threadOutput( output )
-      robjects.rinterface.setWriteConsole( write )
-      
-      def read( prompt ):
-        input = "\n"
-        return input
-      robjects.rinterface.setReadConsole( read )
-
-      try:
-        r_code = "withVisible( " + unicode( text ) + " )"
-        output = robjects.r( r_code )
-        visible = output.r["visible"][0][0]
-        if visible:
-          self.threadOutput( str( output.r["value"][0] ) )
-      except robjects.rinterface.RRuntimeError, rre:
-        self.threadError( str( rre ) )
+      else:
+        def write( output ):
+          if not QString( output ).startsWith("Error"):
+            self.threadOutput( output )
+        robjects.rinterface.setWriteConsole( write )
+        def read( prompt ):
+          input = "\n"
+          return input
+        robjects.rinterface.setReadConsole( read )
+        try:
+          r_code = "withVisible( " + unicode( text ) + " )"
+          output = robjects.r( r_code )
+          visible = output.r["visible"][0][0]
+          if visible:
+            self.threadOutput( str( output.r["value"][0] ) )
+        except robjects.rinterface.RRuntimeError, rre:
+          self.threadError( str( rre ) )
     except Exception, err:
       self.threadError( str( err ) )
     self.threadComplete()

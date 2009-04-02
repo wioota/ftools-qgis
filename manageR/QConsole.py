@@ -213,7 +213,9 @@ class QConsole( QTextEdit ):
 
   def mousePressEvent( self, e ):
     self.cursor = self.textCursor()
-    if ( not self.isCursorInEditionZone() or \
+    if e.button() == Qt.LeftButton:
+      QTextEdit.mousePressEvent( self, e )
+    elif ( not self.isCursorInEditionZone() or \
        ( self.isCursorInEditionZone() and \
        not self.isAnchorInEditionZone() ) ) and \
        e.button() == Qt.RightButton:
@@ -267,11 +269,10 @@ class QConsole( QTextEdit ):
     Sends the specified command to the console interpreter
     Emits 'runCommand' signal
     '''
-#    if not text == "":
-    if echo:
-      self.appendText( text )
-    self.emit( SIGNAL( "executeCommand(PyQt_PyObject)" ), text )
-        #self.appendText( output )
+    if not text == "":
+      if echo:
+        self.appendText( text )
+      self.emit( SIGNAL( "executeCommand(PyQt_PyObject)" ), text )
 
   def appendText( self, out_text, out_type ):
     '''

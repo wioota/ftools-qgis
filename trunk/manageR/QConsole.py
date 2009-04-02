@@ -269,10 +269,13 @@ class QConsole( QTextEdit ):
     Sends the specified command to the console interpreter
     Emits 'runCommand' signal
     '''
-    if not text == "":
+    if not text.trimmed() == "":
       if echo:
         self.appendText( text )
       self.emit( SIGNAL( "executeCommand(PyQt_PyObject)" ), text )
+    else:
+      self.displayPrompt()
+    
 
   def appendText( self, out_text, out_type ):
     '''

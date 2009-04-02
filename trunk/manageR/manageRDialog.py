@@ -146,9 +146,11 @@ class manageR( QDialog ):
       if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) and text.count( ")" ) == 1:
         self.threadError( "System exit not allowed" )
       else:
+        output_text = QString()
         def write( output ):
           if not QString( output ).startsWith("Error"):
-            self.threadOutput( output )
+            #self.threadOutput( output )
+            output_text.append( output )
         robjects.rinterface.setWriteConsole( write )
         def read( prompt ):
           input = "\n"
@@ -162,6 +164,8 @@ class manageR( QDialog ):
             self.threadOutput( str( output.r["value"][0] ) )
         except robjects.rinterface.RRuntimeError, rre:
           self.threadError( str( rre ) )
+        if not output_text.isEmpty():
+          self.threadOutput( output_text )
     except Exception, err:
       self.threadError( str( err ) )
     self.threadComplete()

@@ -141,29 +141,32 @@ class manageR( QDialog ):
       QDialog.keyPressEvent( self, e )
 
   def runCommand( self, text ):
-    if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) and text.count( ")" ) == 1:
-      return False, "System exit not allowed"
-    success = True
-    out_text = QString()
-    rbuf = QString()
-    def f( x ):
-      rbuf.append( x )
-      self.emit( SIGNAL( "threadOutput( PyQt_PyObject )" ), x )
-    robjects.rinterface.setWriteConsole(f)
-    print text
     try:
-      r_code = "withVisible( " + unicode( text ) + " )"
-      output = robjects.r( r_code )
-      visible = output.r["visible"][0][0]
-      out_text.append( rbuf )
-      if visible:
-        out_text.append( unicode( output.r["value"][0] ) )
-    except robjects.rinterface.RRuntimeError, rre:
-      print "error"
-      out_text = QString( str(rre) )
-      success = False
-    self.emit( SIGNAL( "threadComplete()" ) )
-    #return success, out_text
+      if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) and text.count( ")" ) == 1:
+        self.threadError( "System exit not allowed" )
+        
+      def write( output ):
+        if not QString( output ).startsWith("Error"):
+          self.threadOutput( output )
+      robjects.rinterface.setWriteConsole( write )
+      
+      def read( prompt ):
+        input = "\n"
+        return input
+      robjects.rinterface.setReadConsole( read )
+
+      try:
+        r_code = "withVisible( " + unicode( text ) + " )"
+        output = robjects.r( r_code )
+        visible = output.r["visible"][0][0]
+        if visible:
+          self.threadOutput( str( output.r["value"][0] ) )
+      except robjects.rinterface.RRuntimeError, rre:
+        self.threadError( str( rre ) )
+    except Exception, err:
+      self.threadError( str( err ) )
+    self.threadComplete()
+#     return success, out_text
 #    self.thread = commandThread( self.iface.mainWindow(), self, text )
 #    QObject.connect( self.thread, SIGNAL( "threadComplete()" ), self.threadComplete )
 #    QObject.connect( self.thread, SIGNAL( "threadError(PyQt_PyObject)" ), self.threadError )
@@ -172,14 +175,14 @@ class manageR( QDialog ):
 #    return True, ""
     
   def threadError( self, error ):
-    self.thread.stop()
+    #self.thread.stop()
     self.wgt_console.appendText( error, QConsole.ERR_TYPE )
       
   def threadOutput( self, output ):
     self.wgt_console.appendText( output, QConsole.OUT_TYPE )
       
   def threadComplete( self ):
-    self.thread.stop()
+    #self.thread.stop()
     self.wgt_console.displayPrompt()
 
   def closeEvent( self, e ):
@@ -202,11 +205,13 @@ class manageR( QDialog ):
 
 # This is used whenever we check for sp objects in manageR
   def updateRObjects( self ):
-    ls_ = robjects.r[ 'ls' ]
-    class_ = robjects.r[ 'class' ]
+    #ls_ = robjects.r[ 'ls' ]
+    ls_ = robjects.conversion.ri2py(robjects.rinterface.globalEnv.get('ls',wantFun=True))
+    #class_ = robjects.r[ 'class' ]
+    class_ = robjects.conversion.ri2py(robjects.rinterface.globalEnv.get('class',wantFun=True))
     layers = {}
     for item in ls_():
-      check = class_( robjects.r( item ) )[ 0 ]
+      check = class_( robjects.r[ item ] )[ 0 ]
       if check == "SpatialPointsDataFrame" or check == "SpatialPolygonsDataFrame" or check == "SpatialLinesDataFrame":
         layers[ unicode( item ) ] = manageR.VECTOR
       elif check == "SpatialGridDataFrame" or check == "SpatialPixelsDataFrame":

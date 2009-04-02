@@ -124,11 +124,15 @@ class QVectorLayerConverter( QObject ):
       spds = data
     length = len( fid[ "fid" ] )
     width = len( df.keys() )
-    message.append( QString( "Name: " + str( self.mlayer.name() ) + "\nSource: " + str( self.mlayer.source() ) ) )
+    name = self.mlayer.name()
+    source = self.mlayer.source()
+    name = QFileInfo( name ).baseName()
+    
+    message.append( QString( "Name: " + str( name ) + "\nSource: " + str( source ) ) )
     message.append( QString( "\nwith " + str( length ) + " rows and " + str( width ) + " columns" ) )
     message.append( "\n" + extra )
     self.emit( SIGNAL( "threadSuccess( PyQt_PyObject, PyQt_PyObject, PyQt_PyObject )" ), 
-    spds, self.mlayer.name(), message )
+    spds, name, message )
 
   # Function to retrieve QgsGeometry (polygon) coordinates
   # and convert to a format that can be used by R

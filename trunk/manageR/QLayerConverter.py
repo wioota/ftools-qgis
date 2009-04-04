@@ -5,6 +5,7 @@ from qgis.core import *
 
 import rpy2.robjects as robjects
 import rpy2.rinterface as rinterface
+import rpy2.rlike as rlike
 
 class QVectorLayerConverter( QObject ):
   '''
@@ -48,7 +49,6 @@ class QVectorLayerConverter( QObject ):
     '''
     self.running = False
 
-  #def run( self ):
   def start( self ):
     self.running = True
     provider = self.mlayer.dataProvider()
@@ -78,10 +78,13 @@ class QVectorLayerConverter( QObject ):
       self.emit( SIGNAL( "threadError( PyQt_PyObject )" ), message )
     df = {}
     types = {}
+    order = []
     for (id, field) in fields.iteritems():
       # initial read in has correct ordering...
-      df[str(field.name())] = []
-      types[str(field.name())] = int( field.type() )
+      name = str(field.name())
+      df[ name ] = []
+      types[ name ] = int( field.type() )
+      order.append(name)
     fid = {"fid": []}
     Coords = []
     if self.mlayer.selectedFeatureCount() > 0:
@@ -105,25 +108,26 @@ class QVectorLayerConverter( QObject ):
           if not self.getNextGeometry( Coords, feat):
             message = QString( "Unable to convert layer geometry" )
             self.emit( SIGNAL( "threadError( PyQt_PyObject )" ), message )
-    for key in df.keys():
+    data_frame = rlike.container.ArgsDict()
+    for key in order:
       if types[key] == 10:
-        df[ key ] = self.as_character_( robjects.StrVector( df[ key ] ) )
+        data_frame[ key ] = self.as_character_( robjects.StrVector( df[ key ] ) )
       else:
-        df[ key ] = robjects.FloatVector( df[ key ] )
-    fid[ "fid" ] = robjects.IntVector( fid["fid"] )
+        data_frame[ key ] = robjects.FloatVector( df[ key ] )
+    #fid[ "fid" ] = robjects.IntVector( fid["fid"] )
     #data_frame = robjects.r(''' function( d ) data.frame( d ) ''')
     #data = data_frame( df )
-    data = self.data_frame_( **df )
+    data_frame = self.data_frame_.rcall( data_frame.items() )
     #data = data_frame( df )
     #data['row.names'] = fid[ "fid" ]
     if not self.data_only:
       message = QString( "QGIS Vector Layer\n" )
-      spds = self.createSpatialDataset( feat.geometry().type(), Coords, data, projString)
+      spds = self.createSpatialDataset( feat.geometry().type(), Coords, data_frame, projString)
     else:
       message = QString( "QGIS Attribute Table\n" )
-      spds = data
+      spds = data_frame
     length = len( fid[ "fid" ] )
-    width = len( df.keys() )
+    width = len( order )
     name = self.mlayer.name()
     source = self.mlayer.publicSource()
     name = QFileInfo( name ).baseName()

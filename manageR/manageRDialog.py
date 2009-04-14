@@ -186,7 +186,8 @@ class manageR( QDialog ):
       
   def threadComplete( self ):
     #self.thread.stop()
-    self.wgt_console.displayPrompt()
+    #self.wgt_console.displayPrompt()
+    pass
 
   def closeEvent( self, e ):
     ask_save = QMessageBox.question( self, "manageR", "Save workspace image?", 

@@ -77,16 +77,16 @@ class QConsole( QTextEdit ):
     If display is true, prompt is displayed immediately
     Default prompt is '>' (R style)
     '''
-    self.prompt = newPrompt
+    self.defaultPrompt = newPrompt
     self.alternatePrompt = alternatePrompt
-    self.currentPrompt = self.prompt
+    self.currentPrompt = self.defaultPrompt
     self.currentPromptLength = len( self.currentPrompt )
     if display:
       self.displayPrompt()
       
   def switchPrompt( self, default = True ):
     if default:
-      self.currentPrompt = self.prompt
+      self.currentPrompt = self.defaultPrompt
     else:
       self.currentPrompt = self.alternatePrompt
     self.currentPromptLength = len( self.currentPrompt )
@@ -137,9 +137,7 @@ class QConsole( QTextEdit ):
             self.runningCommand = command
             self.updateHistory( command )
           if e.modifiers() == Qt.ShiftModifier or \
-             not self.runningCommand.count("{") == self.runningCommand.count("}") or \
-             not self.runningCommand.count("[") == self.runningCommand.count("]") or \
-             not self.runningCommand.count("(") == self.runningCommand.count(")"):
+            not self.checkBrackets( self.runningCommand ):
             self.switchPrompt( False )
             self.cursor.insertText( "\n" + self.currentPrompt )
             self.runningCommand.append( "\n" )
@@ -149,7 +147,7 @@ class QConsole( QTextEdit ):
             self.executeCommand( command, False )
             self.runningCommand.clear()
             self.switchPrompt( True )
-            #self.displayPrompt()
+            self.displayPrompt()
           self.cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
           self.moveToEnd()
         # if Up or Down is pressed
@@ -211,6 +209,40 @@ class QConsole( QTextEdit ):
         return
     self.setTextCursor( self.cursor )
 
+
+  def checkBrackets( self, command ):
+    s = str(command)
+    s = filter(lambda x: x in '()[]{}"\'', s)
+    s = s.replace ("'''", "'")
+    s = s.replace ('"""', '"')
+    instring = False
+    brackets = {'(':')', '[':']', '{':'}', '"':'"', '\'':'\''}
+    stack = []
+    
+    while len( s ):
+        if not instring:
+            if s[ 0 ] in ')]}':
+                if stack and brackets[ stack[ -1 ] ] == s[ 0 ]:
+                    del stack[ -1 ]
+                else:
+                    return False
+            elif s[ 0 ] in '"\'':
+                if stack and brackets[ stack[ -1 ] ] == s[ 0 ]:
+                    del stack[ -1 ]
+                    instring = False
+                else:
+                    stack.append( s[ 0 ] )
+                    instring = True
+            else:
+                stack.append( s[ 0 ] )
+        else:
+            if s[ 0 ] in '"\'' and stack and brackets[ stack[ -1 ] ] == s[ 0 ]:
+                del stack[ -1 ]
+                instring = False
+        s = s[ 1: ]
+    return len( stack ) == 0
+    
+    
   def mousePressEvent( self, e ):
     self.cursor = self.textCursor()
     if e.button() == Qt.LeftButton:
@@ -273,8 +305,8 @@ class QConsole( QTextEdit ):
       if echo:
         self.appendText( text )
       self.emit( SIGNAL( "executeCommand(PyQt_PyObject)" ), text )
-    else:
-      self.displayPrompt()
+#    else:
+#      self.displayPrompt()
     
 
   def appendText( self, out_text, out_type ):

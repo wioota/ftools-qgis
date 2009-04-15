@@ -180,9 +180,13 @@ class manageR( QDialog ):
   def threadError( self, error ):
     #self.thread.stop()
     self.wgt_console.appendText( error, QConsole.ERR_TYPE )
+    self.repaint()
+    self.repaint()
       
   def threadOutput( self, output ):
     self.wgt_console.appendText( output, QConsole.OUT_TYPE )
+    self.repaint()
+    self.repaint()
       
   def threadComplete( self ):
     #self.thread.stop()
@@ -200,9 +204,12 @@ class manageR( QDialog ):
       robjects.r( 'rm(list=ls(all=T))' )
       robjects.r( 'gc()' )
       try:
-        for i in list(robjects.r('dev.list()')):
-          robjects.r('dev.next()')
-          robjects.r('dev.off()')
+        try:
+          robjects.r('graphics.off()')
+        except:
+          for i in list(robjects.r('dev.list()')):
+            robjects.r('dev.next()')
+            robjects.r('dev.off()')
       except:
         pass
       e.accept()
@@ -239,7 +246,7 @@ class manageR( QDialog ):
     '''
     self.wgt_console.cursor.select( QTextCursor.LineUnderCursor )
     self.wgt_console.cursor.removeSelectedText()
-    self.wgt_console.cursor.insertText( self.wgt_console.prompt + "Importing data from canvas..." )
+    self.wgt_console.cursor.insertText( self.wgt_console.defaultPrompt + "Importing data from canvas..." )
     self.repaint()
     self.repaint()
     if mlayer is None:
@@ -291,7 +298,7 @@ class manageR( QDialog ):
       put_text = "to file..."
     else:
       put_text = "to canvas..."
-    self.wgt_console.cursor.insertText( self.wgt_console.prompt + "Exporting layer " + put_text )
+    self.wgt_console.cursor.insertText( self.wgt_console.defaultPrompt + "Exporting layer " + put_text )
     self.repaint()
     self.repaint()
     result = self.exportRObjectsDialog( to_file )

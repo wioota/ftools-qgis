@@ -38,7 +38,8 @@ class manageR( QDialog ):
     self.wgt_console = QConsole( self, self.runCommand )
     back = parser.get('theme','background')
     fore = parser.get('theme','foreground')
-    #self.wgt_console.setThemeColors( ( back, fore ) )
+    if not back == "white" and not fore == "black":
+      self.wgt_console.setThemeColors( ( back, fore ) )
     self.wgt_console.append( self.welcomeString() )
     self.wgt_console.append( "" )
     self.wgt_console.displayPrompt()

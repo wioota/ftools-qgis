@@ -148,9 +148,11 @@ class manageR( QDialog ):
       else:
         output_text = QString()
         def write( output ):
-          if not QString( output ).startsWith("Error"):
-            #self.threadOutput( output )
-            output_text.append( output )
+          if not QString( output ).startsWith( "Error" ):
+            output_text.append( unicode(output, 'utf-8') )
+          if output_text.length() >= 50000 and output_text[ -1 ] == "\n":
+            self.threadOutput( output_text )
+            output_text.clear()
         robjects.rinterface.setWriteConsole( write )
         def read( prompt ):
           input = "\n"
@@ -161,7 +163,8 @@ class manageR( QDialog ):
           output = robjects.r( r_code )
           visible = output.r["visible"][0][0]
           if visible:
-            self.threadOutput( str( output.r["value"][0] ) )
+            #self.threadOutput( robjects.r['print'](output.r["value"][0]) )
+            robjects.r['print'](output.r["value"][0])
         except robjects.rinterface.RRuntimeError, rre:
           self.threadError( str( rre ) )
         if not output_text.isEmpty():
@@ -169,28 +172,18 @@ class manageR( QDialog ):
     except Exception, err:
       self.threadError( str( err ) )
     self.threadComplete()
-#     return success, out_text
-#    self.thread = commandThread( self.iface.mainWindow(), self, text )
-#    QObject.connect( self.thread, SIGNAL( "threadComplete()" ), self.threadComplete )
-#    QObject.connect( self.thread, SIGNAL( "threadError(PyQt_PyObject)" ), self.threadError )
-#    QObject.connect( self.thread, SIGNAL( "threadOutput(PyQt_PyObject)" ), self.threadOutput )
-#    self.thread.start()
-#    return True, ""
     
   def threadError( self, error ):
-    #self.thread.stop()
     self.wgt_console.appendText( error, QConsole.ERR_TYPE )
     self.repaint()
     self.repaint()
       
   def threadOutput( self, output ):
-    self.wgt_console.appendText( output, QConsole.OUT_TYPE )
+    self.wgt_console.appendText( unicode( output ), QConsole.OUT_TYPE )
     self.repaint()
     self.repaint()
       
   def threadComplete( self ):
-    #self.thread.stop()
-    #self.wgt_console.displayPrompt()
     pass
 
   def closeEvent( self, e ):
@@ -216,9 +209,7 @@ class manageR( QDialog ):
 
 # This is used whenever we check for sp objects in manageR
   def updateRObjects( self ):
-    #ls_ = robjects.r[ 'ls' ]
     ls_ = robjects.conversion.ri2py(robjects.rinterface.globalEnv.get('ls',wantFun=True))
-    #class_ = robjects.r[ 'class' ]
     class_ = robjects.conversion.ri2py(robjects.rinterface.globalEnv.get('class',wantFun=True))
     layers = {}
     for item in ls_():
@@ -450,7 +441,6 @@ class commandThread( QThread ):
         if visible:
           self.emit( SIGNAL( "threadOutput( PyQt_PyObject )" ), unicode( output.r["value"][0] ) )
       except robjects.rinterface.RRuntimeError, rre:
-  #      self.emit( SIGNAL( "threadError( PyQt_PyObject )" ), QString( str(rre) ) )
         pass
       self.emit( SIGNAL( "threadComplete()" ) )
     except Exception, e:

@@ -83,7 +83,7 @@ class QConsole( QTextEdit ):
     self.currentPromptLength = len( self.currentPrompt )
     if display:
       self.displayPrompt()
-      
+
   def switchPrompt( self, default = True ):
     if default:
       self.currentPrompt = self.defaultPrompt
@@ -209,7 +209,6 @@ class QConsole( QTextEdit ):
         return
     self.setTextCursor( self.cursor )
 
-
   def checkBrackets( self, command ):
     s = str(command)
     s = filter(lambda x: x in '()[]{}"\'', s)
@@ -241,8 +240,7 @@ class QConsole( QTextEdit ):
                 instring = False
         s = s[ 1: ]
     return len( stack ) == 0
-    
-    
+
   def mousePressEvent( self, e ):
     self.cursor = self.textCursor()
     if e.button() == Qt.LeftButton:

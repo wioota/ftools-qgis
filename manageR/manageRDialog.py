@@ -47,7 +47,7 @@ class manageR( QDialog ):
     gbox = QGridLayout()
     gbox.addWidget( self.wgt_console )
     self.setLayout( gbox )
-    self.setGeometry( 100, 100, 550, 400 )
+    self.setGeometry( 100, 100, 650, 450 )
     self.startTimer( 50 )
     # create the required connections
 
@@ -73,7 +73,7 @@ class manageR( QDialog ):
     message.append( "<tt>Ctrl+F</tt><br/>" )
     message.append( "<tt>Shift+Return</tt>" )
     message.append( "<h4>Details:</h4>" )
-    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the manageR R environment. To limit the import to the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting R layers from the manageR R environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. To enter multi-line R commands, use the <tt>Shift</tt> modifier when entering <tt>Return</tt> to signify continuation of command on the following line. Note: To change the dialog colour theme, alter the 'theme' variables 'background' and/or 'foreground' in the config.ini file in the manageR directory located here: " )
+    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the manageR R environment. To limit the import to the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting R layers from the manageR R environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. To force code to continue on the following line, use the <tt>Shift</tt> modifier when entering <tt>Return</tt> to signify continuation of command on the following line. Note: To change the dialog colour theme, alter the 'theme' variables 'background' and/or 'foreground' in the config.ini file in the manageR directory located here: " )
     message.append( "<tt>" + here + "</tt>." )
     message.append( "<h4>Features:</h4>" )
     message.append( "<ul><li>Perform complex statistical analysis functions on raster, vector and spatial database formats</li>" )

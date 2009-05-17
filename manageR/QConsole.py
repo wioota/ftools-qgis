@@ -66,7 +66,7 @@ class QConsole( QTextEdit ):
     p = QPalette( QColor( pair[0] ) )
     self.setPalette( p )
     self.setAutoFillBackground( True )
-    self.setTextColor( QColor( pair[1] ) )
+    #self.setTextColor( QColor( pair[1] ) )
     self.cmdColour = QColor( pair[1] )
     self.errColour = QColor( pair[1] )
     self.outColour = QColor( pair[1] )
@@ -97,7 +97,7 @@ class QConsole( QTextEdit ):
     Prompt is display in colour specified by cmdColour
     '''
     self.runningCommand.clear()
-    self.setTextColor( self.cmdColour )
+    #self.setTextColor( self.cmdColour )
     self.append( self.currentPrompt )
     self.moveCursor( QTextCursor.End, QTextCursor.MoveAnchor )
 
@@ -314,11 +314,14 @@ class QConsole( QTextEdit ):
     Error = 1, Command = 2, or Output = 0
     '''
     if out_type == QConsole.ERR_TYPE:
-      self.setTextColor( self.errColour )
+      #self.setTextColor( self.errColour )
+      pass
     elif out_type == QConsole.OUT_TYPE:
-      self.setTextColor( self.outColour )
+      #self.setTextColor( self.outColour )
+      pass
     else:
-      self.setTextColor( self.cmdColour )
+      #self.setTextColor( self.cmdColour )
+      pass
     if not out_text == "":
       self.append( out_text )
     cursor = self.textCursor()

@@ -6,6 +6,7 @@ from QConsole import QConsole
 from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
 from RLayerConverter import RVectorLayerConverter
 from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter
+from highlighter import RHighlighter
 
 try:
   import rpy2.robjects as robjects
@@ -36,10 +37,8 @@ class manageR( QDialog ):
     self.setWindowIcon( QIcon( ":manager.png" ) )
     self.setWindowFlags( Qt.Window )
     self.wgt_console = QConsole( self, self.runCommand )
-    back = parser.get('theme','background')
-    fore = parser.get('theme','foreground')
-    if not back == "white" and not fore == "black":
-      self.wgt_console.setThemeColors( ( back, fore ) )
+    theme = parser.get('general','theme')
+    highlighter = RHighlighter( self.wgt_console, theme )
     self.wgt_console.append( self.welcomeString() )
     self.wgt_console.append( "" )
     self.wgt_console.displayPrompt()
@@ -47,9 +46,8 @@ class manageR( QDialog ):
     gbox = QGridLayout()
     gbox.addWidget( self.wgt_console )
     self.setLayout( gbox )
-    self.setGeometry( 100, 100, 650, 450 )
+    self.setGeometry( 100, 100, 550, 400 )
     self.startTimer( 50 )
-    # create the required connections
 
   def timerEvent( self, e ):
     try:
@@ -73,7 +71,7 @@ class manageR( QDialog ):
     message.append( "<tt>Ctrl+F</tt><br/>" )
     message.append( "<tt>Shift+Return</tt>" )
     message.append( "<h4>Details:</h4>" )
-    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the manageR R environment. To limit the import to the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting R layers from the manageR R environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. To force code to continue on the following line, use the <tt>Shift</tt> modifier when entering <tt>Return</tt> to signify continuation of command on the following line. Note: To change the dialog colour theme, alter the 'theme' variables 'background' and/or 'foreground' in the config.ini file in the manageR directory located here: " )
+    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the manageR R environment. To limit the import to the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting R layers from the manageR R environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. To enter multi-line R commands, use the <tt>Shift</tt> modifier when entering <tt>Return</tt> to signify continuation of command on the following line. Note: To change the dialog colour theme, alter the 'theme' variables 'background' and/or 'foreground' in the config.ini file in the manageR directory located here: " )
     message.append( "<tt>" + here + "</tt>." )
     message.append( "<h4>Features:</h4>" )
     message.append( "<ul><li>Perform complex statistical analysis functions on raster, vector and spatial database formats</li>" )
@@ -149,11 +147,9 @@ class manageR( QDialog ):
       else:
         output_text = QString()
         def write( output ):
-          if not QString( output ).startsWith( "Error" ):
-            output_text.append( unicode(output, 'utf-8') )
-          if output_text.length() >= 50000 and output_text[ -1 ] == "\n":
-            self.threadOutput( output_text )
-            output_text.clear()
+          if not QString( output ).startsWith("Error"):
+            #self.threadOutput( output )
+            output_text.append( output )
         robjects.rinterface.setWriteConsole( write )
         def read( prompt ):
           input = "\n"
@@ -164,8 +160,7 @@ class manageR( QDialog ):
           output = robjects.r( r_code )
           visible = output.r["visible"][0][0]
           if visible:
-            #self.threadOutput( robjects.r['print'](output.r["value"][0]) )
-            robjects.r['print'](output.r["value"][0])
+            self.threadOutput( str( output.r["value"][0] ) )
         except robjects.rinterface.RRuntimeError, rre:
           self.threadError( str( rre ) )
         if not output_text.isEmpty():
@@ -173,19 +168,25 @@ class manageR( QDialog ):
     except Exception, err:
       self.threadError( str( err ) )
     self.threadComplete()
+#     return success, out_text
+#    self.thread = commandThread( self.iface.mainWindow(), self, text )
+#    QObject.connect( self.thread, SIGNAL( "threadComplete()" ), self.threadComplete )
+#    QObject.connect( self.thread, SIGNAL( "threadError(PyQt_PyObject)" ), self.threadError )
+#    QObject.connect( self.thread, SIGNAL( "threadOutput(PyQt_PyObject)" ), self.threadOutput )
+#    self.thread.start()
+#    return True, ""
     
   def threadError( self, error ):
+    #self.thread.stop()
     self.wgt_console.appendText( error, QConsole.ERR_TYPE )
-    self.repaint()
-    self.repaint()
       
   def threadOutput( self, output ):
-    self.wgt_console.appendText( unicode( output ), QConsole.OUT_TYPE )
-    self.repaint()
-    self.repaint()
+    self.wgt_console.appendText( output, QConsole.OUT_TYPE )
       
   def threadComplete( self ):
-    pass
+    #self.thread.stop()
+    self.wgt_console.switchPrompt()
+    self.wgt_console.displayPrompt()
 
   def closeEvent( self, e ):
     ask_save = QMessageBox.question( self, "manageR", "Save workspace image?", 
@@ -198,19 +199,18 @@ class manageR( QDialog ):
       robjects.r( 'rm(list=ls(all=T))' )
       robjects.r( 'gc()' )
       try:
-        try:
-          robjects.r('graphics.off()')
-        except:
-          for i in list(robjects.r('dev.list()')):
-            robjects.r('dev.next()')
-            robjects.r('dev.off()')
+        for i in list(robjects.r('dev.list()')):
+          robjects.r('dev.next()')
+          robjects.r('dev.off()')
       except:
         pass
       e.accept()
 
 # This is used whenever we check for sp objects in manageR
   def updateRObjects( self ):
+    #ls_ = robjects.r[ 'ls' ]
     ls_ = robjects.conversion.ri2py(robjects.rinterface.globalEnv.get('ls',wantFun=True))
+    #class_ = robjects.r[ 'class' ]
     class_ = robjects.conversion.ri2py(robjects.rinterface.globalEnv.get('class',wantFun=True))
     layers = {}
     for item in ls_():
@@ -238,7 +238,7 @@ class manageR( QDialog ):
     '''
     self.wgt_console.cursor.select( QTextCursor.LineUnderCursor )
     self.wgt_console.cursor.removeSelectedText()
-    self.wgt_console.cursor.insertText( self.wgt_console.defaultPrompt + "Importing data from canvas..." )
+    self.wgt_console.cursor.insertText( self.wgt_console.prompt + "Importing data from canvas..." )
     self.repaint()
     self.repaint()
     if mlayer is None:
@@ -290,7 +290,7 @@ class manageR( QDialog ):
       put_text = "to file..."
     else:
       put_text = "to canvas..."
-    self.wgt_console.cursor.insertText( self.wgt_console.defaultPrompt + "Exporting layer " + put_text )
+    self.wgt_console.cursor.insertText( self.wgt_console.prompt + "Exporting layer " + put_text )
     self.repaint()
     self.repaint()
     result = self.exportRObjectsDialog( to_file )
@@ -442,6 +442,7 @@ class commandThread( QThread ):
         if visible:
           self.emit( SIGNAL( "threadOutput( PyQt_PyObject )" ), unicode( output.r["value"][0] ) )
       except robjects.rinterface.RRuntimeError, rre:
+  #      self.emit( SIGNAL( "threadError( PyQt_PyObject )" ), QString( str(rre) ) )
         pass
       self.emit( SIGNAL( "threadComplete()" ) )
     except Exception, e:

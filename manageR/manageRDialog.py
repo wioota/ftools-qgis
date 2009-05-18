@@ -7,6 +7,7 @@ from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
 from RLayerConverter import RVectorLayerConverter
 from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter
 from highlighter import RHighlighter
+from completer import CommandCompletion
 
 try:
   import rpy2.robjects as robjects
@@ -39,10 +40,15 @@ class manageR( QDialog ):
     self.wgt_console = QConsole( self, self.runCommand )
     theme = parser.get('general','theme')
     highlighter = RHighlighter( self.wgt_console, theme )
+    if not parser.get('general', 'auto_completion') == "False":
+      completer = CommandCompletion( self.wgt_console, \
+      os.path.join( os.path.dirname( __file__ ), "commands.xml"), \
+      int( parser.get('general', 'delay') ) )
     self.wgt_console.append( self.welcomeString() )
     self.wgt_console.append( "" )
     self.wgt_console.displayPrompt()
-    self.connect( self.wgt_console, SIGNAL( "executeCommand(PyQt_PyObject)" ), self.runCommand )
+    self.connect( self.wgt_console, \
+    SIGNAL( "executeCommand(PyQt_PyObject)" ), self.runCommand )
     gbox = QGridLayout()
     gbox.addWidget( self.wgt_console )
     self.setLayout( gbox )

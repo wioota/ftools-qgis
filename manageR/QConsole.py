@@ -135,8 +135,12 @@ class QConsole( QTextEdit ):
               self.runningCommand.append( command )
               self.updateHistory( command )
           else:
-            self.runningCommand = command
-            self.updateHistory( command )
+            if not command.isEmpty():
+              self.runningCommand = command
+              self.updateHistory( command )
+            else:
+              self.switchPrompt( True )
+              self.displayPrompt()
           if e.modifiers() == Qt.ShiftModifier or \
             not self.checkBrackets( self.runningCommand ):
             self.switchPrompt( False )

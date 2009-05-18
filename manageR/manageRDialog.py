@@ -64,21 +64,16 @@ class manageR( QDialog ):
     message.append( "<br/></h4></center>" )
     message.append( "<h4>Description:</h4>" )
     message.append( "manageR adds comprehensive statistical capabilities to Quantum GIS by loosely coupling QGIS with the R statistical programming environment." )
-    message.append( "<h4>Usage:</h4>" )
-    message.append( "<tt>Ctrl+L</tt><br/>" )
-    message.append( "<tt>Ctrl+T</tt><br/>" )
-    message.append( "<tt>Ctrl+M</tt><br/>" )
-    message.append( "<tt>Ctrl+F</tt><br/>" )
-    message.append( "<tt>Shift+Return</tt>" )
-    message.append( "<h4>Details:</h4>" )
-    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the manageR R environment. To limit the import to the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting R layers from the manageR R environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. To enter multi-line R commands, use the <tt>Shift</tt> modifier when entering <tt>Return</tt> to signify continuation of command on the following line. Note: To change the dialog colour theme, alter the 'theme' variables 'background' and/or 'foreground' in the config.ini file in the manageR directory located here: " )
+    message.append( "<h4>Details and usage:</h4>" )
+    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the <b>manageR R</b> environment. To limit the import to the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting <b>R</b> layers from the <b>manageR R</b> environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. Multi-line <b>R</b> commands will automatically be recognised by <b>manageR</b>, however, to manaully enter multi-line commands, use the <tt>Shift</tt> modifier when typing <tt>Return</tt> to signify continuation of command on the following line. Note: To change the dialog colour theme, alter the 'theme' variable in the config.ini file in the manageR directory located here: " )
     message.append( "<tt>" + here + "</tt>." )
     message.append( "<h4>Features:</h4>" )
     message.append( "<ul><li>Perform complex statistical analysis functions on raster, vector and spatial database formats</li>" )
     message.append( "<li>Use the R statistical environment to graph, plot, and map spatial and aspatial data from within QGIS</li>" )
     message.append( "<li>Export R (sp) vector layers directly to QGIS map canvas as QGIS vector layers</li>" )
+    message.append( "<li>Read QGIS vector layers directly from map canvas as R (sp) vector layers, allowing analysis to be carried out on any vector format supported by QGIS</li>" )
     message.append( "<li>Perform all available R commands from within QGIS, including multi-line commands</li>" )
-    message.append( "<li>Read QGIS vector layers directly from map canvas as R (sp) vector layers, allowing analysis to be carried out on any vector format supported by QGIS</li></ul>" )
+    message.append( "<li>Visualise R commands clearly and cleanly using any one of the four included syntax highlighting themes</li></ul>" )
     message.append( "<h4>References:</h4>" )
     message.append( "<ul><li><a href='http://www.r-project.org/'>The R Project for Statistical Computing</a></li>" )
     message.append( "<li><a href='http://rpy.sourceforge.net/'>RPy: A simple and efficient access to R from Python</a></li>" )
@@ -238,7 +233,7 @@ class manageR( QDialog ):
     '''
     self.wgt_console.cursor.select( QTextCursor.LineUnderCursor )
     self.wgt_console.cursor.removeSelectedText()
-    self.wgt_console.cursor.insertText( self.wgt_console.prompt + "Importing data from canvas..." )
+    self.wgt_console.cursor.insertText( self.wgt_console.defaultPrompt + "Importing data from canvas..." )
     self.repaint()
     self.repaint()
     if mlayer is None:
@@ -250,8 +245,8 @@ class manageR( QDialog ):
       rbuf.append( x )
     robjects.rinterface.setWriteConsole(f)
     if not data_only and not self.isPackageLoaded( "sp" ):
-      self.wgt_console.appendText( "Unable to find R package 'sp'.\n "
-      + "\n Please manually install the 'sp' package in R via "
+      self.wgt_console.appendText( "Unable to find R package 'sp'."
+      + "\nPlease manually install the 'sp' package in R via "
       + "install.packages().", QConsole.ERR_TYPE )
       self.wgt_console.displayPrompt()
       return
@@ -290,7 +285,7 @@ class manageR( QDialog ):
       put_text = "to file..."
     else:
       put_text = "to canvas..."
-    self.wgt_console.cursor.insertText( self.wgt_console.prompt + "Exporting layer " + put_text )
+    self.wgt_console.cursor.insertText( self.wgt_console.defaultPrompt + "Exporting layer " + put_text )
     self.repaint()
     self.repaint()
     result = self.exportRObjectsDialog( to_file )
@@ -302,14 +297,14 @@ class manageR( QDialog ):
     if not result:
       return
     if not to_file and not self.isPackageLoaded( "sp" ):
-      self.wgt_console.appendText( "Unable to find R package 'sp'.\n "
-      + "\n Please manually install the 'sp' package in R via "
+      self.wgt_console.appendText( "Unable to find R package 'sp'."
+      + "\nPlease manually install the 'sp' package in R via "
       + "install.packages().", QConsole.ERR_TYPE )
       self.wgt_console.displayPrompt()
       return
     if to_file and not self.isPackageLoaded( "rgdal" ):
-      self.wgt_console.appendText( "Unable to find R package 'rgdal'.\n "
-      + "\n Please manually install the 'rgdal' package in R via "
+      self.wgt_console.appendText( "Unable to find R package 'rgdal'."
+      + "\nPlease manually install the 'rgdal' package in R via "
       + "install.packages().", QConsole.ERR_TYPE )
       self.wgt_console.displayPrompt()
       return

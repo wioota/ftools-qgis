@@ -124,6 +124,7 @@ class QConsole( QTextEdit ):
         if e.key() == Qt.Key_C and ( e.modifiers() == Qt.ControlModifier or \
            e.modifiers() == Qt.MetaModifier ) and not self.cursor.hasSelection():
           self.runningCommand.clear()
+          self.switchPrompt( True )
           self.displayPrompt()
         # if Return is pressed, then perform the commands
         elif e.key() == Qt.Key_Return:
@@ -147,7 +148,7 @@ class QConsole( QTextEdit ):
             self.executeCommand( command, False )
             self.runningCommand.clear()
             self.switchPrompt( True )
-            self.displayPrompt()
+            #self.displayPrompt()
           self.cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
           self.moveToEnd()
         # if Up or Down is pressed
@@ -208,6 +209,7 @@ class QConsole( QTextEdit ):
       else:
         return
     self.setTextCursor( self.cursor )
+    self.ensureCursorVisible()
 
   def checkBrackets( self, command ):
     s = str(command)

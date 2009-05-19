@@ -5,9 +5,10 @@ from PyQt4.QtXml import QDomDocument
 
 class CommandCompletion( QObject ):
 
-  def __init__( self, parent, commandList, delay = 500 ):
+  def __init__( self, parent, commandList, delay = 500, statusBar = None ):
     QObject.__init__( self, parent )
     self.editor = parent
+    self.statusBar = statusBar
     self.popup = QTreeWidget()
     self.popup.setColumnCount(1)
     self.popup.setUniformRowHeights(True)
@@ -24,7 +25,12 @@ class CommandCompletion( QObject ):
     self.popup.setFocusPolicy(Qt.NoFocus)
     self.popup.setFocusProxy(self.editor)
     self.choices = QStringList()
-    self.loadSuggestions( commandList )
+    if isinstance( commandList, str ):
+      self.loadSuggestions( commandList )
+    elif isinstance( commandList, QStringList ):
+      self.choices = commandList
+    else:
+      return
     self.timer = QTimer(self)
     self.timer.setSingleShot(True)
     if type( delay ) == type( 500 ):
@@ -80,7 +86,11 @@ class CommandCompletion( QObject ):
     self.popup.clear()
     for i in choices:
       item = QTreeWidgetItem(self.popup)
-      item.setText(0, i)
+      item.setText(0, i.split(":")[0].simplified())
+      try:
+        item.setData(0, Qt.StatusTipRole, QVariant( i.split(":")[1].simplified() ) )
+      except:
+        pass
     self.popup.setCurrentItem(self.popup.topLevelItem(0))
     self.popup.resizeColumnToContents(0)
     self.popup.adjustSize()
@@ -98,6 +108,8 @@ class CommandCompletion( QObject ):
     self.popup.hide()
     self.editor.setFocus()
     item = self.popup.currentItem()
+    self.statusBar.setText( item.data( 0, \
+    Qt.StatusTipRole ).toString().replace("function", item.text(0)) )
     if item:
       self.replaceCurrentWord(item.text(0))
     self.preventSuggest()
@@ -108,7 +120,7 @@ class CommandCompletion( QObject ):
   def autoSuggest( self ):
     text = self.getCurrentWord()
     if text.contains( QRegExp( "\\b+" ) ):
-      self.showCompletion( self.choices.filter( QRegExp( "\\b" + text + "+" ) ) )
+      self.showCompletion( self.choices.filter( QRegExp( "^" + text ) ) )
       
   def getCurrentWord( self ):
     textCursor = self.editor.textCursor()

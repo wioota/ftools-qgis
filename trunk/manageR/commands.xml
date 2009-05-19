@@ -1,154 +1,1638 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+This file is part of manageR
+
+Copyright (C) 2009 Carson J. Q. Farmer
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public Licence as published by the Free Software
+Foundation; either version 2 of the Licence, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more 
+details.
+
+You should have received a copy of the GNU General Public Licence along with
+this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
+Street, Fifth Floor, Boston, MA  02110-1301, USA
+-->
+
+<!-- spatial (sp) -->
 <commands>
-  <cmd name="while" />
-  <cmd name="for" />
-  <cmd name="if" />
-  <cmd name="abline" />
-  <cmd name="acos" />
-  <cmd name="alternative" />
-  <cmd name="anova" />
-  <cmd name="aov" />
-  <cmd name="apply" />
-  <cmd name="as.data.frame" />
-  <cmd name="as.factor" />
-  <cmd name="asin" />
-  <cmd name="as.matrix" />
-  <cmd name="atan" />
-  <cmd name="barplot" />
-  <cmd name="bbox" />
-  <cmd name="binom.test" />
-  <cmd name="bmp" />
-  <cmd name="boxplot" />
-  <cmd name="breaks" />
-  <cmd name="cbind" />
-  <cmd name="cex" />
-  <cmd name="character" />
-  <cmd name="chisq.test" />
-  <cmd name="col" />
-  <cmd name="col.lab" />
-  <cmd name="col.main" />
-  <cmd name="col.sub" />
-  <cmd name="conf.level" />
-  <cmd name="contrastscut" />
-  <cmd name="coordinates" />
-  <cmd name="cor" />
-  <cmd name="cor.test" />
-  <cmd name="cos" />
-  <cmd name="create2GDAL" />
-  <cmd name="crossprod" />
-  <cmd name="CRS" />
-  <cmd name="data.entry" />
-  <cmd name="data.frame" />
-  <cmd name="dev.off" />
-  <cmd name="dump" />
-  <cmd name="exp" />
-  <cmd name="factor" />
-  <cmd name="fisher.test" />
-  <cmd name="fitted" />
-  <cmd name="font" />
-  <cmd name="gdalDrivers" />
-  <cmd name="GDALinfo" />
-  <cmd name="help" />
-  <cmd name="help.search" />
-  <cmd name="hist" />
-  <cmd name="history" />
-  <cmd name="is.data.frame" />
-  <cmd name="is.na" />
-  <cmd name="jpeg" />
-  <cmd name="kruskal.test" />
-  <cmd name="ls" />
-  <cmd name="legend" />
-  <cmd name="library" />
-  <cmd name="lines" />
-  <cmd name="lm" />
-  <cmd name="load" />
-  <cmd name="log" />
-  <cmd name="log10" />
-  <cmd name="logical" />
-  <cmd name="ls" />
-  <cmd name="lty" />
-  <cmd name="mainbg" />
-  <cmd name="matplot" />
-  <cmd name="matrix" />
-  <cmd name="max" />
-  <cmd name="mcnemer.test" />
-  <cmd name="mean" />
-  <cmd name="median" />
-  <cmd name="mex" />
-  <cmd name="mfcol" />
-  <cmd name="mfrow" />
-  <cmd name="min" />
-  <cmd name="mu" />
-  <cmd name="names" />
-  <cmd name="numeric" />
-  <cmd name="ogrDrivers" />
-  <cmd name="ogrInfo" />
-  <cmd name="paired" />
-  <cmd name="patialPoints" />
-  <cmd name="pch" />
-  <cmd name="pdf" />
-  <cmd name="plot" />
-  <cmd name="points" />
-  <cmd name="postscript" />
-  <cmd name="power.prop.test" />
-  <cmd name="power.t.test" />
-  <cmd name="predict" />
-  <cmd name="print" />
-  <cmd name="proj4string" />
-  <cmd name="prop.testvar.test" />
-  <cmd name="qqline" />
-  <cmd name="qqnorm" />
-  <cmd name="quantile" />
-  <cmd name="range" />
-  <cmd name="rbind" />
-  <cmd name="read.csv" />
-  <cmd name="read.delim" />
-  <cmd name="readGDAL" />
-  <cmd name="readLines" />
-  <cmd name="read.table" />
-  <cmd name="rep" />
-  <cmd name="residuals gl" />
-  <cmd name="rm" />
-  <cmd name="sapply" />
-  <cmd name="save" />
-  <cmd name="save.image" />
-  <cmd name="scan" />
-  <cmd name="sd" />
-  <cmd name="search" />
-  <cmd name="seq" />
-  <cmd name="sin" />
-  <cmd name="sort" />
-  <cmd name="source" />
-  <cmd name="spatial" />
-  <cmd name="SpatialGrid" />
-  <cmd name="SpatialGridDataFrame" />
-  <cmd name="SpatialLines" />
-  <cmd name="SpatialLinesDataFrame" />
-  <cmd name="SpatialPixels" />
-  <cmd name="SpatialPixelsDataFrame" />
-  <cmd name="SpatialPointsDataFrame" />
-  <cmd name="SpatialPolygons" />
-  <cmd name="SpatialPolygonsDataFrame" />
-  <cmd name="spplot" />
-  <cmd name="spsample" />
-  <cmd name="spTransform" />
-  <cmd name="stemandleaf" />
-  <cmd name="stripchart" />
-  <cmd name="sum" />
-  <cmd name="summary" />
-  <cmd name="sweep" />
-  <cmd name="table" />
-  <cmd name="tan" />
-  <cmd name="tapply" />
-  <cmd name="t.test" />
-  <cmd name="type" />
-  <cmd name="var" />
-  <cmd name="var.equal" />
-  <cmd name="which" />
-  <cmd name="wilcox.test" />
-  <cmd name="writeGDAL" />
-  <cmd name="writeOGR" />
-  <cmd name="x11" />
-  <cmd name="xlab" />
-  <cmd name="ylab" />
+  <cmd name='areaSpatialGrid : function (obj)' />
+  <cmd name='as.character.DMS : function (x, ...)' />
+  <cmd name='as.double.DMS : function (x, ...)' />
+  <cmd name='as.image.SpatialGridDataFrame : function (x, xcol = 1, ycol = 2)' />
+  <cmd name='as.numeric.DMS : function (x, ...)' />
+  <cmd name='as.SpatialLines.SLDF : function (SLDF)' />
+  <cmd name='as.SpatialPolygons.GridTopology : function (grd, proj4string = CRS(as.character(NA)))' />
+  <cmd name='as.SpatialPolygons.PolygonsList : function (Srl, proj4string = CRS(as.character(NA)))' />
+  <cmd name='as.SpatialPolygons.SpatialPixels : function (obj)' />
+  <cmd name='bpy.colors : function (n = 100, cutoff.tails = 0.1, alpha = 1)' />
+  <cmd name='bubble : function (obj, zcol = 1, ..., fill = TRUE, maxsize = 3, do.sqrt = TRUE, pch, col = c(2, 3), key.entries = quantile(data[, zcol]), main = ifelse(is.numeric(zcol), names(data)[zcol], zcol), identify = FALSE, labels = row.names(data.frame(obj)), key.space = "right", scales = list(draw = FALSE), xlab = NULL, ylab = NULL, panel = panel.bubble, sp.layout = NULL)' />
+<!--  <cmd name='char2dms : function (from, chd = "d", chm = "'", chs = "\"")' /> -->
+  <cmd name='coordinatevalues : function (obj)' />
+  <cmd name='CRS : function (projargs)' />
+  <cmd name='dd2dms : function (dd, NS = FALSE)' />
+  <cmd name='degAxis : function (side, at, labels, ...)' />
+  <cmd name='fullgrid : function (obj)' />
+  <cmd name='getGridIndex : function (cc, grid, all.inside = TRUE)' />
+  <cmd name='getGridTopology : function (obj)' />
+  <cmd name='getLinesIDSlot : function (Lines)' />
+  <cmd name='getLinesLinesSlot : function (SL)' />
+  <cmd name='getPolygonAreaSlot : function (Polygon)' />
+  <cmd name='getPolygonCoordsSlot : function (Polygon)' />
+  <cmd name='getPolygonHoleSlot : function (Polygon)' />
+  <cmd name='getPolygonLabptSlot : function (Polygon)' />
+  <cmd name='getPolygonsIDSlot : function (Polygons)' />
+  <cmd name='getPolygonsLabptSlot : function (Polygons)' />
+  <cmd name='getPolygonsplotOrderSlot : function (Polygons)' />
+  <cmd name='getPolygonsPolygonsSlot : function (Polygons)' />
+  <cmd name='getSLLinesIDSlots : function (SL)' />
+  <cmd name='getSLlinesSlot : function (SL)' />
+  <cmd name='getSpatialLinesMidPoints : function (SL)' />
+  <cmd name='getSpatialPolygonsLabelPoints : function (SP)' />
+  <cmd name='getSpPnHoles : function (SpP)' />
+  <cmd name='getSpPnParts : function (SpP)' />
+  <cmd name='getSpPplotOrderSlot : function (SpP)' />
+  <cmd name='getSpPPolygonsIDSlots : function (SpP)' />
+  <cmd name='getSpPPolygonsLabptSlots : function (SpP)' />
+  <cmd name='getSpPpolygonsSlot : function (SpP)' />
+  <cmd name='gridat : function (x, easts = pretty(bbox(x)[1, ]), norths = pretty(bbox(x)[2, ]), offset = 0.5)' />
+  <cmd name='gridlines : function (x, easts = pretty(bbox(x)[1, ]), norths = pretty(bbox(x)[2, ]), ndiscr = 20)' />
+  <cmd name='gridparameters : function (obj)' />
+  <cmd name='GridTopology : function (cellcentre.offset, cellsize, cells.dim)' />
+  <cmd name='HexPoints2SpatialPolygons : function (hex, dx)' />
+  <cmd name='IDvaluesGridTopology : function (obj)' />
+  <cmd name='IDvaluesSpatialPixels : function (obj)' />
+  <cmd name='image2Grid : function (im, p4 = as.character(NA))' />
+  <cmd name='is.projected : function (sd)' />
+  <cmd name='layout.north.arrow : function (type = 1)' />
+  <cmd name='layout.scale.bar : function (height = 0.05)' />
+  <cmd name='Line : function (coords)' />
+  <cmd name='LineLength : function (cc)' />
+  <cmd name='Lines : function (slinelist, ID = as.character(NA))' />
+  <cmd name='LinesLength : function (Ls)' />
+  <cmd name='makegrid : function (x, n = 10000, nsig = 2, cellsize, offset = rep(0.5, nrow(bb)))' />
+  <cmd name='mapasp : function (data, xlim = bbox(data)[1, ], ylim = bbox(data)[2, ])' />
+  <cmd name='mapLegendGrob : function (obj, widths = unit(1, "cm"), heights = unit(1, "cm"), fill = "black", just = "right")' />
+  <cmd name='nowrapSpatialLines : function (obj, offset = 0, eps = rep(.Machine$double.eps, 2))' />
+  <cmd name='panel.gridplot : function (x, y, z, subscripts, ..., sp.layout)' />
+  <cmd name='panel.pointsplot : function (x, y, subscripts, col, sp.layout, ...)' />
+  <cmd name='panel.polygonsplot : function (x, y, z, subscripts, at = pretty(z), shrink, labels = NULL, label.style = c("mixed", "flat", "align"), contour = FALSE, region = TRUE, col = add.line$col, lty = add.line$lty, lwd = add.line$lwd, cex = add.text$cex, font = add.text$font, fontfamily = add.text$fontfamily, fontface = add.text$fontface, col.text = add.text$col, ..., col.regions = regions$col, alpha.regions = regions$alpha, grid.polygons, sp.layout)' />
+  <cmd name='point.in.polygon : function (point.x, point.y, pol.x, pol.y, mode.checked = FALSE)' />
+  <cmd name='points2grid : function (points, tolerance = sqrt(.Machine$double.eps), round = NULL, fuzz.tol = 3)' />
+  <cmd name='Polygon : function (coords, hole = as.logical(NA))' />
+  <cmd name='Polygons : function (srl, ID)' />
+  <cmd name='print.CRS : function (x, ...)' />
+  <cmd name='print.DMS : function (x, ...)' />
+  <cmd name='proj4string : function (sd)' />
+  <cmd name='rbind.SpatialLines : function (..., makeUniqueIDs = FALSE)' />
+  <cmd name='rbind.SpatialLinesDataFrame : function (...)' />
+  <cmd name='rbind.SpatialPixels : function (...)' />
+  <cmd name='rbind.SpatialPixelsDataFrame : function (...)' />
+  <cmd name='rbind.SpatialPoints : function (...)' />
+  <cmd name='rbind.SpatialPointsDataFrame : function (...)' />
+  <cmd name='rbind.SpatialPolygons : function (..., makeUniqueIDs = FALSE)' />
+  <cmd name='rbind.SpatialPolygonsDataFrame : function (...)' />
+  <cmd name='read.asciigrid : function (fname, as.image = FALSE, plot.image = FALSE, colname = fname, proj4string = CRS(as.character(NA)))' />
+  <cmd name='remove.duplicates : function (obj, zero = 0, remove.second = TRUE)' />
+  <cmd name='sample.Line : function (x, n, type, offset = runif(1), proj4string = CRS(as.character(NA)), ...)' />
+  <cmd name='sample.Polygon : function (x, n, type = "random", bb = bbox(x), offset = runif(2), proj4string = CRS(as.character(NA)), iter = 4, ...)' />
+  <cmd name='sample.Polygons : function (x, n, type = "random", bb = bbox(x), offset = runif(2), proj4string = CRS(as.character(NA)), iter = 4, ...)' />
+  <cmd name='sample.Sgrid : function (x, n, type = "random", bb = bbox(x), offset = runif(nrow(bb)), ...)' />
+  <cmd name='sample.Spatial : function (x, n, type, bb = bbox(x), offset = runif(nrow(bb)), cellsize, ..., nclusters = 1)' />
+  <cmd name='select.spatial : function (data, digitize = TRUE, pch = "+", rownames = FALSE)' />
+  <cmd name='ShowSpatialPointsDataFrame : function (object)' />
+  <cmd name='Spatial : function (bbox, proj4string = CRS(as.character(NA)))' />
+  <cmd name='SpatialGrid : function (grid, proj4string = CRS(as.character(NA)))' />
+  <cmd name='SpatialGridDataFrame : function (grid, data, proj4string = CRS(as.character(NA)))' />
+  <cmd name='SpatialLines : function (LinesList, proj4string = CRS(as.character(NA)))' />
+  <cmd name='SpatialLinesDataFrame : function (sl, data, match.ID = TRUE)' />
+  <cmd name='SpatialLinesLengths : function (SL)' />
+  <cmd name='SpatialPixels : function (points, tolerance = sqrt(.Machine$double.eps), proj4string = CRS(as.character(NA)), round = NULL, fuzz.tol = 3)' />
+  <cmd name='SpatialPixelsDataFrame : function (points, data, tolerance = sqrt(.Machine$double.eps), proj4string = CRS(as.character(NA)), round = NULL, fuzz.tol = 3)' />
+  <cmd name='SpatialPoints : function (coords, proj4string = CRS(as.character(NA)), bbox = NULL)' />
+  <cmd name='SpatialPointsDataFrame : function (coords, data, coords.nrs = numeric(0), proj4string = CRS(as.character(NA)), match.ID = TRUE, bbox = NULL)' />
+  <cmd name='SpatialPolygons : function (Srl, pO, proj4string = CRS(as.character(NA)))' />
+  <cmd name='SpatialPolygonsDataFrame : function (Sr, data, match.ID = TRUE)' />
+  <cmd name='SpatialPolygonsRescale : function (obj, offset, scale = 1, fill = "black", col = "black", plot.grid = TRUE, ...)' />
+  <cmd name='spDistsN1 : function (pts, pt, longlat = FALSE)' />
+  <cmd name='sp.grid : function (obj, col = 1, alpha = 1, ...)' />
+  <cmd name='sp.lines : function (obj, col = 1, ...)' />
+  <cmd name='spmap.to.lev : function (data, zcol = 1:n, n = 2, names.attr)' />
+  <cmd name='spplot.key : function (sp.layout, rows = 1, cols = 1)' />
+  <cmd name='spplot.locator : function (n = 512, type = "n", ...)' />
+  <cmd name='sp.points : function (obj, pch = 3, ...)' />
+  <cmd name='sp.polygons : function (obj, col = 1, fill = "transparent", ...)' />
+  <cmd name='sp.text : function (loc, txt, ...)' />
+  <cmd name='sp.theme : function (set = FALSE, regions = list(col = bpy.colors(100)), ...)' />
+  <cmd name='write.asciigrid : function (x, fname, attr = 1, na.value = -9999, ...)' />
+  <cmd name='zerodist : function (obj, zero = 0)' />
+  <cmd name='zerodist2 : function (obj1, obj2, zero = 0)' />
+<!-- rgdal -->
+  <cmd name='asSGDF_GROD : function (x, offset, region.dim, output.dim, p4s = NULL, ..., half.cell = c(0.5, 0.5))' />
+  <cmd name='copyDataset : function (dataset, driver, strict = FALSE, options = NULL)' />
+  <cmd name='copy.SpatialGDAL : function (dataset, fname, driver = getDriver(dataset@grod), strict = FALSE, options = NULL, silent = FALSE)' />
+  <cmd name='create2GDAL : function (dataset, drivername = "GTiff", type = "Float32", mvFlag = NA, options = NULL)' />
+  <cmd name='CRSargs : function (object)' />
+  <cmd name='deleteDataset : function (dataset)' />
+  <cmd name='displayDataset : function (x, offset = c(0, 0), region.dim = dim(x), reduction = 1, band = 1, col = NULL, reset.par = TRUE, max.dim = 500, ...)' />
+  <cmd name='GDAL.close : function (dataset)' />
+  <cmd name='gdalDrivers : function ()' />
+  <cmd name='GDALinfo : function (fname)' />
+  <cmd name='GDAL.open : function (filename, read.only = TRUE)' />
+  <cmd name='getColorTable : function (dataset, band = 1)' />
+  <cmd name='getDescription : function (object)' />
+  <cmd name='getDriver : function (dataset)' />
+  <cmd name='getDriverLongName : function (driver)' />
+  <cmd name='getDriverName : function (driver)' />
+  <cmd name='getGDAL_DATA_Path : function ()' />
+  <cmd name='getGDALDriverNames : function ()' />
+  <cmd name='getGDALVersionInfo : function ()' />
+  <cmd name='getGeoTransFunc : function (dataset)' />
+  <cmd name='getPROJ4libPath : function ()' />
+  <cmd name='getPROJ4VersionInfo : function ()' />
+  <cmd name='getProjectionRef : function (dataset)' />
+  <cmd name='getRasterBand : function (dataset, band = 1)' />
+  <cmd name='getRasterBlockSize : function (raster)' />
+  <cmd name='getRasterData : function (dataset, band = NULL, offset = c(0, 0), region.dim = dim(dataset), output.dim = region.dim, interleave = c(0, 0), as.is = FALSE)' />
+  <cmd name='getRasterTable : function (dataset, band = NULL, offset = c(0, 0), region.dim = dim(dataset))' />
+  <cmd name='make_EPSG : function (file)' />
+  <cmd name='ogrDrivers : function ()' />
+  <cmd name='ogrFIDs : function (dsn, layer)' />
+  <cmd name='ogrInfo : function (dsn, layer, input_field_name_encoding = NULL)' />
+  <cmd name='open.SpatialGDAL : function (con, ..., silent = FALSE)' />
+  <cmd name='print.GDALobj : function (x, ...)' />
+  <cmd name='project : function (xy, proj, inv = FALSE)' />
+  <cmd name='projInfo : function (type = "proj")' />
+  <cmd name='projNAD : function ()' />
+  <cmd name='putRasterData : function (dataset, rasterData, band = 1, offset = c(0, 0))' />
+  <cmd name='readGDAL : function (fname, offset, region.dim, output.dim, band, p4s = NULL, ..., half.cell = c(0.5, 0.5), silent = FALSE)' />
+  <cmd name='readOGR : function (dsn, layer, verbose = TRUE, p4s = NULL, drop_unsupported_fields = FALSE, input_field_name_encoding = NULL)' />
+  <cmd name='RGB2PCT : function (x, band, driver.name = "MEM", ncolors = 256, set.ctab = TRUE)' />
+  <cmd name='saveDataset : function (dataset, filename, options = NULL, returnNewObj = FALSE)' />
+  <cmd name='saveDatasetAs : function (dataset, filename, driver = NULL, options = NULL)' />
+  <cmd name='SGDF2PCT : function (x, ncolors = 256, adjust.bands = TRUE)' />
+  <cmd name='showWKT : function (p4s, file = NULL, morphToESRI = TRUE)' />
+  <cmd name='spTransform.SpatialLines : function (x, CRSobj, ...)' />
+  <cmd name='spTransform.SpatialLinesDataFrame : function (x, CRSobj, ...)' />
+  <cmd name='spTransform.SpatialPoints : function (x, CRSobj, ...)' />
+  <cmd name='spTransform.SpatialPointsDataFrame : function (x, CRSobj, ...)' />
+  <cmd name='spTransform.SpatialPolygons : function (x, CRSobj, ...)' />
+  <cmd name='spTransform.SpatialPolygonsDataFrame : function (x, CRSobj, ...)' />
+  <cmd name='sub.GDROD : function (x, i, j, ..., drop = FALSE)' />
+  <cmd name='vec2RGB : function (vec, breaks, col)' />
+  <cmd name='writeGDAL : function (dataset, fname, drivername = "GTiff", type = "Float32", mvFlag = NA, options = NULL)' />
+  <cmd name='writeOGR : function (obj, dsn, layer, driver, dataset_options = NULL, layer_options = NULL, verbose = FALSE)' />
+<!-- graphics -->
+  <cmd name='abline : function (a = NULL, b = NULL, h = NULL, v = NULL, reg = NULL, coef = NULL, untf = FALSE, ...)' />
+  <cmd name='arrows : function (x0, y0, x1, y1, length = 0.25, angle = 30, code = 2, col = par("fg"), lty = par("lty"), lwd = par("lwd"), ...)' />
+  <cmd name='assocplot : function (x, col = c("black", "red"), space = 0.3, main = NULL, xlab = NULL, ylab = NULL)' />
+  <cmd name='axis : function (side, at = NULL, labels = TRUE, tick = TRUE, line = NA, pos = NA, outer = FALSE, font = NA, lty = "solid", lwd = 1, lwd.ticks = lwd, col = NULL, col.ticks = NULL, hadj = NA, padj = NA, ...)' />
+  <cmd name='Axis : function (x = NULL, at = NULL, ..., side, labels = NULL)' />
+  <cmd name='axis.Date : function (side, x, at, format, labels = TRUE, ...)' />
+  <cmd name='axis.POSIXct : function (side, x, at, format, labels = TRUE, ...)' />
+  <cmd name='axTicks : function (side, axp = NULL, usr = NULL, log = NULL)' />
+  <cmd name='barplot : function (height, ...)' />
+  <cmd name='barplot.default : function (height, width = 1, space = NULL, names.arg = NULL, legend.text = NULL, beside = FALSE, horiz = FALSE, density = NULL, angle = 45, col = NULL, border = par("fg"), main = NULL, sub = NULL, xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL, xpd = TRUE, log = "", axes = TRUE, axisnames = TRUE, cex.axis = par("cex.axis"), cex.names = par("cex.axis"), inside = TRUE, plot = TRUE, axis.lty = 0, offset = 0, add = FALSE, ...)' />
+  <cmd name='box : function (which = "plot", lty = "solid", ...)' />
+  <cmd name='boxplot : function (x, ...)' />
+  <cmd name='boxplot.default : function (x, ..., range = 1.5, width = NULL, varwidth = FALSE, notch = FALSE, outline = TRUE, names, plot = TRUE, border = par("fg"), col = NULL, log = "", pars = list(boxwex = 0.8, staplewex = 0.5,     outwex = 0.5), horizontal = FALSE, add = FALSE, at = NULL)' />
+  <cmd name='bxp : function (z, notch = FALSE, width = NULL, varwidth = FALSE, outline = TRUE, notch.frac = 0.5, log = "", border = par("fg"), pars = NULL, frame.plot = axes, horizontal = FALSE, add = FALSE, at = NULL, show.names = NULL, ...)' />
+  <cmd name='cdplot : function (x, ...)' />
+  <cmd name='clip : function (x1, x2, y1, y2)' />
+  <cmd name='close.screen : function (n, all.screens = FALSE)' />
+  <cmd name='co.intervals : function (x, number = 6, overlap = 0.5)' />
+  <cmd name='contour : function (x, ...)' />
+  <cmd name='contour.default : function (x = seq(0, 1, length.out = nrow(z)), y = seq(0, 1, length.out = ncol(z)), z, nlevels = 10, levels = pretty(zlim, nlevels), labels = NULL, xlim = range(x, finite = TRUE), ylim = range(y, finite = TRUE), zlim = range(z, finite = TRUE), labcex = 0.6, drawlabels = TRUE, method = "flattest", vfont, axes = TRUE, frame.plot = axes, col = par("fg"), lty = par("lty"), lwd = par("lwd"), add = FALSE, ...)' />
+  <cmd name='coplot : function (formula, data, given.values, panel = points, rows, columns, show.given = TRUE, col = par("fg"), pch = par("pch"), bar.bg = c(num = gray(0.8), fac = gray(0.95)), xlab = c(x.name,     paste("Given :", a.name)), ylab = c(y.name, paste("Given :",     b.name)), subscripts = FALSE, axlabels = function(f) abbreviate(levels(f)), number = 6, overlap = 0.5, xlim, ylim, ...)' />
+  <cmd name='curve : function (expr, from = NULL, to = NULL, n = 101, add = FALSE, type = "l", ylab = NULL, log = NULL, xlim = NULL, ...)' />
+  <cmd name='dotchart : function (x, labels = NULL, groups = NULL, gdata = NULL, cex = par("cex"), pch = 21, gpch = 21, bg = par("bg"), color = par("fg"), gcolor = par("fg"), lcolor = "gray", xlim = range(x[is.finite(x)]), main = NULL, xlab = NULL, ylab = NULL, ...)' />
+  <cmd name='erase.screen : function (n = cur.screen)' />
+  <cmd name='filled.contour : function (x = seq(0, 1, length.out = nrow(z)), y = seq(0, 1, length.out = ncol(z)), z, xlim = range(x, finite = TRUE), ylim = range(y, finite = TRUE), zlim = range(z, finite = TRUE), levels = pretty(zlim, nlevels), nlevels = 20, color.palette = cm.colors, col = color.palette(length(levels) - 1), plot.title, plot.axes, key.title, key.axes, asp = NA, xaxs = "i", yaxs = "i", las = 1, axes = TRUE, frame.plot = axes, ...)' />
+  <cmd name='fourfoldplot : function (x, color = c("#99CCFF", "#6699CC"), conf.level = 0.95, std = c("margins", "ind.max", "all.max"), margin = c(1, 2), space = 0.2, main = NULL, mfrow = NULL, mfcol = NULL)' />
+  <cmd name='frame : function ()' />
+  <cmd name='grconvertX : function (x, from = "user", to = "user")' />
+  <cmd name='grconvertY : function (y, from = "user", to = "user")' />
+  <cmd name='grid : function (nx = NULL, ny = nx, col = "lightgray", lty = "dotted", lwd = par("lwd"), equilogs = TRUE)' />
+  <cmd name='hist : function (x, ...)' />
+  <cmd name='hist.default : function (x, breaks = "Sturges", freq = NULL, probability = !freq, include.lowest = TRUE, right = TRUE, density = NULL, angle = 45, col = NULL, border = NULL, main = paste("Histogram of", xname), xlim = range(breaks), ylim = NULL, xlab = xname, ylab, axes = TRUE, plot = TRUE, labels = FALSE, nclass = NULL, ...)' />
+  <cmd name='identify : function (x, ...)' />
+  <cmd name='image : function (x, ...)' />
+  <cmd name='image.default : function (x = seq(0, 1, length.out = nrow(z)), y = seq(0, 1, length.out = ncol(z)), z, zlim = range(z[is.finite(z)]), xlim = range(x), ylim = range(y), col = heat.colors(12), add = FALSE, xaxs = "i", yaxs = "i", xlab, ylab, breaks, oldstyle = FALSE, ...)' />
+  <cmd name='layout : function (mat, widths = rep(1, ncol(mat)), heights = rep(1, nrow(mat)), respect = FALSE)' />
+  <cmd name='layout.show : function (n = 1)' />
+  <cmd name='lcm : function (x)' />
+  <cmd name='legend : function (x, y = NULL, legend, fill = NULL, col = par("col"), lty, lwd, pch, angle = 45, density = NULL, bty = "o", bg = par("bg"), box.lwd = par("lwd"), box.lty = par("lty"), box.col = par("fg"), pt.bg = NA, cex = 1, pt.cex = cex, pt.lwd = lwd, xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1, adj = c(0, 0.5), text.width = NULL, text.col = par("col"), merge = TRUE, trace = FALSE, plot = TRUE, ncol = 1, horiz = FALSE, title = NULL, inset = 0, xpd, title.col = text.col)' />
+  <cmd name='lines : function (x, ...)' />
+  <cmd name='lines.default : function (x, y = NULL, type = "l", ...)' />
+  <cmd name='locator : function (n = 512, type = "n", ...)' />
+  <cmd name='matlines : function (x, y, type = "l", lty = 1:5, lwd = 1, pch = NULL, col = 1:6, ...)' />
+  <cmd name='matplot : function (x, y, type = "p", lty = 1:5, lwd = 1, pch = NULL, col = 1:6, cex = NULL, bg = NA, xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL, ..., add = FALSE, verbose = getOption("verbose"))' />
+  <cmd name='matpoints : function (x, y, type = "p", lty = 1:5, lwd = 1, pch = NULL, col = 1:6, ...)' />
+  <cmd name='mosaicplot : function (x, ...)' />
+  <cmd name='mtext : function (text, side = 3, line = 0, outer = FALSE, at = NA, adj = NA, padj = NA, cex = NA, col = NA, font = NA, ...)' />
+  <cmd name='pairs : function (x, ...)' />
+  <cmd name='pairs.default : function (x, labels, panel = points, ..., lower.panel = panel, upper.panel = panel, diag.panel = NULL, text.panel = textPanel, label.pos = 0.5 + has.diag/3, cex.labels = NULL, font.labels = 1, row1attop = TRUE, gap = 1)' />
+  <cmd name='panel.smooth : function (x, y, col = par("col"), bg = NA, pch = par("pch"), cex = 1, col.smooth = "red", span = 2/3, iter = 3, ...)' />
+  <cmd name='par : function (..., no.readonly = FALSE)' />
+  <cmd name='persp : function (x, ...)' />
+  <cmd name='pie : function (x, labels = names(x), edges = 200, radius = 0.8, clockwise = FALSE, init.angle = if (clockwise) 90 else 0, density = NULL, angle = 45, col = NULL, border = NULL, lty = NULL, main = NULL, ...)' />
+  <cmd name='piechart : function (x, labels = names(x), edges = 200, radius = 0.8, density = NULL, angle = 45, col = NULL, main = NULL, ...)' />
+  <cmd name='plot : function (x, y, ...)' />
+  <cmd name='plot.default : function (x, y = NULL, type = "p", xlim = NULL, ylim = NULL, log = "", main = NULL, sub = NULL, xlab = NULL, ylab = NULL, ann = par("ann"), axes = TRUE, frame.plot = axes, panel.first = NULL, panel.last = NULL, asp = NA, ...)' />
+  <cmd name='plot.design : function (x, y = NULL, fun = mean, data = NULL, ..., ylim = NULL, xlab = "Factors", ylab = NULL, main = NULL, ask = NULL, xaxt = par("xaxt"), axes = TRUE, xtick = FALSE)' />
+  <cmd name='plot.new : function ()' />
+  <cmd name='plot.window : function (xlim, ylim, log = "", asp = NA, ...)' />
+  <cmd name='plot.xy : function (xy, type, pch = par("pch"), lty = par("lty"), col = par("col"), bg = NA, cex = 1, lwd = par("lwd"), ...)' />
+  <cmd name='points : function (x, ...)' />
+  <cmd name='points.default : function (x, y = NULL, type = "p", ...)' />
+  <cmd name='polygon : function (x, y = NULL, density = NULL, angle = 45, border = NULL, col = NA, lty = par("lty"), ...)' />
+  <cmd name='rect : function (xleft, ybottom, xright, ytop, density = NULL, angle = 45, col = NA, border = NULL, lty = par("lty"), lwd = par("lwd"), ...)' />
+  <cmd name='rug : function (x, ticksize = 0.03, side = 1, lwd = 0.5, col = par("fg"), quiet = TRUE, ...)' />
+  <cmd name='screen : function (n = cur.screen, new = TRUE)' />
+  <cmd name='segments : function (x0, y0, x1, y1, col = par("fg"), lty = par("lty"), lwd = par("lwd"), ...)' />
+  <cmd name='spineplot : function (x, ...)' />
+  <cmd name='split.screen : function (figs, screen, erase = TRUE)' />
+  <cmd name='stars : function (x, full = TRUE, scale = TRUE, radius = TRUE, labels = dimnames(x)[[1]], locations = NULL, nrow = NULL, ncol = NULL, len = 1, key.loc = NULL, key.labels = dimnames(x)[[2]], key.xpd = TRUE, xlim = NULL, ylim = NULL, flip.labels = NULL, draw.segments = FALSE, col.segments = 1:n.seg, col.stars = NA, axes = FALSE, frame.plot = axes, main = NULL, sub = NULL, xlab = "", ylab = "", cex = 0.8, lwd = 0.25, lty = par("lty"), xpd = FALSE, mar = pmin(par("mar"), 1.1 +     c(2 * axes + (xlab != ""), 2 * axes + (ylab != ""), 1,         0)), add = FALSE, plot = TRUE, ...)' />
+  <cmd name='stem : function (x, scale = 1, width = 80, atom = 1e-08)' />
+  <cmd name='strheight : function (s, units = "user", cex = NULL, font = NULL, vfont = NULL, ...)' />
+  <cmd name='stripchart : function (x, ...)' />
+  <cmd name='strwidth : function (s, units = "user", cex = NULL, font = NULL, vfont = NULL, ...)' />
+  <cmd name='sunflowerplot : function (x, y = NULL, number, log = "", digits = 6, xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL, add = FALSE, rotate = FALSE, pch = 16, cex = 0.8, cex.fact = 1.5, col = par("col"), bg = NA, size = 1/8, seg.col = 2, seg.lwd = 1.5, ...)' />
+  <cmd name='symbols : function (x, y = NULL, circles, squares, rectangles, stars, thermometers, boxplots, inches = TRUE, add = FALSE, fg = par("col"), bg = NA, xlab = NULL, ylab = NULL, main = NULL, xlim = NULL, ylim = NULL, ...)' />
+  <cmd name='text : function (x, ...)' />
+  <cmd name='text.default : function (x, y = NULL, labels = seq_along(x), adj = NULL, pos = NULL, offset = 0.5, vfont = NULL, cex = 1, col = NULL, font = NULL, ...)' />
+  <cmd name='title : function (main = NULL, sub = NULL, xlab = NULL, ylab = NULL, line = NA, outer = FALSE, ...)' />
+  <cmd name='xinch : function (x = 1, warn.log = TRUE)' />
+  <cmd name='xspline : function (x, y = NULL, shape = 0, open = TRUE, repEnds = TRUE, draw = TRUE, border = par("fg"), col = NA, ...)' />
+  <cmd name='xyinch : function (xy = 1, warn.log = TRUE)' />
+  <cmd name='yinch : function (y = 1, warn.log = TRUE)' />
+<!-- stats -->
+  <cmd name='glm : function (formula, family = gaussian, data, weights, subset, na.action, start = NULL, etastart, mustart, offset, control = glm.control(...), model = TRUE, method = "glm.fit", x = FALSE, y = TRUE, contrasts = NULL, ...)' />
+  <cmd name='glm.control : function (epsilon = 1e-08, maxit = 25, trace = FALSE)' />
+  <cmd name='glm.fit : function (x, y, weights = rep(1, nobs), start = NULL, etastart = NULL, mustart = NULL, offset = rep(0, nobs), family = gaussian(), control = glm.control(), intercept = TRUE)' />
+  <cmd name='glm.fit.null : function (x, y, weights, start = NULL, etastart = NULL, mustart = NULL, offset, family = gaussian(), control = glm.control(), intercept = FALSE)' />
+  <cmd name='hasTsp : function (x)' />
+  <cmd name='hat : function (x, intercept = TRUE)' />
+  <cmd name='hatvalues : function (model, ...)' />
+  <cmd name='hatvalues.lm : function (model, infl = lm.influence(model, do.coef = FALSE), ...)' />
+  <cmd name='hclust : function (d, method = "complete", members = NULL)' />
+  <cmd name='heatmap : function (x, Rowv = NULL, Colv = if (symm) "Rowv" else NULL, distfun = dist, hclustfun = hclust, reorderfun = function(d,     w) reorder(d, w), add.expr, symm = FALSE, revC = identical(Colv,     "Rowv"), scale = c("row", "column", "none"), na.rm = TRUE, margins = c(5, 5), ColSideColors, RowSideColors, cexRow = 0.2 +     1/log10(nr), cexCol = 0.2 + 1/log10(nc), labRow = NULL, labCol = NULL, main = NULL, xlab = NULL, ylab = NULL, keep.dendro = FALSE, verbose = getOption("verbose"), ...)' />
+  <cmd name='HoltWinters : function (x, alpha = NULL, beta = NULL, gamma = NULL, seasonal = c("additive", "multiplicative"), start.periods = 2, l.start = NULL, b.start = NULL, s.start = NULL, optim.start = c(alpha = 0.3, beta = 0.1,     gamma = 0.1), optim.control = list())' />
+  <cmd name='influence : function (model, ...)' />
+  <cmd name='influence.measures : function (model)' />
+  <cmd name='integrate : function (f, lower, upper, ..., subdivisions = 100, rel.tol = .Machine$double.eps^0.25, abs.tol = rel.tol, stop.on.error = TRUE, keep.xy = FALSE, aux = NULL)' />
+  <cmd name='interaction.plot : function (x.factor, trace.factor, response, fun = mean, type = c("l", "p", "b"), legend = TRUE, trace.label = deparse(substitute(trace.factor)), fixed = FALSE, xlab = deparse(substitute(x.factor)), ylab = ylabel, ylim = range(cells, na.rm = TRUE), lty = nc:1, col = 1, pch = c(1:9,     0, letters), xpd = NULL, leg.bg = par("bg"), leg.bty = "n", xtick = FALSE, xaxt = par("xaxt"), axes = TRUE, ...)' />
+  <cmd name='inverse.gaussian : function (link = "1/mu^2")' />
+  <cmd name='IQR : function (x, na.rm = FALSE)' />
+  <cmd name='is.empty.model : function (x)' />
+  <cmd name='is.leaf : function (object)' />
+  <cmd name='is.mts : function (x)' />
+  <cmd name='isoreg : function (x, y = NULL)' />
+  <cmd name='is.stepfun : function (x)' />
+  <cmd name='is.ts : function (x)' />
+  <cmd name='is.tskernel : function (k)' />
+  <cmd name='KalmanForecast : function (n.ahead = 10, mod, fast = TRUE)' />
+  <cmd name='KalmanLike : function (y, mod, nit = 0, fast = TRUE)' />
+  <cmd name='KalmanRun : function (y, mod, nit = 0, fast = TRUE)' />
+  <cmd name='KalmanSmooth : function (y, mod, nit = 0)' />
+  <cmd name='kernapply : function (x, ...)' />
+  <cmd name='kernel : function (coef, m = length(coef) + 1, r, name = "unknown")' />
+  <cmd name='kmeans : function (x, centers, iter.max = 10, nstart = 1, algorithm = c("Hartigan-Wong", "Lloyd", "Forgy", "MacQueen"))' />
+  <cmd name='knots : function (Fn, ...)' />
+  <cmd name='kruskal.test : function (x, ...)' />
+  <cmd name='ksmooth : function (x, y, kernel = c("box", "normal"), bandwidth = 0.5, range.x = range(x), n.points = max(100, length(x)), x.points)' />
+  <cmd name='ks.test : function (x, y, ..., alternative = c("two.sided", "less", "greater"), exact = NULL)' />
+  <cmd name='lag : function (x, ...)' />
+<!--  <cmd name='lag.plot : function (x, lags = 1, layout = NULL, set.lags = 1:lags, main = NULL, asp = 1, diag = TRUE, diag.col = "gray", type = "p", oma = NULL, ask = NULL, do.lines = (n <= 150), labels = do.lines, ...)' /> -->
+  <cmd name='line : function (x, y = NULL)' />
+  <cmd name='lines.ts : function (x, ...)' />
+  <cmd name='lm : function (formula, data, subset, weights, na.action, method = "qr", model = TRUE, x = FALSE, y = FALSE, qr = TRUE, singular.ok = TRUE, contrasts = NULL, offset, ...)' />
+  <cmd name='lm.fit : function (x, y, offset = NULL, method = "qr", tol = 1e-07, singular.ok = TRUE, ...)' />
+  <cmd name='lm.fit.null : function (x, y, method = "qr", tol = 1e-07, ...)' />
+  <cmd name='lm.influence : function (model, do.coef = TRUE)' />
+  <cmd name='lm.wfit : function (x, y, w, offset = NULL, method = "qr", tol = 1e-07, singular.ok = TRUE, ...)' />
+  <cmd name='lm.wfit.null : function (x, y, w, method = "qr", tol = 1e-07, ...)' />
+  <cmd name='loadings : function (x)' />
+  <cmd name='loess : function (formula, data, weights, subset, na.action, model = FALSE, span = 0.75, enp.target, degree = 2, parametric = FALSE, drop.square = FALSE, normalize = TRUE, family = c("gaussian",     "symmetric"), method = c("loess", "model.frame"), control = loess.control(...), ...)' />
+  <cmd name='loess.control : function (surface = c("interpolate", "direct"), statistics = c("approximate", "exact"), trace.hat = c("exact", "approximate"), cell = 0.2, iterations = 4, ...)' />
+  <cmd name='loess.smooth : function (x, y, span = 2/3, degree = 1, family = c("symmetric", "gaussian"), evaluation = 50, ...)' />
+  <cmd name='logLik : function (object, ...)' />
+  <cmd name='loglin : function (table, margin, start = rep(1, length(table)), fit = FALSE, eps = 0.1, iter = 20, param = FALSE, print = TRUE)' />
+  <cmd name='lowess : function (x, y = NULL, f = 2/3, iter = 3, delta = 0.01 * diff(range(xy$x[o])))' />
+  <cmd name='ls.diag : function (ls.out)' />
+  <cmd name='lsfit : function (x, y, wt = NULL, intercept = TRUE, tolerance = 1e-07, yname = NULL)' />
+  <cmd name='ls.print : function (ls.out, digits = 4, print.it = TRUE)' />
+  <cmd name='mad : function (x, center = median(x), constant = 1.4826, na.rm = FALSE, low = FALSE, high = FALSE)' />
+  <cmd name='mahalanobis : function (x, center, cov, inverted = FALSE, ...)' />
+  <cmd name='makeARIMA : function (phi, theta, Delta, kappa = 1e+06)' />
+  <cmd name='make.link : function (link)' />
+  <cmd name='makepredictcall : function (var, call)' />
+  <cmd name='manova : function (...)' />
+  <cmd name='mantelhaen.test : function (x, y = NULL, z = NULL, alternative = c("two.sided", "less", "greater"), correct = TRUE, exact = FALSE, conf.level = 0.95)' />
+  <cmd name='mauchley.test : function (...)' />
+  <cmd name='mauchly.test : function (object, ...)' />
+  <cmd name='mcnemar.test : function (x, y = NULL, correct = TRUE)' />
+  <cmd name='median : function (x, na.rm = FALSE)' />
+  <cmd name='median.default : function (x, na.rm = FALSE)' />
+  <cmd name='medpolish : function (x, eps = 0.01, maxiter = 10, trace.iter = TRUE, na.rm = FALSE)' />
+  <cmd name='model.extract : function (frame, component)' />
+  <cmd name='model.frame : function (formula, ...)' />
+  <cmd name='model.frame.aovlist : function (formula, data = NULL, ...)' />
+  <cmd name='model.frame.default : function (formula, data = NULL, subset = NULL, na.action = na.fail, drop.unused.levels = FALSE, xlev = NULL, ...)' />
+  <cmd name='model.frame.glm : function (formula, ...)' />
+  <cmd name='model.frame.lm : function (formula, ...)' />
+  <cmd name='model.matrix : function (object, ...)' />
+  <cmd name='model.matrix.default : function (object, data = environment(object), contrasts.arg = NULL, xlev = NULL, ...)' />
+  <cmd name='model.matrix.lm : function (object, ...)' />
+  <cmd name='model.offset : function (x)' />
+  <cmd name='model.response : function (data, type = "any")' />
+  <cmd name='model.tables : function (x, ...)' />
+  <cmd name='model.weights : function (x)' />
+  <cmd name='monthplot : function (x, ...)' />
+  <cmd name='mood.test : function (x, ...)' />
+  <cmd name='mvfft : function (z, inverse = FALSE)' />
+  <cmd name='na.action : function (object, ...)' />
+  <cmd name='na.contiguous : function (object, ...)' />
+  <cmd name='na.exclude : function (object, ...)' />
+  <cmd name='na.fail : function (object, ...)' />
+  <cmd name='na.omit : function (object, ...)' />
+  <cmd name='na.pass : function (object, ...)' />
+  <cmd name='napredict : function (omit, x, ...)' />
+  <cmd name='naprint : function (x, ...)' />
+  <cmd name='naresid : function (omit, x, ...)' />
+  <cmd name='nextn : function (n, factors = c(2, 3, 5))' />
+  <cmd name='nlm : function (f, p, ..., hessian = FALSE, typsize = rep(1, length(p)), fscale = 1, print.level = 0, ndigit = 12, gradtol = 1e-06, stepmax = max(1000 * sqrt(sum((p/typsize)^2)), 1000), steptol = 1e-06, iterlim = 100, check.analyticals = TRUE)' />
+  <cmd name='nlminb : function (start, objective, gradient = NULL, hessian = NULL, ..., scale = 1, control = list(), lower = -Inf, upper = Inf)' />
+  <cmd name='nls : function (formula, data = parent.frame(), start, control = nls.control(), algorithm = c("default", "plinear", "port"), trace = FALSE, subset, weights, na.action, model = FALSE, lower = -Inf, upper = Inf, ...)' />
+  <cmd name='nls.control : function (maxiter = 50, tol = 1e-05, minFactor = 1/1024, printEval = FALSE, warnOnly = FALSE)' />
+  <cmd name='NLSstAsymptotic : function (xy)' />
+  <cmd name='NLSstClosestX : function (xy, yval)' />
+  <cmd name='NLSstLfAsymptote : function (xy)' />
+  <cmd name='NLSstRtAsymptote : function (xy)' />
+  <cmd name='numericDeriv : function (expr, theta, rho = parent.frame(), dir = 1)' />
+  <cmd name='offset : function (object)' />
+  <cmd name='oneway.test : function (formula, data, subset, na.action, var.equal = FALSE)' />
+  <cmd name='optim : function (par, fn, gr = NULL, ..., method = c("Nelder-Mead", "BFGS", "CG", "L-BFGS-B", "SANN"), lower = -Inf, upper = Inf, control = list(), hessian = FALSE)' />
+  <cmd name='optimise : function (f, interval, ..., lower = min(interval), upper = max(interval), maximum = FALSE, tol = .Machine$double.eps^0.25)' />
+  <cmd name='optimize : function (f, interval, ..., lower = min(interval), upper = max(interval), maximum = FALSE, tol = .Machine$double.eps^0.25)' />
+  <cmd name='order.dendrogram : function (x)' />
+  <cmd name='pacf : function (x, lag.max, plot, na.action, ...)' />
+  <cmd name='p.adjust : function (p, method = p.adjust.methods, n = length(p))' />
+  <cmd name='pairwise.prop.test : function (x, n, p.adjust.method = p.adjust.methods, ...)' />
+  <cmd name='pairwise.table : function (compare.levels, level.names, p.adjust.method)' />
+  <cmd name='pairwise.t.test : function (x, g, p.adjust.method = p.adjust.methods, pool.sd = !paired, paired = FALSE, alternative = c("two.sided", "less", "greater"), ...)' />
+  <cmd name='pairwise.wilcox.test : function (x, g, p.adjust.method = p.adjust.methods, paired = FALSE, ...)' />
+  <cmd name='pbeta : function (q, shape1, shape2, ncp = 0, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='pbinom : function (q, size, prob, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='pbirthday : function (n, classes = 365, coincident = 2)' />
+  <cmd name='pcauchy : function (q, location = 0, scale = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='pchisq : function (q, df, ncp = 0, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='pexp : function (q, rate = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='pf : function (q, df1, df2, ncp, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='pgamma : function (q, shape, rate = 1, scale = 1/rate, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='pgeom : function (q, prob, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='phyper : function (q, m, n, k, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='plclust : function (tree, hang = 0.1, unit = FALSE, level = FALSE, hmin = 0, square = TRUE, labels = NULL, plot. = TRUE, axes = TRUE, frame.plot = FALSE, ann = TRUE, main = "", sub = NULL, xlab = NULL, ylab = "Height")' />
+  <cmd name='plnorm : function (q, meanlog = 0, sdlog = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='plogis : function (q, location = 0, scale = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='plot.density : function (x, main = NULL, xlab = NULL, ylab = "Density", type = "l", zero.line = TRUE, ...)' />
+  <cmd name='plot.ecdf : function (x, ..., ylab = "Fn(x)", verticals = FALSE, col.01line = "gray70", pch = 19)' />
+<!--  <cmd name='plot.lm : function (x, which = c(1:3, 5), caption = list("Residuals vs Fitted", "Normal Q-Q", "Scale-Location", "Cooks distance", "Residuals vs Leverage", expression("Cooks dist vs Leverage  " * h[ii]/(1 - h[ii]))), panel = if (add.smooth) panel.smooth else points, sub.caption = NULL, main = "", ask = prod(par("mfcol")) < length(which) && dev.interactive(), ..., id.n = 3, labels.id = names(residuals(x)), cex.id = 0.75, qqline = TRUE, cook.levels = c(0.5, 1), add.smooth = getOption("add.smooth"), label.pos = c(4, 2), cex.caption = 1)' /> -->
+  <cmd name='plot.mlm : function (x, ...)' />
+  <cmd name='plot.spec : function (x, add = FALSE, ci = 0.95, log = c("yes", "dB", "no"), xlab = "frequency", ylab = NULL, type = "l", ci.col = "blue", ci.lty = 3, main = NULL, sub = NULL, plot.type = c("marginal",     "coherency", "phase"), ...)' />
+  <cmd name='plot.spec.coherency : function (x, ci = 0.95, xlab = "frequency", ylab = "squared coherency", ylim = c(0, 1), type = "l", main = NULL, ci.col = "blue", ci.lty = 3, ...)' />
+  <cmd name='plot.spec.phase : function (x, ci = 0.95, xlab = "frequency", ylab = "phase", ylim = c(-pi, pi), type = "l", main = NULL, ci.col = "blue", ci.lty = 3, ...)' />
+  <cmd name='plot.stepfun : function (x, xval, xlim, ylim = range(c(y, Fn.kn)), xlab = "x", ylab = "f(x)", main = NULL, add = FALSE, verticals = TRUE, do.points = TRUE, pch = par("pch"), col.points = par("col"), cex.points = par("cex"), col.hor = par("col"), col.vert = par("col"), lty = par("lty"), lwd = par("lwd"), ...)' />
+  <cmd name='plot.ts : function (x, y = NULL, plot.type = c("multiple", "single"), xy.labels, xy.lines, panel = lines, nc, yax.flip = FALSE, mar.multi = c(0,     5.1, 0, if (yax.flip) 5.1 else 2.1), oma.multi = c(6,     0, 5, 0), axes = TRUE, ...)' />
+  <cmd name='plot.TukeyHSD : function (x, ...)' />
+  <cmd name='pnbinom : function (q, size, prob, mu, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='pnorm : function (q, mean = 0, sd = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='poisson : function (link = "log")' />
+  <cmd name='poly : function (x, ..., degree = 1, coefs = NULL, raw = FALSE)' />
+  <cmd name='polym : function (..., degree = 1, raw = FALSE)' />
+  <cmd name='power : function (lambda = 1)' />
+  <cmd name='power.anova.test : function (groups = NULL, n = NULL, between.var = NULL, within.var = NULL, sig.level = 0.05, power = NULL)' />
+  <cmd name='power.prop.test : function (n = NULL, p1 = NULL, p2 = NULL, sig.level = 0.05, power = NULL, alternative = c("two.sided", "one.sided"), strict = FALSE)' />
+  <cmd name='power.t.test : function (n = NULL, delta = NULL, sd = 1, sig.level = 0.05, power = NULL, type = c("two.sample", "one.sample", "paired"), alternative = c("two.sided",     "one.sided"), strict = FALSE)' />
+<!--  <cmd name='ppoints : function (n, a = ifelse(n <= 10, 3/8, 1/2))' /> -->
+  <cmd name='ppois : function (q, lambda, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='ppr : function (x, ...)' />
+  <cmd name='PP.test : function (x, lshort = TRUE)' />
+  <cmd name='prcomp : function (x, ...)' />
+  <cmd name='predict : function (object, ...)' />
+  <cmd name='predict.glm : function (object, newdata = NULL, type = c("link", "response", "terms"), se.fit = FALSE, dispersion = NULL, terms = NULL, na.action = na.pass, ...)' />
+  <cmd name='predict.lm : function (object, newdata, se.fit = FALSE, scale = NULL, df = Inf, interval = c("none", "confidence", "prediction"), level = 0.95, type = c("response", "terms"), terms = NULL, na.action = na.pass, pred.var = res.var/weights, weights = 1, ...)' />
+  <cmd name='predict.mlm : function (object, newdata, se.fit = FALSE, na.action = na.pass, ...)' />
+  <cmd name='predict.poly : function (object, newdata, ...)' />
+  <cmd name='preplot : function (object, ...)' />
+  <cmd name='princomp : function (x, ...)' />
+  <cmd name='print.anova : function (x, digits = max(getOption("digits") - 2, 3), signif.stars = getOption("show.signif.stars"), ...)' />
+  <cmd name='print.coefmat : function (x, digits = max(3, getOption("digits") - 2), signif.stars = getOption("show.signif.stars"), dig.tst = max(1, min(5, digits - 1)), cs.ind, tst.ind, zap.ind = integer(0), P.values = NULL, has.Pvalue, eps.Pvalue = .Machine$double.eps, na.print = "", ...)' />
+<!--  <cmd name='printCoefmat : function (x, digits = max(3, getOption("digits") - 2), signif.stars = getOption("show.signif.stars"), signif.legend = signif.stars, dig.tst = max(1, min(5, digits -     1)), cs.ind = 1:k, tst.ind = k + 1, zap.ind = integer(0), P.values = NULL, has.Pvalue = nc >= 4 && substr(colnames(x)[nc],     1, 3) == "Pr(", eps.Pvalue = .Machine$double.eps, na.print = "NA", ...)' /> -->
+  <cmd name='print.density : function (x, digits = NULL, ...)' />
+  <cmd name='print.family : function (x, ...)' />
+  <cmd name='print.formula : function (x, ...)' />
+  <cmd name='print.ftable : function (x, digits = getOption("digits"), ...)' />
+  <cmd name='print.glm : function (x, digits = max(3, getOption("digits") - 3), ...)' />
+  <cmd name='print.infl : function (x, digits = max(3, getOption("digits") - 4), ...)' />
+  <cmd name='print.integrate : function (x, digits = getOption("digits"), ...)' />
+  <cmd name='print.lm : function (x, digits = max(3, getOption("digits") - 3), ...)' />
+  <cmd name='print.logLik : function (x, digits = getOption("digits"), ...)' />
+  <cmd name='print.terms : function (x, ...)' />
+  <cmd name='print.ts : function (x, calendar, ...)' />
+  <cmd name='profile : function (fitted, ...)' />
+  <cmd name='proj : function (object, ...)' />
+  <cmd name='promax : function (x, m = 4)' />
+  <cmd name='prop.test : function (x, n, p = NULL, alternative = c("two.sided", "less", "greater"), conf.level = 0.95, correct = TRUE)' />
+  <cmd name='prop.trend.test : function (x, n, score = 1:length(x))' />
+  <cmd name='psignrank : function (q, n, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='pt : function (q, df, ncp, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='ptukey : function (q, nmeans, df, nranges = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='punif : function (q, min = 0, max = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='pweibull : function (q, shape, scale = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='pwilcox : function (q, m, n, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qbeta : function (p, shape1, shape2, ncp = 0, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qbinom : function (p, size, prob, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qbirthday : function (prob = 0.5, classes = 365, coincident = 2)' />
+  <cmd name='qcauchy : function (p, location = 0, scale = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qchisq : function (p, df, ncp = 0, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qexp : function (p, rate = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qf : function (p, df1, df2, ncp, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qgamma : function (p, shape, rate = 1, scale = 1/rate, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qgeom : function (p, prob, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qhyper : function (p, m, n, k, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qlnorm : function (p, meanlog = 0, sdlog = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qlogis : function (p, location = 0, scale = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qnbinom : function (p, size, prob, mu, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qnorm : function (p, mean = 0, sd = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qpois : function (p, lambda, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qqline : function (y, datax = FALSE, ...)' />
+  <cmd name='qqnorm : function (y, ...)' />
+  <cmd name='qqnorm.default : function (y, ylim, main = "Normal Q-Q Plot", xlab = "Theoretical Quantiles", ylab = "Sample Quantiles", plot.it = TRUE, datax = FALSE, ...)' />
+  <cmd name='qqplot : function (x, y, plot.it = TRUE, xlab = deparse(substitute(x)), ylab = deparse(substitute(y)), ...)' />
+  <cmd name='qsignrank : function (p, n, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qt : function (p, df, ncp, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qtukey : function (p, nmeans, df, nranges = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='quade.test : function (y, ...)' />
+  <cmd name='quantile : function (x, ...)' />
+  <cmd name='quantile.default : function (x, probs = seq(0, 1, 0.25), na.rm = FALSE, names = TRUE, type = 7, ...)' />
+  <cmd name='quasi : function (link = "identity", variance = "constant")' />
+  <cmd name='quasibinomial : function (link = "logit")' />
+  <cmd name='quasipoisson : function (link = "log")' />
+  <cmd name='qunif : function (p, min = 0, max = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qweibull : function (p, shape, scale = 1, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='qwilcox : function (p, m, n, lower.tail = TRUE, log.p = FALSE)' />
+  <cmd name='r2dtable : function (n, r, c)' />
+  <cmd name='rbeta : function (n, shape1, shape2, ncp = 0)' />
+  <cmd name='rbinom : function (n, size, prob)' />
+  <cmd name='rcauchy : function (n, location = 0, scale = 1)' />
+  <cmd name='rchisq : function (n, df, ncp = 0)' />
+  <cmd name='read.ftable : function (file, sep = "", quote = "\"", row.var.names, col.vars, skip = 0)' />
+  <cmd name='rect.hclust : function (tree, k = NULL, which = NULL, x = NULL, h = NULL, border = 2, cluster = NULL)' />
+  <cmd name='reformulate : function (termlabels, response = NULL)' />
+  <cmd name='relevel : function (x, ref, ...)' />
+  <cmd name='reorder : function (x, ...)' />
+  <cmd name='replications : function (formula, data = NULL, na.action)' />
+  <cmd name='reshape : function (data, varying = NULL, v.names = NULL, timevar = "time", idvar = "id", ids = 1:NROW(data), times = seq_along(varying[[1]]), drop = NULL, direction, new.row.names = NULL, sep = ".", split = if (sep == "") { list(regexp = "[A-Za-z][0-9]", include = TRUE) } else { list(regexp = sep, include = FALSE, fixed = TRUE) })' />
+  <cmd name='reshapeLong : function (x, jvars, ilev = row.names(x), jlev = names(x)[jvars], iname = "reshape.i", jname = "reshape.j", vname = "reshape.v")' />
+  <cmd name='reshapeWide : function (x, i, j, val, jnames = levels(j))' />
+  <cmd name='resid : function (object, ...)' />
+  <cmd name='residuals : function (object, ...)' />
+  <cmd name='residuals.default : function (object, ...)' />
+  <cmd name='residuals.glm : function (object, type = c("deviance", "pearson", "working", "response", "partial"), ...)' />
+  <cmd name='residuals.lm : function (object, type = c("working", "response", "deviance", "pearson", "partial"), ...)' />
+  <cmd name='rexp : function (n, rate = 1)' />
+  <cmd name='rf : function (n, df1, df2, ncp)' />
+  <cmd name='rgamma : function (n, shape, rate = 1, scale = 1/rate)' />
+  <cmd name='rgeom : function (n, prob)' />
+  <cmd name='rhyper : function (nn, m, n, k)' />
+  <cmd name='rlnorm : function (n, meanlog = 0, sdlog = 1)' />
+  <cmd name='rlogis : function (n, location = 0, scale = 1)' />
+  <cmd name='rmultinom : function (n, size, prob)' />
+  <cmd name='rnbinom : function (n, size, prob, mu)' />
+  <cmd name='rnorm : function (n, mean = 0, sd = 1)' />
+  <cmd name='rpois : function (n, lambda)' />
+  <cmd name='rsignrank : function (nn, n)' />
+  <cmd name='rstandard : function (model, ...)' />
+  <cmd name='rstandard.glm : function (model, infl = lm.influence(model, do.coef = FALSE), ...)' />
+  <cmd name='rstandard.lm : function (model, infl = lm.influence(model, do.coef = FALSE), sd = sqrt(deviance(model)/df.residual(model)), ...)' />
+  <cmd name='rstudent : function (model, ...)' />
+  <cmd name='rstudent.glm : function (model, infl = influence(model, do.coef = FALSE), ...)' />
+  <cmd name='rstudent.lm : function (model, infl = lm.influence(model, do.coef = FALSE), res = infl$wt.res, ...)' />
+  <cmd name='rt : function (n, df, ncp)' />
+  <cmd name='runif : function (n, min = 0, max = 1)' />
+  <cmd name='runmed : function (x, k, endrule = c("median", "keep", "constant"), algorithm = NULL, print.level = 0)' />
+  <cmd name='rweibull : function (n, shape, scale = 1)' />
+  <cmd name='rwilcox : function (nn, m, n)' />
+  <cmd name='scatter.smooth : function (x, y = NULL, span = 2/3, degree = 1, family = c("symmetric", "gaussian"), xlab = NULL, ylab = NULL, ylim = range(y, prediction$y, na.rm = TRUE), evaluation = 50, ...)' />
+  <cmd name='screeplot : function (x, ...)' />
+  <cmd name='sd : function (x, na.rm = FALSE)' />
+  <cmd name='se.contrast : function (object, ...)' />
+  <cmd name='selfStart : function (model, initial, parameters, template)' />
+  <cmd name='setNames : function (object, nm)' />
+  <cmd name='shapiro.test : function (x)' />
+  <cmd name='simulate : function (object, nsim = 1, seed = NULL, ...)' />
+  <cmd name='smooth : function (x, kind = c("3RS3R", "3RSS", "3RSR", "3R", "3", "S"), twiceit = FALSE, endrule = "Tukey", do.ends = FALSE)' />
+  <cmd name='smoothEnds : function (y, k = 3)' />
+  <cmd name='smooth.spline : function (x, y = NULL, w = NULL, df, spar = NULL, cv = FALSE, all.knots = FALSE, nknots = NULL, keep.data = TRUE, df.offset = 0, penalty = 1, control.spar = list())' />
+  <cmd name='sortedXyData : function (x, y, data)' />
+  <cmd name='spec.ar : function (x, n.freq, order = NULL, plot = TRUE, na.action = na.fail, method = "yule-walker", ...)' />
+  <cmd name='spec.pgram : function (x, spans = NULL, kernel = NULL, taper = 0.1, pad = 0, fast = TRUE, demean = FALSE, detrend = TRUE, plot = TRUE, na.action = na.fail, ...)' />
+  <cmd name='spec.taper : function (x, p = 0.1)' />
+  <cmd name='spectrum : function (x, ..., method = c("pgram", "ar"))' />
+  <cmd name='spline : function (x, y = NULL, n = 3 * length(x), method = "fmm", xmin = min(x), xmax = max(x), xout, ties = mean)' />
+  <cmd name='splinefun : function (x, y = NULL, method = c("fmm", "periodic", "natural", "monoH.FC"), ties = mean)' />
+  <cmd name='splinefunH : function (x, y, m)' />
+  <cmd name='SSasymp : function (input, Asym, R0, lrc)' />
+  <cmd name='SSasympOff : function (input, Asym, lrc, c0)' />
+  <cmd name='SSasympOrig : function (input, Asym, lrc)' />
+  <cmd name='SSbiexp : function (input, A1, lrc1, A2, lrc2)' />
+  <cmd name='SSD : function (object, ...)' />
+  <cmd name='SSfol : function (Dose, input, lKe, lKa, lCl)' />
+  <cmd name='SSfpl : function (input, A, B, xmid, scal)' />
+  <cmd name='SSgompertz : function (x, Asym, b2, b3)' />
+  <cmd name='SSlogis : function (input, Asym, xmid, scal)' />
+  <cmd name='SSmicmen : function (input, Vm, K)' />
+  <cmd name='SSweibull : function (x, Asym, Drop, lrc, pwr)' />
+  <cmd name='start : function (x, ...)' />
+  <cmd name='stat.anova : function (table, test = c("Chisq", "F", "Cp"), scale, df.scale, n)' />
+  <cmd name='step : function (object, scope, scale = 0, direction = c("both", "backward", "forward"), trace = 1, keep = NULL, steps = 1000, k = 2, ...)' />
+  <cmd name='stepfun : function (x, y, f = as.numeric(right), ties = "ordered", right = FALSE)' />
+  <cmd name='stl : function (x, s.window, s.degree = 0, t.window = NULL, t.degree = 1, l.window = nextodd(period), l.degree = t.degree, s.jump = ceiling(s.window/10), t.jump = ceiling(t.window/10), l.jump = ceiling(l.window/10), robust = FALSE, inner = if (robust) 1 else 2, outer = if (robust) 15 else 0, na.action = na.fail)' />
+  <cmd name='StructTS : function (x, type = c("level", "trend", "BSM"), init = NULL, fixed = NULL, optim.control = NULL)' />
+  <cmd name='summary.aov : function (object, intercept = FALSE, split, expand.split = TRUE, keep.zero.df = TRUE, ...)' />
+  <cmd name='summary.aovlist : function (object, ...)' />
+  <cmd name='summary.glm : function (object, dispersion = NULL, correlation = FALSE, symbolic.cor = FALSE, ...)' />
+  <cmd name='summary.infl : function (object, digits = max(2, getOption("digits") - 5), ...)' />
+  <cmd name='summary.lm : function (object, correlation = FALSE, symbolic.cor = FALSE, ...)' />
+  <cmd name='summary.manova : function (object, test = c("Pillai", "Wilks", "Hotelling-Lawley", "Roy"), intercept = FALSE, tol = 1e-07, ...)' />
+  <cmd name='summary.mlm : function (object, ...)' />
+  <cmd name='summary.stepfun : function (object, ...)' />
+  <cmd name='supsmu : function (x, y, wt = rep(1, n), span = "cv", periodic = FALSE, bass = 0)' />
+<!--  <cmd name='symnum : function (x, cutpoints = c(0.3, 0.6, 0.8, 0.9, 0.95), symbols = if (numeric.x) c(" ", ".", ",", "+", "*", "B") else c(".", "|"), legend = length(symbols) >= 3, na = "?", eps = 1e-05, numeric.x = is.numeric(x), corr = missing(cutpoints) && numeric.x, show.max = if (corr) "1", show.min = NULL, abbr.colnames = has.colnames, lower.triangular = corr && is.numeric(x) && is.matrix(x), diag.lower.tri = corr && !is.null(show.max))' /> -->
+<!--  <cmd name='termplot : function (model, data = NULL, envir = environment(formula(model)), partial.resid = FALSE, rug = FALSE, terms = NULL, se = FALSE, xlabs = NULL, ylabs = NULL, main = NULL, col.term = 2, lwd.term = 1.5, col.se = "orange", lty.se = 2, lwd.se = 1, col.res = "gray", cex = 1, pch = par("pch"), col.smth = "darkred", lty.smth = 2, span.smth = 2/3, ask = dev.interactive() && nb.fig < n.tms, use.factor.levels = TRUE, smooth = NULL, ylim = "common", ...)' /> -->
+  <cmd name='terms : function (x, ...)' />
+  <cmd name='terms.aovlist : function (x, ...)' />
+  <cmd name='terms.default : function (x, ...)' />
+  <cmd name='terms.formula : function (x, specials = NULL, abb = NULL, data = NULL, neg.out = TRUE, keep.order = FALSE, simplify = FALSE, ..., allowDotAsName = FALSE)' />
+  <cmd name='terms.terms : function (x, ...)' />
+  <cmd name='time : function (x, ...)' />
+  <cmd name='toeplitz : function (x)' />
+  <cmd name='ts : function (data = NA, start = 1, end = numeric(0), frequency = 1, deltat = 1, ts.eps = getOption("ts.eps"), class = if (nseries >     1) c("mts", "ts") else "ts", names = if (!is.null(dimnames(data))) colnames(data) else paste("Series",     seq(nseries)))' />
+  <cmd name='tsdiag : function (object, gof.lag, ...)' />
+  <cmd name='ts.intersect : function (..., dframe = FALSE)' />
+  <cmd name='tsp : function (x)' />
+  <cmd name='ts.plot : function (..., gpars = list())' />
+  <cmd name='tsSmooth : function (object, ...)' />
+  <cmd name='ts.union : function (..., dframe = FALSE)' />
+  <cmd name='t.test : function (x, ...)' />
+  <cmd name='TukeyHSD : function (x, which, ordered = FALSE, conf.level = 0.95, ...)' />
+  <cmd name='TukeyHSD.aov : function (x, which = seq_along(tabs), ordered = FALSE, conf.level = 0.95, ...)' />
+  <cmd name='uniroot : function (f, interval, ..., lower = min(interval), upper = max(interval), f.lower = f(lower, ...), f.upper = f(upper, ...), tol = .Machine$double.eps^0.25, maxiter = 1000)' />
+  <cmd name='update : function (object, ...)' />
+  <cmd name='update.default : function (object, formula., ..., evaluate = TRUE)' />
+  <cmd name='update.formula : function (old, new, ...)' />
+  <cmd name='var : function (x, y = NULL, na.rm = FALSE, use)' />
+  <cmd name='variable.names : function (object, ...)' />
+  <cmd name='varimax : function (x, normalize = TRUE, eps = 1e-05)' />
+  <cmd name='var.test : function (x, ...)' />
+  <cmd name='vcov : function (object, ...)' />
+  <cmd name='weighted.mean : function (x, w, na.rm = FALSE)' />
+  <cmd name='weighted.residuals : function (obj, drop0 = TRUE)' />
+  <cmd name='weights : function (object, ...)' />
+  <cmd name='wilcox.test : function (x, ...)' />
+  <cmd name='window : function (x, ...)' />
+  <cmd name='write.ftable : function (x, file = "", quote = TRUE, append = FALSE, digits = getOption("digits"))' />
+  <cmd name='xtabs : function (formula = ~., data = parent.frame(), subset, na.action, exclude = c(NA, NaN), drop.unused.levels = FALSE)' />
+<!-- base -->
+  <cmd name='abbreviate : function (names.arg, minlength = 4, use.classes = TRUE, dot = FALSE, strict = FALSE, method = c("left.kept", "both.sides"))' />
+  <cmd name='abs : function (x)' />
+  <cmd name='acos : function (x)' />
+  <cmd name='acosh : function (x)' />
+  <cmd name='addNA : function (x, ifany = FALSE)' />
+  <cmd name='addTaskCallback : function (f, data = NULL, name = character(0))' />
+  <cmd name='agrep : function (pattern, x, ignore.case = FALSE, value = FALSE, max.distance = 0.1, useBytes = FALSE)' />
+  <cmd name='alist : function (...)' />
+  <cmd name='all : function (..., na.rm = FALSE)' />
+  <cmd name='all.equal : function (target, current, ...)' />
+  <cmd name='all.equal.character : function (target, current, check.attributes = TRUE, ...)' />
+  <cmd name='all.equal.default : function (target, current, ...)' />
+  <cmd name='all.equal.factor : function (target, current, check.attributes = TRUE, ...)' />
+  <cmd name='all.equal.formula : function (target, current, ...)' />
+  <cmd name='all.equal.language : function (target, current, ...)' />
+  <cmd name='all.equal.list : function (target, current, check.attributes = TRUE, ...)' />
+  <cmd name='all.equal.numeric : function (target, current, tolerance = .Machine$double.eps^0.5, scale = NULL, check.attributes = TRUE, ...)' />
+  <cmd name='all.equal.POSIXct : function (target, current, ..., scale = 1)' />
+  <cmd name='all.equal.raw : function (target, current, check.attributes = TRUE, ...)' />
+  <cmd name='all.names : function (expr, functions = TRUE, max.names = -1L, unique = FALSE)' />
+  <cmd name='all.vars : function (expr, functions = FALSE, max.names = -1L, unique = TRUE)' />
+  <cmd name='any : function (..., na.rm = FALSE)' />
+  <cmd name='aperm : function (a, perm, resize = TRUE)' />
+  <cmd name='append : function (x, values, after = length(x))' />
+  <cmd name='apply : function (X, MARGIN, FUN, ...)' />
+  <cmd name='Arg : function (z)' />
+  <cmd name='args : function (name)' />
+  <cmd name='array : function (data = NA, dim = length(data), dimnames = NULL)' />
+  <cmd name='as.array : function (x, ...)' />
+  <cmd name='as.array.default : function (x, ...)' />
+  <cmd name='as.call : function (x)' />
+  <cmd name='as.character : function (x, ...)' />
+  <cmd name='as.character.condition : function (x, ...)' />
+  <cmd name='as.character.Date : function (x, ...)' />
+  <cmd name='as.character.default : function (x, ...)' />
+  <cmd name='as.character.error : function (x, ...)' />
+  <cmd name='as.character.factor : function (x, ...)' />
+  <cmd name='as.character.hexmode : function (x, upper.case = FALSE, ...)' />
+  <cmd name='as.character.numeric_version : function (x, ...)' />
+  <cmd name='as.character.octmode : function (x, ...)' />
+  <cmd name='as.character.POSIXt : function (x, ...)' />
+  <cmd name='as.character.srcref : function (x, useSource = TRUE, ...)' />
+  <cmd name='as.complex : function (x, ...)' />
+  <cmd name='as.data.frame : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.array : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.AsIs : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.character : function (x, ..., stringsAsFactors = default.stringsAsFactors())' />
+  <cmd name='as.data.frame.complex : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.data.frame : function (x, row.names = NULL, ...)' />
+  <cmd name='as.data.frame.Date : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.default : function (x, ...)' />
+  <cmd name='as.data.frame.difftime : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.factor : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.integer : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.list : function (x, row.names = NULL, optional = FALSE, ..., stringsAsFactors = default.stringsAsFactors())' />
+  <cmd name='as.data.frame.logical : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.matrix : function (x, row.names = NULL, optional = FALSE, ..., stringsAsFactors = default.stringsAsFactors())' />
+  <cmd name='as.data.frame.model.matrix : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.numeric : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.numeric_version : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.ordered : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.POSIXct : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.POSIXlt : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.raw : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.data.frame.table : function (x, row.names = NULL, ..., responseName = "Freq")' />
+  <cmd name='as.data.frame.ts : function (x, ...)' />
+  <cmd name='as.data.frame.vector : function (x, row.names = NULL, optional = FALSE, ...)' />
+  <cmd name='as.Date : function (x, ...)' />
+  <cmd name='as.Date.character : function (x, format = "", ...)' />
+  <cmd name='as.Date.date : function (x, ...)' />
+  <cmd name='as.Date.dates : function (x, ...)' />
+  <cmd name='as.Date.default : function (x, ...)' />
+  <cmd name='as.Date.factor : function (x, ...)' />
+  <cmd name='as.Date.numeric : function (x, origin, ...)' />
+  <cmd name='as.Date.POSIXct : function (x, ...)' />
+  <cmd name='as.Date.POSIXlt : function (x, ...)' />
+  <cmd name='as.difftime : function (tim, format = "%X", units = "auto")' />
+  <cmd name='as.double : function (x, ...)' />
+  <cmd name='as.double.difftime : function (x, units = "auto", ...)' />
+  <cmd name='as.double.POSIXlt : function (x, ...)' />
+  <cmd name='as.environment : function (object)' />
+  <cmd name='as.expression : function (x, ...)' />
+  <cmd name='as.expression.default : function (x, ...)' />
+  <cmd name='as.factor : function (x)' />
+  <cmd name='as.function : function (x, ...)' />
+  <cmd name='as.function.default : function (x, envir = parent.frame(), ...)' />
+  <cmd name='as.hexmode : function (x)' />
+  <cmd name='asin : function (x)' />
+  <cmd name='asinh : function (x)' />
+  <cmd name='as.integer : function (x, ...)' />
+  <cmd name='[.AsIs : function (x, i, ...)' />
+  <cmd name='as.list : function (x, ...)' />
+  <cmd name='as.list.data.frame : function (x, ...)' />
+  <cmd name='as.list.default : function (x, ...)' />
+  <cmd name='as.list.environment : function (x, all.names = FALSE, ...)' />
+  <cmd name='as.list.factor : function (x, ...)' />
+  <cmd name='as.list.numeric_version : function (x, ...)' />
+  <cmd name='as.logical : function (x, ...)' />
+  <cmd name='as.matrix : function (x, ...)' />
+  <cmd name='as.matrix.data.frame : function (x, rownames.force = NA, ...)' />
+  <cmd name='as.matrix.default : function (x, ...)' />
+  <cmd name='as.matrix.noquote : function (x, ...)' />
+  <cmd name='as.matrix.POSIXlt : function (x, ...)' />
+  <cmd name='as.name : function (x)' />
+  <cmd name='asNamespace : function (ns, base.OK = TRUE)' />
+  <cmd name='as.null : function (x, ...)' />
+  <cmd name='as.null.default : function (x, ...)' />
+  <cmd name='as.numeric : function (x, ...)' />
+  <cmd name='as.numeric_version : function (x)' />
+  <cmd name='as.octmode : function (x)' />
+  <cmd name='as.ordered : function (x)' />
+  <cmd name='as.package_version : function (x)' />
+  <cmd name='as.pairlist : function (x)' />
+  <cmd name='as.POSIXct : function (x, tz = "", ...)' />
+  <cmd name='as.POSIXct.date : function (x, ...)' />
+  <cmd name='as.POSIXct.Date : function (x, ...)' />
+  <cmd name='as.POSIXct.dates : function (x, ...)' />
+  <cmd name='as.POSIXct.default : function (x, tz = "", ...)' />
+  <cmd name='as.POSIXct.numeric : function (x, tz = "", origin, ...)' />
+  <cmd name='as.POSIXct.POSIXlt : function (x, tz = "", ...)' />
+  <cmd name='as.POSIXlt : function (x, tz = "", ...)' />
+  <cmd name='as.POSIXlt.character : function (x, tz = "", format, ...)' />
+  <cmd name='as.POSIXlt.date : function (x, ...)' />
+  <cmd name='as.POSIXlt.Date : function (x, ...)' />
+  <cmd name='as.POSIXlt.dates : function (x, ...)' />
+  <cmd name='as.POSIXlt.default : function (x, tz = "", ...)' />
+  <cmd name='as.POSIXlt.factor : function (x, ...)' />
+  <cmd name='as.POSIXlt.numeric : function (x, tz = "", origin, ...)' />
+  <cmd name='as.POSIXlt.POSIXct : function (x, tz = "", ...)' />
+  <cmd name='as.qr : function (x)' />
+  <cmd name='as.raw : function (x)' />
+  <cmd name='as.real : function (x, ...)' />
+  <cmd name='asS4 : function (object, value = TRUE)' />
+  <cmd name='assign : function (x, value, pos = -1, envir = as.environment(pos), inherits = FALSE, immediate = TRUE)' />
+  <cmd name='as.single : function (x, ...)' />
+  <cmd name='as.single.default : function (x, ...)' />
+  <cmd name='as.symbol : function (x)' />
+  <cmd name='as.table : function (x, ...)' />
+  <cmd name='as.table.default : function (x, ...)' />
+  <cmd name='as.vector : function (x, mode = "any")' />
+  <cmd name='as.vector.factor : function (x, mode = "any")' />
+  <cmd name='atan : function (x)' />
+  <cmd name='atan2 : function (y, x)' />
+  <cmd name='atanh : function (x)' />
+  <cmd name='attach : function (what, pos = 2, name = deparse(substitute(what)), warn.conflicts = TRUE)' />
+  <cmd name='attachNamespace : function (ns, pos = 2, dataPath = NULL)' />
+  <cmd name='attr : function (x, which, exact = FALSE)' />
+  <cmd name='attr.all.equal : function (target, current, check.attributes = TRUE, check.names = TRUE, ...)' />
+  <cmd name='attributes : function (obj)' />
+  <cmd name='autoload : function (name, package, reset = FALSE, ...)' />
+  <cmd name='autoloader : function (name, package, ...)' />
+  <cmd name='backsolve : function (r, x, k = ncol(r), upper.tri = TRUE, transpose = FALSE)' />
+  <cmd name='baseenv : function ()' />
+  <cmd name='basename : function (path)' />
+  <cmd name='besselI : function (x, nu, expon.scaled = FALSE)' />
+  <cmd name='besselJ : function (x, nu)' />
+  <cmd name='besselK : function (x, nu, expon.scaled = FALSE)' />
+  <cmd name='besselY : function (x, nu)' />
+  <cmd name='beta : function (a, b)' />
+  <cmd name='bindingIsActive : function (sym, env)' />
+  <cmd name='bindingIsLocked : function (sym, env)' />
+  <cmd name='bindtextdomain : function (domain, dirname = NULL)' />
+  <cmd name='body : function (fun = sys.function(sys.parent()))' />
+  <cmd name='bquote : function (expr, where = parent.frame())' />
+  <cmd name='break : .Primitive("break") 
+browser : function ()' />
+  <cmd name='builtins : function (internal = FALSE)' />
+  <cmd name='by : function (data, INDICES, FUN, ..., simplify = TRUE)' />
+  <cmd name='by.data.frame : function (data, INDICES, FUN, ..., simplify = TRUE)' />
+  <cmd name='by.default : function (data, INDICES, FUN, ..., simplify = TRUE)' />
+  <cmd name='bzfile : function (description, open = "", encoding = getOption("encoding"))' />
+  <cmd name='c : function (..., recursive = FALSE)' />
+  <cmd name='call : function (name, ...)' />
+  <cmd name='callCC : function (fun)' />
+  <cmd name='capabilities : function (what = NULL)' />
+  <cmd name='casefold : function (x, upper = FALSE)' />
+  <cmd name='cat : function (..., file = "", sep = " ", fill = FALSE, labels = NULL, append = FALSE)' />
+  <cmd name='category : function (...)' />
+  <cmd name='cbind : function (..., deparse.level = 1)' />
+  <cmd name='cbind.data.frame : function (..., deparse.level = 1)' />
+  <cmd name='c.Date : function (..., recursive = FALSE)' />
+  <cmd name='ceiling : function (x)' />
+  <cmd name='character : function (length = 0)' />
+  <cmd name='char.expand : function (input, target, nomatch = stop("no match"))' />
+  <cmd name='charmatch : function (x, table, nomatch = NA_integer_)' />
+  <cmd name='charToRaw : function (x)' />
+  <cmd name='chartr : function (old, new, x)' />
+  <cmd name='check_tzones : function (...)' />
+  <cmd name='chol : function (x, ...)' />
+  <cmd name='chol2inv : function (x, size = NCOL(x), LINPACK = FALSE)' />
+  <cmd name='chol.default : function (x, pivot = FALSE, LINPACK = pivot, ...)' />
+  <cmd name='choose : function (n, k)' />
+  <cmd name='class : function (x)' />
+  <cmd name='close : function (con, ...)' />
+  <cmd name='closeAllConnections : function ()' />
+  <cmd name='close.connection : function (con, type = "rw", ...)' />
+  <cmd name='close.srcfile : function (con, ...)' />
+  <cmd name='c.noquote : function (..., recursive = FALSE)' />
+  <cmd name='c.numeric_version : function (..., recursive = FALSE)' />
+  <cmd name='codes : function (x, ...)' />
+  <cmd name='codes.factor : function (x, ...)' />
+  <cmd name='codes.ordered : function (x, ...)' />
+  <cmd name='col : function (x, as.factor = FALSE)' />
+  <cmd name='colMeans : function (x, na.rm = FALSE, dims = 1)' />
+  <cmd name='colnames : function (x, do.NULL = TRUE, prefix = "col")' />
+  <cmd name='colSums : function (x, na.rm = FALSE, dims = 1)' />
+  <cmd name='commandArgs : function (trailingOnly = FALSE)' />
+  <cmd name='comment : function (x)' />
+  <cmd name='complex : function (length.out = 0, real = numeric(), imaginary = numeric(), modulus = 1, argument = 0)' />
+  <cmd name='computeRestarts : function (cond = NULL)' />
+  <cmd name='conditionCall : function (c)' />
+  <cmd name='conditionCall.condition : function (c)' />
+  <cmd name='conditionMessage : function (c)' />
+  <cmd name='conditionMessage.condition : function (c)' />
+  <cmd name='conflicts : function (where = search(), detail = FALSE)' />
+  <cmd name='Conj : function (z)' />
+  <cmd name='contributors : function ()' />
+  <cmd name='cos : function (x)' />
+  <cmd name='cosh : function (x)' />
+  <cmd name='c.POSIXct : function (..., recursive = FALSE)' />
+  <cmd name='c.POSIXlt : function (..., recursive = FALSE)' />
+  <cmd name='crossprod : function (x, y = NULL)' />
+  <cmd name='Cstack_info : function ()' />
+  <cmd name='cummax : function (x)' />
+  <cmd name='cummin : function (x)' />
+  <cmd name='cumprod : function (x)' />
+  <cmd name='cumsum : function (x)' />
+  <cmd name='cut : function (x, ...)' />
+  <cmd name='cut.Date : function (x, breaks, labels = NULL, start.on.monday = TRUE, right = FALSE, ...)' />
+  <cmd name='cut.default : function (x, breaks, labels = NULL, include.lowest = FALSE, right = TRUE, dig.lab = 3, ordered_result = FALSE, ...)' />
+  <cmd name='cut.POSIXt : function (x, breaks, labels = NULL, start.on.monday = TRUE, right = FALSE, ...)' />
+  <cmd name='data.class : function (x)' />
+  <cmd name='[.data.frame : function (x, i, j, drop = if (missing(i)) TRUE else length(cols) == 1)' />
+  <cmd name='[[.data.frame : function (x, ..., exact = TRUE)' />
+  <cmd name='data.frame : function (..., row.names = NULL, check.rows = FALSE, check.names = TRUE, stringsAsFactors = default.stringsAsFactors())' />
+  <cmd name='data.matrix : function (frame, rownames.force = NA)' />
+  <cmd name='date : function ()' />
+  <cmd name='-.Date : function (e1, e2)' />
+  <cmd name='[.Date : function (x, ..., drop = TRUE)' />
+  <cmd name='[[.Date : function (x, ..., drop = TRUE)' />
+  <cmd name='+.Date : function (e1, e2)' />
+  <cmd name='debug : function (fun)' />
+  <cmd name='default.stringsAsFactors : function ()' />
+  <cmd name='delay : function (x, env = .GlobalEnv)' />
+  <cmd name='delayedAssign : function (x, value, eval.env = parent.frame(1), assign.env = parent.frame(1))' />
+  <cmd name='deparse : function (expr, width.cutoff = 60, backtick = mode(expr) %in% c("call", "expression", "(", "function"), control = c("keepInteger", "showAttributes", "keepNA"), nlines = -1)' />
+  <cmd name='det : function (x, ...)' />
+  <cmd name='detach : function (name, pos = 2, version, unload = FALSE)' />
+  <cmd name='determinant : function (x, logarithm = TRUE, ...)' />
+  <cmd name='determinant.matrix : function (x, logarithm = TRUE, ...)' />
+  <cmd name='dget : function (file)' />
+  <cmd name='diag : function (x = 1, nrow, ncol)' />
+  <cmd name='diff : function (x, ...)' />
+  <cmd name='diff.Date : function (x, lag = 1, differences = 1, ...)' />
+  <cmd name='diff.default : function (x, lag = 1, differences = 1, ...)' />
+  <cmd name='diff.POSIXt : function (x, lag = 1, differences = 1, ...)' />
+  <cmd name='difftime : function (time1, time2, tz = "", units = c("auto", "secs", "mins", "hours", "days", "weeks"))' />
+  <cmd name='/.difftime : function (e1, e2)' />
+  <cmd name='[.difftime : function (x, ..., drop = TRUE)' />
+  <cmd name='*.difftime : function (e1, e2)' />
+  <cmd name='digamma : function (x)' />
+  <cmd name='dim : function (x)' />
+  <cmd name='dim.data.frame : function (x)' />
+  <cmd name='dimnames : function (x)' />
+  <cmd name='dimnames.data.frame : function (x)' />
+  <cmd name='dir : function (path = ".", pattern = NULL, all.files = FALSE, full.names = FALSE, recursive = FALSE, ignore.case = FALSE)' />
+  <cmd name='dir.create : function (path, showWarnings = TRUE, recursive = FALSE, mode = "0777")' />
+  <cmd name='dirname : function (path)' />
+  <cmd name='$.DLLInfo : function (x, name)' />
+  <cmd name='do.call : function (what, args, quote = FALSE, envir = parent.frame())' />
+  <cmd name='double : function (length = 0)' />
+  <cmd name='dput : function (x, file = "", control = c("keepNA", "keepInteger", "showAttributes"))' />
+  <cmd name='dQuote : function (x)' />
+  <cmd name='drop : function (x)' />
+  <cmd name='dump : function (list, file = "dumpdata.R", append = FALSE, control = "all", envir = parent.frame(), evaluate = TRUE)' />
+  <cmd name='duplicated : function (x, incomparables = FALSE, ...)' />
+  <cmd name='duplicated.array : function (x, incomparables = FALSE, MARGIN = 1, fromLast = FALSE, ...)' />
+  <cmd name='duplicated.data.frame : function (x, incomparables = FALSE, fromLast = FALSE, ...)' />
+  <cmd name='duplicated.default : function (x, incomparables = FALSE, fromLast = FALSE, ...)' />
+  <cmd name='duplicated.matrix : function (x, incomparables = FALSE, MARGIN = 1, fromLast = FALSE, ...)' />
+  <cmd name='duplicated.numeric_version : function (x, incomparables = FALSE, ...)' />
+  <cmd name='duplicated.POSIXlt : function (x, incomparables = FALSE, ...)' />
+  <cmd name='dyn.load : function (x, local = TRUE, now = TRUE, ...)' />
+  <cmd name='dyn.unload : function (x)' />
+  <cmd name='eapply : function (env, FUN, ..., all.names = FALSE)' />
+  <cmd name='eigen : function (x, symmetric, only.values = FALSE, EISPACK = FALSE)' />
+  <cmd name='emptyenv : function ()' />
+  <cmd name='encodeString : function (x, width = 0, quote = "", na.encode = TRUE, justify = c("left", "right", "centre", "none"))' />
+  <cmd name='Encoding : function (x)' />
+  <cmd name='environment : function (fun = NULL)' />
+  <cmd name='environmentIsLocked : function (env)' />
+  <cmd name='environmentName : function (env)' />
+  <cmd name='env.profile : function (env)' />
+  <cmd name='eval : function (expr, envir = parent.frame(), enclos = if (is.list(envir) || is.pairlist(envir)) parent.frame() else baseenv())' />
+  <cmd name='eval.parent : function (expr, n = 1)' />
+  <cmd name='evalq : function (expr, envir, enclos)' />
+  <cmd name='exists : function (x, where = -1, envir = if (missing(frame)) as.environment(where) else sys.frame(frame), frame, mode = "any", inherits = TRUE)' />
+  <cmd name='exp : function (x)' />
+  <cmd name='expand.grid : function (..., KEEP.OUT.ATTRS = TRUE)' />
+  <cmd name='expm1 : function (x)' />
+  <cmd name='expression : function (...)' />
+  <cmd name='factor : function (x = character(), levels = sort(unique.default(x), na.last = TRUE), labels = levels, exclude = NA, ordered = is.ordered(x))' />
+  <cmd name='[.factor : function (x, ..., drop = FALSE)' />
+  <cmd name='[[.factor : function (x, ...)' />
+  <cmd name='factorial : function (x)' />
+  <cmd name='fifo : function (description, open = "", blocking = FALSE, encoding = getOption("encoding"))' />
+  <cmd name='file : function (description = "", open = "", blocking = TRUE, encoding = getOption("encoding"))' />
+  <cmd name='file.access : function (names, mode = 0)' />
+  <cmd name='file.append : function (file1, file2)' />
+  <cmd name='file.choose : function (new = FALSE)' />
+  <cmd name='file.copy : function (from, to, overwrite = FALSE)' />
+  <cmd name='file.create : function (..., showWarnings = TRUE)' />
+  <cmd name='file.exists : function (...)' />
+  <cmd name='file.info : function (...)' />
+  <cmd name='file.path : function (..., fsep = .Platform$file.sep)' />
+  <cmd name='file.remove : function (...)' />
+  <cmd name='file.rename : function (from, to)' />
+  <cmd name='file.show : function (..., header = rep("", nfiles), title = "R Information", delete.file = FALSE, pager = getOption("pager"), encoding = "")' />
+  <cmd name='file.symlink : function (from, to)' />
+  <cmd name='Filter : function (f, x)' />
+  <cmd name='Find : function (f, x, right = FALSE, nomatch = NULL)' />
+  <cmd name='findInterval : function (x, vec, rightmost.closed = FALSE, all.inside = FALSE)' />
+  <cmd name='findPackageEnv : function (info)' />
+  <cmd name='findRestart : function (name, cond = NULL)' />
+  <cmd name='floor : function (x)' />
+  <cmd name='flush : function (con)' />
+  <cmd name='flush.connection : function (con)' />
+  <cmd name='for : .Primitive("for") 
+force : function (x)' />
+  <cmd name='formals : function (fun = sys.function(sys.parent()))' />
+  <cmd name='format : function (x, ...)' />
+  <cmd name='format.AsIs : function (x, width = 12, ...)' />
+  <cmd name='formatC : function (x, digits = NULL, width = NULL, format = NULL, flag = "", mode = NULL, big.mark = "", big.interval = 3, small.mark = "", small.interval = 5, decimal.mark = ".", preserve.width = "individual", zero.print = NULL, drop0trailing = FALSE)' />
+  <cmd name='format.char : function (x, width = NULL, flag = "-")' />
+  <cmd name='format.data.frame : function (x, ..., justify = "none")' />
+  <cmd name='format.Date : function (x, ...)' />
+  <cmd name='format.default : function (x, trim = FALSE, digits = NULL, nsmall = 0, justify = c("left", "right", "centre", "none"), width = NULL, na.encode = TRUE, scientific = NA, big.mark = "", big.interval = 3, small.mark = "", small.interval = 5, decimal.mark = ".", zero.print = NULL, drop0trailing = FALSE, ...)' />
+  <cmd name='format.difftime : function (x, ...)' />
+  <cmd name='formatDL : function (x, y, style = c("table", "list"), width = 0.9 * getOption("width"), indent = NULL)' />
+  <cmd name='format.factor : function (x, ...)' />
+  <cmd name='format.hexmode : function (x, upper.case = FALSE, ...)' />
+  <cmd name='format.info : function (x, digits = NULL, nsmall = 0)' />
+  <cmd name='format.octmode : function (x, ...)' />
+  <cmd name='format.POSIXct : function (x, format = "", tz = "", usetz = FALSE, ...)' />
+  <cmd name='format.POSIXlt : function (x, format = "", usetz = FALSE, ...)' />
+  <cmd name='format.pval : function (pv, digits = max(1, getOption("digits") - 2), eps = .Machine$double.eps, na.form = "NA")' />
+  <cmd name='forwardsolve : function (l, x, k = ncol(l), upper.tri = FALSE, transpose = FALSE)' />
+  <cmd name='function : .Primitive("function") 
+gamma : function (x)' />
+  <cmd name='gammaCody : function (x)' />
+  <cmd name='gc : function (verbose = getOption("verbose"), reset = FALSE)' />
+  <cmd name='gcinfo : function (verbose)' />
+  <cmd name='gc.time : function (on = TRUE)' />
+  <cmd name='gctorture : function (on = TRUE)' />
+  <cmd name='get : function (x, pos = -1, envir = as.environment(pos), mode = "any", inherits = TRUE)' />
+  <cmd name='getAllConnections : function ()' />
+  <cmd name='getCallingDLL : function (f = sys.function(-1), doStop = FALSE)' />
+  <cmd name='getCallingDLLe : function (e)' />
+  <cmd name='getCConverterDescriptions : function ()' />
+  <cmd name='getCConverterStatus : function ()' />
+  <cmd name='getConnection : function (what)' />
+  <cmd name='getDLLRegisteredRoutines : function (dll, addNames = TRUE)' />
+  <cmd name='getDLLRegisteredRoutines.character : function (dll, addNames = TRUE)' />
+  <cmd name='getDLLRegisteredRoutines.DLLInfo : function (dll, addNames = TRUE)' />
+  <cmd name='getenv : function (...)' />
+  <cmd name='geterrmessage : function ()' />
+  <cmd name='getExportedValue : function (ns, name)' />
+  <cmd name='getHook : function (hookName)' />
+  <cmd name='getLoadedDLLs : function ()' />
+  <cmd name='getNamespace : function (name)' />
+  <cmd name='getNamespaceExports : function (ns)' />
+  <cmd name='getNamespaceImports : function (ns)' />
+  <cmd name='getNamespaceInfo : function (ns, which)' />
+  <cmd name='getNamespaceName : function (ns)' />
+  <cmd name='getNamespaceUsers : function (ns)' />
+  <cmd name='getNamespaceVersion : function (ns)' />
+  <cmd name='getNativeSymbolInfo : function (name, PACKAGE, unlist = TRUE, withRegistrationInfo = FALSE)' />
+  <cmd name='getNumCConverters : function ()' />
+  <cmd name='getOption : function (x)' />
+  <cmd name='getRversion : function ()' />
+  <cmd name='getSrcLines : function (srcfile, first, last)' />
+  <cmd name='getTaskCallbackNames : function ()' />
+  <cmd name='gettext : function (..., domain = NULL)' />
+  <cmd name='gettextf : function (fmt, ..., domain = NULL)' />
+  <cmd name='getwd : function ()' />
+  <cmd name='gl : function (n, k, length = n * k, labels = 1:n, ordered = FALSE)' />
+  <cmd name='globalenv : function ()' />
+  <cmd name='gregexpr : function (pattern, text, ignore.case = FALSE, extended = TRUE, perl = FALSE, fixed = FALSE, useBytes = FALSE)' />
+  <cmd name='grep : function (pattern, x, ignore.case = FALSE, extended = TRUE, perl = FALSE, value = FALSE, fixed = FALSE, useBytes = FALSE)' />
+  <cmd name='gsub : function (pattern, replacement, x, ignore.case = FALSE, extended = TRUE, perl = FALSE, fixed = FALSE, useBytes = FALSE)' />
+  <cmd name='gzcon : function (con, level = 6, allowNonCompressed = TRUE)' />
+  <cmd name='gzfile : function (description, open = "", encoding = getOption("encoding"), compression = 6)' />
+  <cmd name='[.hexmode : function (x, i)' />
+  <cmd name='httpclient : function (url, port = 80, error.is.fatal = TRUE, check.MIME.type = TRUE, file = tempfile(), drop.ctrl.z = TRUE)' />
+  <cmd name='I : function (x)' />
+  <cmd name='iconv : function (x, from = "", to = "", sub = NA)' />
+  <cmd name='iconvlist : function ()' />
+  <cmd name='icuSetCollate : function (...)' />
+  <cmd name='identical : function (x, y)' />
+  <cmd name='identity : function (x)' />
+  <cmd name='if : .Primitive("if") 
+ifelse : function (test, yes, no)' />
+  <cmd name='Im : function (z)' />
+  <cmd name='importIntoEnv : function (impenv, impnames, expenv, expnames)' />
+  <cmd name='%in% : function (x, table)' />
+  <cmd name='inherits : function (x, what, which = FALSE)' />
+  <cmd name='integer : function (length = 0)' />
+  <cmd name='interaction : function (..., drop = FALSE, sep = ".", lex.order = FALSE)' />
+  <cmd name='interactive : function ()' />
+  <cmd name='intersect : function (x, y)' />
+  <cmd name='intToBits : function (x)' />
+  <cmd name='intToUtf8 : function (x, multiple = FALSE)' />
+  <cmd name='inverse.rle : function (x, ...)' />
+  <cmd name='invisible : function (x)' />
+  <cmd name='invokeRestart : function (r, ...)' />
+  <cmd name='invokeRestartInteractively : function (r)' />
+  <cmd name='is.array : function (x)' />
+  <cmd name='is.atomic : function (x)' />
+  <cmd name='isBaseNamespace : function (ns)' />
+  <cmd name='is.call : function (x)' />
+  <cmd name='is.character : function (x)' />
+  <cmd name='is.complex : function (x)' />
+  <cmd name='is.data.frame : function (x)' />
+  <cmd name='is.double : function (x)' />
+  <cmd name='is.element : function (el, set)' />
+  <cmd name='is.environment : function (x)' />
+  <cmd name='is.expression : function (x)' />
+  <cmd name='is.factor : function (x)' />
+  <cmd name='is.finite : function (x)' />
+  <cmd name='is.function : function (x)' />
+  <cmd name='isIncomplete : function (con)' />
+  <cmd name='is.infinite : function (x)' />
+  <cmd name='is.integer : function (x)' />
+  <cmd name='is.language : function (x)' />
+  <cmd name='is.list : function (x)' />
+  <cmd name='is.loaded : function (symbol, PACKAGE = "", type = "")' />
+  <cmd name='is.logical : function (x)' />
+  <cmd name='is.matrix : function (x)' />
+  <cmd name='is.na : function (x)' />
+  <cmd name='is.na.data.frame : function (x)' />
+  <cmd name='is.name : function (x)' />
+  <cmd name='isNamespace : function (ns)' />
+  <cmd name='is.nan : function (x)' />
+  <cmd name='is.na.POSIXlt : function (x)' />
+  <cmd name='is.null : function (x)' />
+  <cmd name='is.numeric : function (x)' />
+  <cmd name='is.numeric.Date : function (x)' />
+  <cmd name='is.numeric.POSIXt : function (x)' />
+  <cmd name='is.numeric_version : function (x)' />
+  <cmd name='is.object : function (x)' />
+  <cmd name='ISOdate : function (year, month, day, hour = 12, min = 0, sec = 0, tz = "GMT")' />
+  <cmd name='ISOdatetime : function (year, month, day, hour, min, sec, tz = "")' />
+  <cmd name='isOpen : function (con, rw = "")' />
+  <cmd name='is.ordered : function (x)' />
+  <cmd name='is.package_version : function (x)' />
+  <cmd name='is.pairlist : function (x)' />
+  <cmd name='is.primitive : function (x)' />
+  <cmd name='is.qr : function (x)' />
+  <cmd name='is.R : function ()' />
+  <cmd name='is.raw : function (x)' />
+  <cmd name='is.real : function (x)' />
+  <cmd name='is.recursive : function (x)' />
+  <cmd name='isRestart : function (x)' />
+  <cmd name='isS4 : function (object)' />
+  <cmd name='isSeekable : function (con)' />
+  <cmd name='is.single : function (x)' />
+  <cmd name='is.symbol : function (x)' />
+  <cmd name='isSymmetric : function (object, ...)' />
+  <cmd name='isSymmetric.matrix : function (object, tol = 100 * .Machine$double.eps, ...)' />
+  <cmd name='is.table : function (x)' />
+  <cmd name='isTRUE : function (x)' />
+  <cmd name='is.unsorted : function (x, na.rm = FALSE, strictly = FALSE)' />
+  <cmd name='is.vector : function (x, mode = "any")' />
+  <cmd name='jitter : function (x, factor = 1, amount = NULL)' />
+  <cmd name='julian : function (x, ...)' />
+  <cmd name='julian.Date : function (x, origin = as.Date("1970-01-01"), ...)' />
+  <cmd name='julian.POSIXt : function (x, origin = as.POSIXct("1970-01-01", tz = "GMT"), ...)' />
+  <cmd name='kappa : function (z, ...)' />
+  <cmd name='kappa.default : function (z, exact = FALSE, norm = NULL, method = c("qr", "direct"), ...)' />
+  <cmd name='kappa.lm : function (z, ...)' />
+  <cmd name='kappa.qr : function (z, ...)' />
+  <cmd name='kappa.tri : function (z, exact = FALSE, LINPACK = TRUE, norm = NULL, ...)' />
+  <cmd name='kronecker : function (X, Y, FUN = "*", make.dimnames = FALSE, ...)' />
+  <cmd name='l10n_info : function ()' />
+  <cmd name='labels : function (object, ...)' />
+  <cmd name='labels.default : function (object, ...)' />
+  <cmd name='La.chol : function (x)' />
+  <cmd name='La.chol2inv : function (x, size = ncol(x))' />
+  <cmd name='La.eigen : function (x, symmetric, only.values = FALSE, method = c("dsyevr", "dsyev"))' />
+  <cmd name='lapply : function (X, FUN, ...)' />
+  <cmd name='La.svd : function (x, nu = min(n, p), nv = min(n, p))' />
+  <cmd name='lazyLoad : function (filebase, envir = parent.frame(), filter)' />
+  <cmd name='lazyLoadDBfetch : function (key, file, compressed, hook)' />
+  <cmd name='lbeta : function (a, b)' />
+  <cmd name='lchoose : function (n, k)' />
+  <cmd name='length : function (x)' />
+  <cmd name='levels : function (x)' />
+  <cmd name='levels.default : function (x)' />
+  <cmd name='lfactorial : function (x)' />
+  <cmd name='lgamma : function (x)' />
+  <cmd name='library : function (package, help, pos = 2, lib.loc = NULL, character.only = FALSE, logical.return = FALSE, warn.conflicts = TRUE, keep.source = getOption("keep.source.pkgs"), verbose = getOption("verbose"), version)' />
+  <cmd name='library.dynam : function (chname, package = NULL, lib.loc = NULL, verbose = getOption("verbose"), file.ext = .Platform$dynlib.ext, ...)' />
+  <cmd name='library.dynam.unload : function (chname, libpath, verbose = getOption("verbose"), file.ext = .Platform$dynlib.ext)' />
+  <cmd name='licence : function ()' />
+  <cmd name='license : function ()' />
+  <cmd name='list : function (...)' />
+  <cmd name='list.files : function (path = ".", pattern = NULL, all.files = FALSE, full.names = FALSE, recursive = FALSE, ignore.case = FALSE)' />
+  <cmd name='[.listof : function (x, i, ...)' />
+  <cmd name='load : function (file, envir = parent.frame())' />
+  <cmd name='loadedNamespaces : function ()' />
+  <cmd name='loadingNamespaceInfo : function ()' />
+  <cmd name='loadNamespace : function (package, lib.loc = NULL, keep.source = getOption("keep.source.pkgs"), partial = FALSE, declarativeOnly = FALSE)' />
+  <cmd name='loadURL : function (url, envir = parent.frame(), quiet = TRUE, ...)' />
+  <cmd name='local : function (expr, envir = new.env())' />
+  <cmd name='lockBinding : function (sym, env)' />
+  <cmd name='lockEnvironment : function (env, bindings = FALSE)' />
+  <cmd name='log : function (x, base = exp(1))' />
+  <cmd name='log10 : function (x)' />
+  <cmd name='log1p : function (x)' />
+  <cmd name='log2 : function (x)' />
+  <cmd name='logb : function (x, base = exp(1))' />
+  <cmd name='logical : function (length = 0)' />
+  <cmd name='lower.tri : function (x, diag = FALSE)' />
+  <cmd name='ls : function (name, pos = -1, envir = as.environment(pos), all.names = FALSE, pattern)' />
+  <cmd name='machine : function ()' />
+  <cmd name='Machine : function ()' />
+  <cmd name='makeActiveBinding : function (sym, fun, env)' />
+  <cmd name='make.names : function (names, unique = FALSE, allow_ = TRUE)' />
+  <cmd name='make.unique : function (names, sep = ".")' />
+  <cmd name='manglePackageName : function (pkgName, pkgVersion)' />
+  <cmd name='Map : function (f, ...)' />
+  <cmd name='mapply : function (FUN, ..., MoreArgs = NULL, SIMPLIFY = TRUE, USE.NAMES = TRUE)' />
+  <cmd name='margin.table : function (x, margin = NULL)' />
+  <cmd name='match : function (x, table, nomatch = NA_integer_, incomparables = NULL)' />
+  <cmd name='match.arg : function (arg, choices, several.ok = FALSE)' />
+  <cmd name='match.call : function (definition = NULL, call = sys.call(sys.parent()), expand.dots = TRUE)' />
+  <cmd name='match.fun : function (FUN, descend = TRUE)' />
+  <cmd name='Math.data.frame : function (x, ...)' />
+  <cmd name='Math.Date : function (x, ...)' />
+  <cmd name='Math.difftime : function (x, ...)' />
+  <cmd name='Math.factor : function (x, ...)' />
+  <cmd name='Math.POSIXt : function (x, ...)' />
+  <cmd name='mat.or.vec : function (nr, nc)' />
+  <cmd name='matrix : function (data = NA, nrow = 1, ncol = 1, byrow = FALSE, dimnames = NULL)' />
+  <cmd name='max : function (..., na.rm = FALSE)' />
+  <cmd name='max.col : function (m, ties.method = c("random", "first", "last"))' />
+  <cmd name='mean : function (x, ...)' />
+  <cmd name='mean.data.frame : function (x, ...)' />
+  <cmd name='mean.Date : function (x, ...)' />
+  <cmd name='mean.default : function (x, trim = 0, na.rm = FALSE, ...)' />
+  <cmd name='mean.difftime : function (x, ..., na.rm = FALSE)' />
+  <cmd name='mean.POSIXct : function (x, ...)' />
+  <cmd name='mean.POSIXlt : function (x, ...)' />
+  <cmd name='mem.limits : function (nsize = NA, vsize = NA)' />
+  <cmd name='memory.profile : function ()' />
+  <cmd name='merge : function (x, y, ...)' />
+  <cmd name='merge.data.frame : function (x, y, by = intersect(names(x), names(y)), by.x = by, by.y = by, all = FALSE, all.x = all, all.y = all, sort = TRUE, suffixes = c(".x", ".y"), incomparables = NULL, ...)' />
+  <cmd name='merge.default : function (x, y, ...)' />
+  <cmd name='message : function (..., domain = NULL, appendLF = TRUE)' />
+  <cmd name='mget : function (x, envir, mode = "any", ifnotfound = list(function(x) stop(paste("value for ", x, " not found", sep = ""), call. = FALSE)), inherits = FALSE)' />
+  <cmd name='min : function (..., na.rm = FALSE)' />
+  <cmd name='missing : function (x)' />
+  <cmd name='Mod : function (z)' />
+  <cmd name='mode : function (x)' />
+  <cmd name='months : function (x, abbreviate)' />
+  <cmd name='months.Date : function (x, abbreviate = FALSE)' />
+  <cmd name='months.POSIXt : function (x, abbreviate = FALSE)' />
+  <cmd name='names : function (x)' />
+  <cmd name='namespaceExport : function (ns, vars)' />
+  <cmd name='namespaceImport : function (self, ...)' />
+  <cmd name='namespaceImportClasses : function (self, ns, vars)' />
+  <cmd name='namespaceImportFrom : function (self, ns, vars, generics, packages)' />
+  <cmd name='namespaceImportMethods : function (self, ns, vars)' />
+  <cmd name='nargs : function ()' />
+  <cmd name='nchar : function (x, type = "chars", allowNA = FALSE)' />
+  <cmd name='ncol : function (x)' />
+  <cmd name='NCOL : function (x)' />
+  <cmd name='Negate : function (f)' />
+  <cmd name='new.env : function (hash = FALSE, parent = parent.frame(), size = 29L)' />
+  <cmd name='next : .Primitive("next") 
+NextMethod : function (generic = NULL, object = NULL, ...)' />
+  <cmd name='ngettext : function (n, msg1, msg2, domain = NULL)' />
+  <cmd name='nlevels : function (x)' />
+  <cmd name='noquote : function (obj)' />
+  <cmd name='[.noquote : function (x, ...)' />
+  <cmd name='nrow : function (x)' />
+  <cmd name='NROW : function (x)' />
+  <cmd name='numeric : function (length = 0)' />
+  <cmd name='[.numeric_version : function (x, i, j)' />
+  <cmd name='[[.numeric_version : function (x, ..., exact = NA)' />
+  <cmd name='numeric_version : function (x, strict = TRUE)' />
+  <cmd name='nzchar : function (x)' />
+  <cmd name='%o% : function (X, Y)' />
+  <cmd name='objects : function (name, pos = -1, envir = as.environment(pos), all.names = FALSE, pattern)' />
+  <cmd name='[.octmode : function (x, i)' />
+  <cmd name='oldClass : function (x)' />
+  <cmd name='on.exit : function (expr, add = FALSE)' />
+  <cmd name='open : function (con, ...)' />
+  <cmd name='open.connection : function (con, open = "r", blocking = TRUE, ...)' />
+  <cmd name='open.srcfile : function (con, line, ...)' />
+  <cmd name='open.srcfilecopy : function (con, line, ...)' />
+  <cmd name='Ops.data.frame : function (e1, e2 = NULL)' />
+  <cmd name='Ops.Date : function (e1, e2)' />
+  <cmd name='Ops.difftime : function (e1, e2)' />
+  <cmd name='Ops.factor : function (e1, e2)' />
+  <cmd name='Ops.numeric_version : function (e1, e2)' />
+  <cmd name='Ops.ordered : function (e1, e2)' />
+  <cmd name='Ops.POSIXt : function (e1, e2)' />
+  <cmd name='options : function (...)' />
+  <cmd name='order : function (..., na.last = TRUE, decreasing = FALSE)' />
+  <cmd name='ordered : function (x, ...)' />
+  <cmd name='outer : function (X, Y, FUN = "*", ...)' />
+  <cmd name='package.description : function (pkg, lib.loc = NULL, fields = NULL)' />
+  <cmd name='packageEvent : function (pkgname, event = c("onLoad", "attach", "detach", "onUnload"))' />
+  <cmd name='packageHasNamespace : function (package, package.lib)' />
+  <cmd name='packageStartupMessage : function (..., domain = NULL, appendLF = TRUE)' />
+  <cmd name='$.package_version : function (x, name)' />
+  <cmd name='package_version : function (x, strict = TRUE)' />
+  <cmd name='packBits : function (x, type = c("raw", "integer"))' />
+  <cmd name='pairlist : function (...)' />
+  <cmd name='parent.env : function (env)' />
+  <cmd name='parent.frame : function (n = 1)' />
+  <cmd name='parse : function (file = "", n = NULL, text = NULL, prompt = "?", srcfile = NULL, encoding = "unknown")' />
+  <cmd name='parse.dcf : function (text = NULL, file = "", fields = NULL, versionfix = FALSE)' />
+  <cmd name='parseNamespaceFile : function (package, package.lib, mustExist = TRUE)' />
+  <cmd name='paste : function (..., sep = " ", collapse = NULL)' />
+  <cmd name='path.expand : function (path)' />
+  <cmd name='pentagamma : function (x)' />
+  <cmd name='pipe : function (description, open = "", encoding = getOption("encoding"))' />
+  <cmd name='Platform : function ()' />
+  <cmd name='pmatch : function (x, table, nomatch = NA_integer_, duplicates.ok = FALSE)' />
+  <cmd name='pmax : function (..., na.rm = FALSE)' />
+  <cmd name='pmax.int : function (..., na.rm = FALSE)' />
+  <cmd name='pmin : function (..., na.rm = FALSE)' />
+  <cmd name='pmin.int : function (..., na.rm = FALSE)' />
+  <cmd name='polyroot : function (z)' />
+  <cmd name='Position : function (f, x, right = FALSE, nomatch = NA_integer_)' />
+  <cmd name='[.POSIXct : function (x, ..., drop = TRUE)' />
+  <cmd name='[[.POSIXct : function (x, ..., drop = TRUE)' />
+  <cmd name='[.POSIXlt : function (x, ..., drop = TRUE)' />
+  <cmd name='-.POSIXt : function (e1, e2)' />
+  <cmd name='+.POSIXt : function (e1, e2)' />
+  <cmd name='pos.to.env : function (x)' />
+  <cmd name='pretty : function (x, n = 5, min.n = n%/%3, shrink.sml = 0.75, high.u.bias = 1.5, u5.bias = 0.5 + 1.5 * high.u.bias, eps.correct = 0)' />
+  <cmd name='prettyNum : function (x, big.mark = "", big.interval = 3, small.mark = "", small.interval = 5, decimal.mark = ".", preserve.width = c("common",     "individual", "none"), zero.print = NULL, drop0trailing = FALSE, ...)' />
+  <cmd name='print : function (x, ...)' />
+  <cmd name='print.AsIs : function (x, ...)' />
+  <cmd name='print.atomic : function (x, quote = TRUE, ...)' />
+  <cmd name='print.by : function (x, ..., vsep)' />
+  <cmd name='print.condition : function (x, ...)' />
+  <cmd name='print.connection : function (x, ...)' />
+  <cmd name='print.data.frame : function (x, ..., digits = NULL, quote = FALSE, right = TRUE, row.names = TRUE)' />
+  <cmd name='print.Date : function (x, ...)' />
+  <cmd name='print.default : function (x, digits = NULL, quote = TRUE, na.print = NULL, print.gap = NULL, right = FALSE, max = NULL, useSource = TRUE, ...)' />
+  <cmd name='print.difftime : function (x, digits = getOption("digits"), ...)' />
+  <cmd name='print.DLLInfo : function (x, ...)' />
+  <cmd name='print.DLLInfoList : function (x, ...)' />
+  <cmd name='print.DLLRegisteredRoutines : function (x, ...)' />
+  <cmd name='print.factor : function (x, quote = FALSE, max.levels = NULL, width = getOption("width"), ...)' />
+  <cmd name='print.hexmode : function (x, ...)' />
+  <cmd name='print.libraryIQR : function (x, ...)' />
+  <cmd name='print.listof : function (x, ...)' />
+  <cmd name='print.NativeRoutineList : function (x, ...)' />
+  <cmd name='printNoClass : function (x, digits = NULL, quote = TRUE, na.print = NULL, print.gap = NULL, right = FALSE, ...)' />
+  <cmd name='print.noquote : function (x, ...)' />
+  <cmd name='print.numeric_version : function (x, ...)' />
+  <cmd name='print.octmode : function (x, ...)' />
+  <cmd name='print.packageInfo : function (x, ...)' />
+  <cmd name='print.POSIXct : function (x, ...)' />
+  <cmd name='print.POSIXlt : function (x, ...)' />
+  <cmd name='print.proc_time : function (x, ...)' />
+  <cmd name='print.restart : function (x, ...)' />
+  <cmd name='print.rle : function (x, digits = getOption("digits"), ...)' />
+  <cmd name='print.simple.list : function (x, ...)' />
+  <cmd name='print.srcfile : function (x, ...)' />
+  <cmd name='print.srcref : function (x, useSource = TRUE, ...)' />
+  <cmd name='print.summary.table : function (x, digits = max(1, getOption("digits") - 3), ...)' />
+  <cmd name='print.table : function (x, digits = getOption("digits"), quote = FALSE, na.print = "", zero.print = "0", justify = "none", ...)' />
+  <cmd name='print.warnings : function (x, ...)' />
+  <cmd name='prmatrix : function (x, rowlab = dn[[1]], collab = dn[[2]], quote = TRUE, right = FALSE, na.print = NULL, ...)' />
+  <cmd name='proc.time : function ()' />
+  <cmd name='prod : function (..., na.rm = FALSE)' />
+  <cmd name='prop.table : function (x, margin = NULL)' />
+  <cmd name='provide : function (package)' />
+  <cmd name='psigamma : function (x, deriv = 0)' />
+  <cmd name='pushBack : function (data, connection, newLine = TRUE)' />
+  <cmd name='pushBackLength : function (connection)' />
+  <cmd name='q : function (save = "default", status = 0, runLast = TRUE)' />
+  <cmd name='qr : function (x, ...)' />
+  <cmd name='qr.coef : function (qr, y)' />
+  <cmd name='qr.default : function (x, tol = 1e-07, LAPACK = FALSE, ...)' />
+  <cmd name='qr.fitted : function (qr, y, k = qr$rank)' />
+  <cmd name='qr.Q : function (qr, complete = FALSE, Dvec = rep.int(if (cmplx) 1 + (0+0i) else 1, if (complete) dqr[1] else min(dqr)))' />
+  <cmd name='qr.qty : function (qr, y)' />
+  <cmd name='qr.qy : function (qr, y)' />
+  <cmd name='qr.R : function (qr, complete = FALSE)' />
+  <cmd name='qr.resid : function (qr, y)' />
+  <cmd name='qr.solve : function (a, b, tol = 1e-07)' />
+  <cmd name='qr.X : function (qr, complete = FALSE, ncol = if (complete) nrow(R) else min(dim(R)))' />
+  <cmd name='quarters : function (x, abbreviate)' />
+  <cmd name='quarters.Date : function (x, ...)' />
+  <cmd name='quarters.POSIXt : function (x, ...)' />
+  <cmd name='quit : function (save = "default", status = 0, runLast = TRUE)' />
+  <cmd name='quote : function (expr)' />
+  <cmd name='range : function (..., na.rm = FALSE)' />
+  <cmd name='range.default : function (..., na.rm = FALSE, finite = FALSE)' />
+  <cmd name='rank : function (x, na.last = TRUE, ties.method = c("average", "first", "random", "max", "min"))' />
+  <cmd name='rapply : function (object, f, classes = "ANY", deflt = NULL, how = c("unlist", "replace", "list"), ...)' />
+  <cmd name='raw : function (length = 0)' />
+  <cmd name='rawConnection : function (object, open = "r")' />
+  <cmd name='rawConnectionValue : function (con)' />
+  <cmd name='rawShift : function (x, n)' />
+  <cmd name='rawToBits : function (x)' />
+  <cmd name='rawToChar : function (x, multiple = FALSE)' />
+  <cmd name='rbind : function (..., deparse.level = 1)' />
+  <cmd name='rbind.data.frame : function (..., deparse.level = 1)' />
+  <cmd name='rcond : function (x, norm = c("O", "I", "1"), triangular = FALSE, ...)' />
+  <cmd name='Re : function (z)' />
+  <cmd name='readBin : function (con, what, n = 1, size = NA_integer_, signed = TRUE, endian = .Platform$endian)' />
+  <cmd name='readChar : function (con, nchars, useBytes = FALSE)' />
+  <cmd name='read.dcf : function (file, fields = NULL, all = FALSE)' />
+  <cmd name='readline : function (prompt = "")' />
+  <cmd name='readLines : function (con = stdin(), n = -1, ok = TRUE, warn = TRUE, encoding = "unknown")' />
+  <cmd name='read.table.url : function (url, method, ...)' />
+  <cmd name='real : function (length = 0)' />
+  <cmd name='Recall : function (...)' />
+  <cmd name='Reduce : function (f, x, init, right = FALSE, accumulate = FALSE)' />
+  <cmd name='regexpr : function (pattern, text, ignore.case = FALSE, extended = TRUE, perl = FALSE, fixed = FALSE, useBytes = FALSE)' />
+  <cmd name='reg.finalizer : function (e, f, onexit = FALSE)' />
+  <cmd name='registerS3method : function (genname, class, method, envir = parent.frame())' />
+  <cmd name='registerS3methods : function (info, package, env)' />
+  <cmd name='remove : function (..., list = character(0), pos = -1, envir = as.environment(pos), inherits = FALSE)' />
+  <cmd name='removeCConverter : function (id)' />
+  <cmd name='removeTaskCallback : function (id)' />
+  <cmd name='rep : function (x, ...)' />
+  <cmd name='rep.Date : function (x, ...)' />
+  <cmd name='repeat : .Primitive("repeat") 
+rep.factor : function (x, ...)' />
+  <cmd name='rep.int : function (x, times)' />
+  <cmd name='replace : function (x, list, values)' />
+  <cmd name='replicate : function (n, expr, simplify = TRUE)' />
+  <cmd name='rep.numeric_version : function (x, ...)' />
+  <cmd name='rep.POSIXct : function (x, ...)' />
+  <cmd name='rep.POSIXlt : function (x, ...)' />
+  <cmd name='require : function (package, lib.loc = NULL, quietly = FALSE, warn.conflicts = TRUE, keep.source = getOption("keep.source.pkgs"), character.only = FALSE, version, save = TRUE)' />
+  <cmd name='restart : function ()' />
+  <cmd name='restartDescription : function (r)' />
+  <cmd name='restartFormals : function (r)' />
+  <cmd name='retracemem : function (x, previous = NULL)' />
+  <cmd name='return : .Primitive("return") 
+rev : function (x)' />
+  <cmd name='rev.default : function (x)' />
+  <cmd name='R.home : function (component = "home")' />
+  <cmd name='rle : function (x)' />
+  <cmd name='rm : function (..., list = character(0), pos = -1, envir = as.environment(pos), inherits = FALSE)' />
+  <cmd name='RNGkind : function (kind = NULL, normal.kind = NULL)' />
+  <cmd name='RNGversion : function (vstr)' />
+  <cmd name='round : function (x, digits = 0)' />
+  <cmd name='round.Date : function (x, ...)' />
+  <cmd name='round.difftime : function (x, digits = 0, ...)' />
+  <cmd name='round.POSIXt : function (x, units = c("secs", "mins", "hours", "days"))' />
+  <cmd name='row : function (x, as.factor = FALSE)' />
+  <cmd name='rowMeans : function (x, na.rm = FALSE, dims = 1)' />
+  <cmd name='rownames : function (x, do.NULL = TRUE, prefix = "row")' />
+  <cmd name='row.names : function (x)' />
+  <cmd name='row.names.data.frame : function (x)' />
+  <cmd name='row.names.default : function (x)' />
+  <cmd name='rowsum : function (x, group, reorder = TRUE, ...)' />
+  <cmd name='rowsum.data.frame : function (x, group, reorder = TRUE, na.rm = FALSE, ...)' />
+  <cmd name='rowsum.default : function (x, group, reorder = TRUE, na.rm = FALSE, ...)' />
+  <cmd name='rowSums : function (x, na.rm = FALSE, dims = 1)' />
+  <cmd name='R_system_version : function (x, strict = TRUE)' />
+  <cmd name='R.Version : function ()' />
+  <cmd name='sample : function (x, size, replace = FALSE, prob = NULL)' />
+  <cmd name='sapply : function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE)' />
+  <cmd name='save : function (..., list = character(0), file = stop("file must be specified"), ascii = FALSE, version = NULL, envir = parent.frame(), compress = !ascii, eval.promises = TRUE, precheck = TRUE)' />
+  <cmd name='save.image : function (file = ".RData", version = NULL, ascii = FALSE, compress = !ascii, safe = TRUE)' />
+  <cmd name='saveNamespaceImage : function (package, rdafile, lib.loc = NULL, keep.source = getOption("keep.source.pkgs"), compress = TRUE)' />
+  <cmd name='scale : function (x, center = TRUE, scale = TRUE)' />
+  <cmd name='scale.default : function (x, center = TRUE, scale = TRUE)' />
+  <cmd name='scan : function (file = "", what = double(0), nmax = -1, n = -1, sep = "", quote = if (identical(sep, "\n")) "" else "\"", dec = ".", skip = 0, nlines = 0, na.strings = "NA", flush = FALSE, fill = FALSE, strip.white = FALSE, quiet = FALSE, blank.lines.skip = TRUE, multi.line = TRUE, comment.char = "", allowEscapes = FALSE, encoding = "unknown")' />
+  <cmd name='scan.url : function (url, file = tempfile(), method, ...)' />
+  <cmd name='search : function ()' />
+  <cmd name='searchpaths : function ()' />
+  <cmd name='seek : function (con, ...)' />
+  <cmd name='seek.connection : function (con, where = NA, origin = "start", rw = "", ...)' />
+  <cmd name='seq : function (...)' />
+  <cmd name='seq_along : function (along.with)' />
+  <cmd name='seq.Date : function (from, to, by, length.out = NULL, along.with = NULL, ...)' />
+  <cmd name='seq.default : function (from = 1, to = 1, by = ((to - from)/(length.out - 1)), length.out = NULL, along.with = NULL, ...)' />
+  <cmd name='seq.int : function (from, to, by, length.out, along.with, ...)' />
+  <cmd name='seq_len : function (length.out)' />
+  <cmd name='seq.POSIXt : function (from, to, by, length.out = NULL, along.with = NULL, ...)' />
+  <cmd name='sequence : function (nvec)' />
+  <cmd name='serialize : function (object, connection, ascii = FALSE, refhook = NULL)' />
+  <cmd name='setCConverterStatus : function (id, status)' />
+  <cmd name='setdiff : function (x, y)' />
+  <cmd name='setequal : function (x, y)' />
+  <cmd name='setHook : function (hookName, value, action = c("append", "prepend", "replace"))' />
+  <cmd name='setNamespaceInfo : function (ns, which, val)' />
+  <cmd name='set.seed : function (seed, kind = NULL, normal.kind = NULL)' />
+  <cmd name='setSessionTimeLimit : function (cpu = Inf, elapsed = Inf)' />
+  <cmd name='setTimeLimit : function (cpu = Inf, elapsed = Inf, transient = FALSE)' />
+  <cmd name='setwd : function (dir)' />
+  <cmd name='showConnections : function (all = FALSE)' />
+  <cmd name='shQuote : function (string, type = c("sh", "csh", "cmd"))' />
+  <cmd name='sign : function (x)' />
+  <cmd name='signalCondition : function (cond)' />
+  <cmd name='signif : function (x, digits = 6)' />
+  <cmd name='simpleCondition : function (message, call = NULL)' />
+  <cmd name='simpleError : function (message, call = NULL)' />
+  <cmd name='[.simple.list : function (x, i, ...)' />
+  <cmd name='simpleMessage : function (message, call = NULL)' />
+  <cmd name='simpleWarning : function (message, call = NULL)' />
+  <cmd name='sin : function (x)' />
+  <cmd name='single : function (length = 0)' />
+  <cmd name='sinh : function (x)' />
+  <cmd name='sink : function (file = NULL, append = FALSE, type = c("output", "message"), split = FALSE)' />
+  <cmd name='sink.number : function (type = c("output", "message"))' />
+  <cmd name='slice.index : function (x, MARGIN)' />
+  <cmd name='socketConnection : function (host = "localhost", port, server = FALSE, blocking = FALSE, open = "a+", encoding = getOption("encoding"))' />
+  <cmd name='socketSelect : function (socklist, write = FALSE, timeout = NULL)' />
+  <cmd name='solve : function (a, b, ...)' />
+  <cmd name='solve.default : function (a, b, tol = ifelse(LINPACK, 1e-07, .Machine$double.eps), LINPACK = FALSE, ...)' />
+  <cmd name='solve.qr : function (a, b, ...)' />
+  <cmd name='sort : function (x, decreasing = FALSE, ...)' />
+  <cmd name='sort.default : function (x, decreasing = FALSE, na.last = NA, ...)' />
+  <cmd name='sort.int : function (x, partial = NULL, na.last = NA, decreasing = FALSE, method = c("shell", "quick"), index.return = FALSE)' />
+  <cmd name='sort.list : function (x, partial = NULL, na.last = TRUE, decreasing = FALSE, method = c("shell", "quick", "radix"))' />
+  <cmd name='sort.POSIXlt : function (x, decreasing = FALSE, na.last = NA, ...)' />
+  <cmd name='source : function (file, local = FALSE, echo = verbose, print.eval = echo, verbose = getOption("verbose"), prompt.echo = getOption("prompt"), max.deparse.length = 150, chdir = FALSE, encoding = getOption("encoding"), continue.echo = getOption("continue"), skip.echo = 0, keep.source = getOption("keep.source"))' />
+  <cmd name='source.url : function (url, file = tempfile(), method, ...)' />
+  <cmd name='split : function (x, f, drop = FALSE, ...)' />
+  <cmd name='split.data.frame : function (x, f, drop = FALSE, ...)' />
+  <cmd name='split.Date : function (x, f, drop = FALSE, ...)' />
+  <cmd name='split.default : function (x, f, drop = FALSE, ...)' />
+  <cmd name='split.POSIXct : function (x, f, drop = FALSE, ...)' />
+  <cmd name='sprintf : function (fmt, ...)' />
+  <cmd name='sqrt : function (x)' />
+  <cmd name='sQuote : function (x)' />
+  <cmd name='srcfile : function (filename, encoding = getOption("encoding"))' />
+  <cmd name='srcfilecopy : function (filename, lines)' />
+  <cmd name='srcref : function (srcfile, lloc)' />
+  <cmd name='standardGeneric : function (f)' />
+  <cmd name='stderr : function ()' />
+  <cmd name='stdin : function ()' />
+  <cmd name='stdout : function ()' />
+  <cmd name='stop : function (..., call. = TRUE, domain = NULL)' />
+  <cmd name='stopifnot : function (...)' />
+  <cmd name='storage.mode : function (x)' />
+  <cmd name='strftime : function (x, format = "", usetz = FALSE, ...)' />
+  <cmd name='strptime : function (x, format, tz = "")' />
+  <cmd name='strsplit : function (x, split, extended = TRUE, fixed = FALSE, perl = FALSE)' />
+  <cmd name='strtrim : function (x, width)' />
+  <cmd name='structure : function (.Data, ...)' />
+  <cmd name='strwrap : function (x, width = 0.9 * getOption("width"), indent = 0, exdent = 0, prefix = "", simplify = TRUE)' />
+  <cmd name='sub : function (pattern, replacement, x, ignore.case = FALSE, extended = TRUE, perl = FALSE, fixed = FALSE, useBytes = FALSE)' />
+  <cmd name='subset : function (x, ...)' />
+  <cmd name='subset.data.frame : function (x, subset, select, drop = FALSE, ...)' />
+  <cmd name='subset.default : function (x, subset, ...)' />
+  <cmd name='subset.matrix : function (x, subset, select, drop = FALSE, ...)' />
+  <cmd name='substitute : function (expr, env)' />
+  <cmd name='substr : function (x, start, stop)' />
+  <cmd name='substring : function (text, first, last = 1e+06)' />
+  <cmd name='sum : function (..., na.rm = FALSE)' />
+  <cmd name='summary : function (object, ...)' />
+  <cmd name='summary.connection : function (object, ...)' />
+  <cmd name='summary.data.frame : function (object, maxsum = 7, digits = max(3, getOption("digits") - 3), ...)' />
+  <cmd name='Summary.data.frame : function (..., na.rm)' />
+  <cmd name='summary.Date : function (object, digits = 12, ...)' />
+  <cmd name='Summary.Date : function (..., na.rm)' />
+  <cmd name='summary.default : function (object, ..., digits = max(3, getOption("digits") - 3))' />
+  <cmd name='Summary.difftime : function (..., na.rm)' />
+  <cmd name='summary.factor : function (object, maxsum = 100, ...)' />
+  <cmd name='Summary.factor : function (..., na.rm)' />
+  <cmd name='summary.matrix : function (object, ...)' />
+  <cmd name='Summary.numeric_version : function (..., na.rm)' />
+  <cmd name='summary.POSIXct : function (object, digits = 15, ...)' />
+  <cmd name='Summary.POSIXct : function (..., na.rm)' />
+  <cmd name='summary.POSIXlt : function (object, digits = 15, ...)' />
+  <cmd name='Summary.POSIXlt : function (..., na.rm)' />
+  <cmd name='summary.table : function (object, ...)' />
+  <cmd name='suppressMessages : function (expr)' />
+  <cmd name='suppressPackageStartupMessages : function (expr)' />
+  <cmd name='suppressWarnings : function (expr)' />
+  <cmd name='svd : function (x, nu = min(n, p), nv = min(n, p), LINPACK = FALSE)' />
+  <cmd name='sweep : function (x, MARGIN, STATS, FUN = "-", check.margin = TRUE, ...)' />
+  <cmd name='switch : function (EXPR, ...)' />
+  <cmd name='symbol.C : function (name)' />
+  <cmd name='symbol.For : function (name)' />
+  <cmd name='sys.call : function (which = 0)' />
+  <cmd name='sys.calls : function ()' />
+  <cmd name='Sys.chmod : function (paths, mode = "0777")' />
+  <cmd name='Sys.Date : function ()' />
+  <cmd name='sys.frame : function (which = 0)' />
+  <cmd name='sys.frames : function ()' />
+  <cmd name='sys.function : function (which = 0)' />
+  <cmd name='Sys.getenv : function (x = NULL, unset = "")' />
+  <cmd name='Sys.getlocale : function (category = "LC_ALL")' />
+  <cmd name='Sys.getpid : function ()' />
+  <cmd name='Sys.glob : function (paths, dirmark = FALSE)' />
+  <cmd name='Sys.info : function ()' />
+  <cmd name='sys.load.image : function (name, quiet)' />
+  <cmd name='Sys.localeconv : function ()' />
+  <cmd name='sys.nframe : function ()' />
+  <cmd name='sys.on.exit : function ()' />
+  <cmd name='sys.parent : function (n = 1)' />
+  <cmd name='sys.parents : function ()' />
+  <cmd name='Sys.putenv : function (...)' />
+  <cmd name='sys.save.image : function (name)' />
+  <cmd name='Sys.setenv : function (...)' />
+  <cmd name='Sys.setlocale : function (category = "LC_ALL", locale = "")' />
+  <cmd name='Sys.sleep : function (time)' />
+  <cmd name='sys.source : function (file, envir = baseenv(), chdir = FALSE, keep.source = getOption("keep.source.pkgs"))' />
+  <cmd name='sys.status : function ()' />
+  <cmd name='system : function (command, intern = FALSE, ignore.stderr = FALSE, wait = TRUE, input = NULL, show.output.on.console = TRUE, minimized = FALSE, invisible = TRUE)' />
+  <cmd name='system.file : function (..., package = "base", lib.loc = NULL)' />
+  <cmd name='system.time : function (expr, gcFirst = TRUE)' />
+  <cmd name='Sys.time : function ()' />
+  <cmd name='Sys.timezone : function ()' />
+  <cmd name='Sys.umask : function (mode = "0000")' />
+  <cmd name='Sys.unsetenv : function (x)' />
+  <cmd name='Sys.which : function (names)' />
+  <cmd name='t : function (x)' />
+  <cmd name='table : function (..., exclude = if (useNA == "no") c(NA, NaN), useNA = c("no", "ifany", "always"), dnn = list.names(...), deparse.level = 1)' />
+  <cmd name='tabulate : function (bin, nbins = max(1L, bin))' />
+  <cmd name='tan : function (x)' />
+  <cmd name='tanh : function (x)' />
+  <cmd name='tapply : function (X, INDEX, FUN = NULL, ..., simplify = TRUE)' />
+  <cmd name='taskCallbackManager : function (handlers = list(), registered = FALSE, verbose = FALSE)' />
+  <cmd name='tcrossprod : function (x, y = NULL)' />
+  <cmd name='t.data.frame : function (x)' />
+  <cmd name='t.default : function (x)' />
+  <cmd name='tempdir : function ()' />
+  <cmd name='tempfile : function (pattern = "file", tmpdir = tempdir())' />
+  <cmd name='testPlatformEquivalence : function (built, run)' />
+  <cmd name='tetragamma : function (x)' />
+  <cmd name='textConnection : function (object, open = "r", local = FALSE)' />
+  <cmd name='textConnectionValue : function (con)' />
+  <cmd name='tolower : function (x)' />
+  <cmd name='topenv : function (envir = parent.frame(), matchThisEnv = getOption("topLevelEnvironment"))' />
+  <cmd name='toString : function (x, ...)' />
+  <cmd name='toString.default : function (x, width = NULL, ...)' />
+  <cmd name='toupper : function (x)' />
+  <cmd name='trace : function (what, tracer, exit, at, print, signature, where = topenv(parent.frame()), edit = FALSE)' />
+  <cmd name='traceback : function (x = NULL, max.lines = getOption("deparse.max.lines"))' />
+  <cmd name='tracemem : function (x)' />
+  <cmd name='tracingState : function (on = NULL)' />
+  <cmd name='transform : function (`_data`, ...)' />
+  <cmd name='transform.data.frame : function (`_data`, ...)' />
+  <cmd name='transform.default : function (`_data`, ...)' />
+  <cmd name='trigamma : function (x)' />
+  <cmd name='trunc : function (x, ...)' />
+  <cmd name='truncate : function (con, ...)' />
+  <cmd name='truncate.connection : function (con, ...)' />
+  <cmd name='trunc.Date : function (x, ...)' />
+  <cmd name='trunc.POSIXt : function (x, units = c("secs", "mins", "hours", "days"), ...)' />
+  <cmd name='try : function (expr, silent = FALSE)' />
+  <cmd name='tryCatch : function (expr, ..., finally)' />
+  <cmd name='typeof : function (x)' />
+  <cmd name='unclass : function (x)' />
+  <cmd name='undebug : function (fun)' />
+  <cmd name='union : function (x, y)' />
+  <cmd name='unique : function (x, incomparables = FALSE, ...)' />
+  <cmd name='unique.array : function (x, incomparables = FALSE, MARGIN = 1, fromLast = FALSE, ...)' />
+  <cmd name='unique.data.frame : function (x, incomparables = FALSE, fromLast = FALSE, ...)' />
+  <cmd name='unique.default : function (x, incomparables = FALSE, fromLast = FALSE, ...)' />
+  <cmd name='unique.matrix : function (x, incomparables = FALSE, MARGIN = 1, fromLast = FALSE, ...)' />
+  <cmd name='unique.numeric_version : function (x, incomparables = FALSE, ...)' />
+  <cmd name='unique.POSIXlt : function (x, incomparables = FALSE, ...)' />
+  <cmd name='units : function (x)' />
+  <cmd name='units.difftime : function (x)' />
+  <cmd name='unix : function (call, intern = FALSE)' />
+  <cmd name='unix.time : function (expr, gcFirst = TRUE)' />
+  <cmd name='unlink : function (x, recursive = FALSE)' />
+  <cmd name='unlist : function (x, recursive = TRUE, use.names = TRUE)' />
+  <cmd name='unloadNamespace : function (ns)' />
+  <cmd name='unlockBinding : function (sym, env)' />
+  <cmd name='unname : function (obj, force = FALSE)' />
+  <cmd name='unserialize : function (connection, refhook = NULL)' />
+  <cmd name='unsplit : function (value, f, drop = FALSE)' />
+  <cmd name='untrace : function (what, signature = NULL, where = topenv(parent.frame()))' />
+  <cmd name='untracemem : function (x)' />
+  <cmd name='unz : function (description, filename, open = "", encoding = getOption("encoding"))' />
+  <cmd name='upper.tri : function (x, diag = FALSE)' />
+  <cmd name='url : function (description, open = "", blocking = TRUE, encoding = getOption("encoding"))' />
+  <cmd name='UseMethod : function (generic, object)' />
+  <cmd name='utf8ToInt : function (x)' />
+  <cmd name='vector : function (mode = "logical", length = 0)' />
+  <cmd name='Vectorize : function (FUN, vectorize.args = arg.names, SIMPLIFY = TRUE, USE.NAMES = TRUE)' />
+  <cmd name='Version : function ()' />
+  <cmd name='warning : function (..., call. = TRUE, immediate. = FALSE, domain = NULL)' />
+  <cmd name='warnings : function (...)' />
+  <cmd name='weekdays : function (x, abbreviate)' />
+  <cmd name='weekdays.Date : function (x, abbreviate = FALSE)' />
+  <cmd name='weekdays.POSIXt : function (x, abbreviate = FALSE)' />
+  <cmd name='which : function (x, arr.ind = FALSE)' />
+  <cmd name='which.max : function (x)' />
+  <cmd name='which.min : function (x)' />
+  <cmd name='while : .Primitive("while") 
+with : function (data, expr, ...)' />
+  <cmd name='withCallingHandlers : function (expr, ...)' />
+  <cmd name='with.default : function (data, expr, ...)' />
+  <cmd name='within : function (data, expr, ...)' />
+  <cmd name='within.data.frame : function (data, expr, ...)' />
+  <cmd name='within.list : function (data, expr, ...)' />
+  <cmd name='withRestarts : function (expr, ...)' />
+  <cmd name='write : function (x, file = "data", ncolumns = if (is.character(x)) 1 else 5, append = FALSE, sep = " ")' />
+  <cmd name='writeBin : function (object, con, size = NA_integer_, endian = .Platform$endian)' />
+  <cmd name='writeChar : function (object, con, nchars = nchar(object, type = "chars"), eos = "")' />
+  <cmd name='write.dcf : function (x, file = "", append = FALSE, indent = 0.1 * getOption("width"), width = 0.9 * getOption("width"))' />
+  <cmd name='writeLines : function (text, con = stdout(), sep = "\n")' />
+  <cmd name='write.table0 : function (x, file = "", append = FALSE, quote = TRUE, sep = " ", eol = "\n", na = "NA", dec = ".", row.names = TRUE, col.names = TRUE, qmethod = c("escape", "double"))' />
+  <cmd name='%x% : function (X, Y)' />
+  <cmd name='xor : function (x, y)' />
+  <cmd name='xpdrows.data.frame : function (x, old.rows, new.rows)' />
+  <cmd name='xtfrm : function (x)' />
+  <cmd name='xtfrm.Date : function (x)' />
+  <cmd name='xtfrm.default : function (x)' />
+  <cmd name='xtfrm.factor : function (x)' />
+  <cmd name='xtfrm.numeric_version : function (x)' />
+  <cmd name='xtfrm.POSIXct : function (x)' />
+  <cmd name='xtfrm.POSIXlt : function (x)' />
+  <cmd name='xtfrm.Surv : function (x)' />
+  <cmd name='zapsmall : function (x, digits = getOption("digits"))' />
 </commands>

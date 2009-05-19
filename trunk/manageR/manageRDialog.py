@@ -38,12 +38,19 @@ class manageR( QDialog ):
     self.setWindowIcon( QIcon( ":manager.png" ) )
     self.setWindowFlags( Qt.Window )
     self.wgt_console = QConsole( self, self.runCommand )
+    self.label = QLabel()
+    self.label.setText(" ")
+    self.label.setWordWrap(True)
     theme = parser.get('general','theme')
     highlighter = RHighlighter( self.wgt_console, theme )
-    if not parser.get('general', 'auto_completion') == "False":
-      completer = CommandCompletion( self.wgt_console, \
-      os.path.join( os.path.dirname( __file__ ), "commands.xml"), \
-      int( parser.get('general', 'delay') ) )
+    autocomplete = parser.get('general', 'auto_completion')
+    delay = int( parser.get('general', 'delay') )
+    if not autocomplete == "None":
+      if autocomplete == "File":
+        completer = CommandCompletion( self.wgt_console, \
+        os.path.join( os.path.dirname( __file__ ), "commands.xml"), delay, self.label )
+      else:
+        completer = CommandCompletion( self.wgt_console, self.getDefaultCommands(), delay, self.label )
     self.wgt_console.append( self.welcomeString() )
     self.wgt_console.append( "" )
     self.wgt_console.displayPrompt()
@@ -51,6 +58,7 @@ class manageR( QDialog ):
     SIGNAL( "executeCommand(PyQt_PyObject)" ), self.runCommand )
     gbox = QGridLayout()
     gbox.addWidget( self.wgt_console )
+    gbox.addWidget( self.label )
     self.setLayout( gbox )
     self.setGeometry( 100, 100, 550, 400 )
     self.startTimer( 50 )
@@ -142,15 +150,23 @@ class manageR( QDialog ):
       QDialog.keyPressEvent( self, e )
 
   def runCommand( self, text ):
+    self.label.setText("Running...")
+    self.repaint()
+    self.repaint()
     try:
       if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) and text.count( ")" ) == 1:
         self.threadError( "System exit not allowed" )
       else:
         output_text = QString()
         def write( output ):
-          if not QString( output ).startsWith("Error"):
-            #self.threadOutput( output )
-            output_text.append( output )
+#          if not QString( output ).startsWith("Error"):
+#            #self.threadOutput( output )
+#            output_text.append( output )
+          if not QString( output ).startsWith( "Error" ):
+            output_text.append( unicode(output, 'utf-8') )
+          if output_text.length() >= 50000 and output_text[ -1 ] == "\n":
+            self.threadOutput( output_text )
+            output_text.clear()
         robjects.rinterface.setWriteConsole( write )
         def read( prompt ):
           input = "\n"
@@ -161,31 +177,29 @@ class manageR( QDialog ):
           output = robjects.r( r_code )
           visible = output.r["visible"][0][0]
           if visible:
-            self.threadOutput( str( output.r["value"][0] ) )
+            #self.threadOutput( str( output.r["value"][0] ) )
+            #self.threadOutput( robjects.r['print'](output.r["value"][0]) )
+            robjects.r['print'](output.r["value"][0])
         except robjects.rinterface.RRuntimeError, rre:
           self.threadError( str( rre ) )
         if not output_text.isEmpty():
           self.threadOutput( output_text )
     except Exception, err:
       self.threadError( str( err ) )
+    self.label.setText("Complete!")
     self.threadComplete()
-#     return success, out_text
-#    self.thread = commandThread( self.iface.mainWindow(), self, text )
-#    QObject.connect( self.thread, SIGNAL( "threadComplete()" ), self.threadComplete )
-#    QObject.connect( self.thread, SIGNAL( "threadError(PyQt_PyObject)" ), self.threadError )
-#    QObject.connect( self.thread, SIGNAL( "threadOutput(PyQt_PyObject)" ), self.threadOutput )
-#    self.thread.start()
-#    return True, ""
     
   def threadError( self, error ):
     #self.thread.stop()
     self.wgt_console.appendText( error, QConsole.ERR_TYPE )
       
   def threadOutput( self, output ):
-    self.wgt_console.appendText( output, QConsole.OUT_TYPE )
+    #self.wgt_console.appendText( output, QConsole.OUT_TYPE )
+    self.wgt_console.appendText( unicode( output ), QConsole.OUT_TYPE )
       
   def threadComplete( self ):
     #self.thread.stop()
+    self.label.setText(" ")
     self.wgt_console.switchPrompt()
     self.wgt_console.displayPrompt()
 
@@ -407,11 +421,22 @@ class manageR( QDialog ):
     dialog.setLayout( vbox )
     dialog.setWindowTitle( 'Export R Layer' )
     if not dialog.exec_() == QDialog.Accepted:
-		  return False
+      return False
     self.export_layer = layers.currentText()
     self.export_type = r_layers[ unicode( self.export_layer ) ]
     return True
     
+  def getDefaultCommands( self ):
+    packages = ["base"]#robjects.r('.packages()') #changed temp
+    store = QStringList()
+    for package in packages:
+      info = robjects.r('lsf.str("package:' + package + '" )') 
+      test = QString(str(info)).replace(", \n    ", ", ")
+      items = test.split('\n')
+      for item in items:
+        store.append( item )
+    return store
+
 class commandThread( QThread ):
 
   def __init__( self, thread, parent, text ):
@@ -448,4 +473,3 @@ class commandThread( QThread ):
       self.emit( SIGNAL( "threadComplete()" ) )
     except Exception, e:
       self.emit( SIGNAL( "threadError( PyQt_PyObject )" ), str(e) )
-

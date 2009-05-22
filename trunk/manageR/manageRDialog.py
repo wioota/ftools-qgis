@@ -67,8 +67,8 @@ class manageR( QDialog ):
     delay = int( parser.get('general', 'delay') )
     if not autocomplete == "None":
       completer = CommandCompletion( self.wgt_console, self.getDefaultCommands(), delay, self.label )
-      if QFile( autocomplete ).exists():
-        completer.addCommands( autocomplete )
+      if QFile( os.path.join( os.path.dirname( __file__ ), autocomplete ) ).exists():
+        completer.loadSuggestions( os.path.join( os.path.dirname( __file__ ), autocomplete ) )
     self.wgt_console.append( self.welcomeString() )
     self.wgt_console.append( "" )
     self.wgt_console.displayPrompt()

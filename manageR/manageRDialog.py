@@ -1,3 +1,23 @@
+'''
+This file is part of manageR
+
+Copyright (C) 2009 Carson J. Q. Farmer
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public Licence as published by the Free Software
+Foundation; either version 2 of the Licence, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more 
+details.
+
+You should have received a copy of the GNU General Public Licence along with
+this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
+Street, Fifth Floor, Boston, MA  02110-1301, USA
+'''
+
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
@@ -46,11 +66,9 @@ class manageR( QDialog ):
     autocomplete = parser.get('general', 'auto_completion')
     delay = int( parser.get('general', 'delay') )
     if not autocomplete == "None":
-      if autocomplete == "File":
-        completer = CommandCompletion( self.wgt_console, \
-        os.path.join( os.path.dirname( __file__ ), "commands.xml"), delay, self.label )
-      else:
-        completer = CommandCompletion( self.wgt_console, self.getDefaultCommands(), delay, self.label )
+      completer = CommandCompletion( self.wgt_console, self.getDefaultCommands(), delay, self.label )
+      if QFile( autocomplete ).exists():
+        completer.addCommands( autocomplete )
     self.wgt_console.append( self.welcomeString() )
     self.wgt_console.append( "" )
     self.wgt_console.displayPrompt()
@@ -78,7 +96,13 @@ class manageR( QDialog ):
     message.append( "<br/></h4></center>" )
     message.append( "<h4>Description:</h4>" )
     message.append( "manageR adds comprehensive statistical capabilities to Quantum GIS by loosely coupling QGIS with the R statistical programming environment." )
-    message.append( "<h4>Details and usage:</h4>" )
+    message.append( "<h4>Usage:</h4>" )
+    message.append( "<ul><li><tt>Ctrl+L</tt> : Import selected layer</li>" )
+    message.append( "<li><tt>Ctrl+T</tt> : Import attribute table of selected layer</li>" )
+    message.append( "<li><tt>Ctrl+M</tt> : Export R layer in map canvas</li>" )
+    message.append( "<li><tt>Ctrl+F</tt> : Export R layer in file</li>")
+    message.append( "<li><tt>Shift+Return</tt> : Manually enter multi-line commands</li></ul>" )
+    message.append( "<h4>Details:</h4>" )
     message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the <b>manageR R</b> environment. To limit the import to the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting <b>R</b> layers from the <b>manageR R</b> environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. Multi-line <b>R</b> commands will automatically be recognised by <b>manageR</b>, however, to manaully enter multi-line commands, use the <tt>Shift</tt> modifier when typing <tt>Return</tt> to signify continuation of command on the following line. Note: To change the dialog colour theme, alter the 'theme' variable in the config.ini file in the manageR directory located here: " )
     message.append( "<tt>" + here + "</tt>." )
     message.append( "<h4>Features:</h4>" )
@@ -150,19 +174,20 @@ class manageR( QDialog ):
       QDialog.keyPressEvent( self, e )
 
   def runCommand( self, text ):
+    self.wgt_console.enableHighlighting( False )
     self.label.setText("Running...")
     self.repaint()
-    self.repaint()
+    QApplication.processEvents()    
+    highlighting = True
     try:
       if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) and text.count( ")" ) == 1:
         self.threadError( "System exit not allowed" )
       else:
         output_text = QString()
         def write( output ):
-#          if not QString( output ).startsWith("Error"):
+          if not QString( output ).startsWith( "Error" ):
 #            #self.threadOutput( output )
 #            output_text.append( output )
-          if not QString( output ).startsWith( "Error" ):
             output_text.append( unicode(output, 'utf-8') )
           if output_text.length() >= 50000 and output_text[ -1 ] == "\n":
             self.threadOutput( output_text )
@@ -187,15 +212,20 @@ class manageR( QDialog ):
     except Exception, err:
       self.threadError( str( err ) )
     self.label.setText("Complete!")
+    self.wgt_console.enableHighlighting( True )
     self.threadComplete()
     
   def threadError( self, error ):
     #self.thread.stop()
     self.wgt_console.appendText( error, QConsole.ERR_TYPE )
+    self.repaint()
+    #self.repaint()
       
   def threadOutput( self, output ):
     #self.wgt_console.appendText( output, QConsole.OUT_TYPE )
     self.wgt_console.appendText( unicode( output ), QConsole.OUT_TYPE )
+    self.repaint()
+    QApplication.processEvents()
       
   def threadComplete( self ):
     #self.thread.stop()
@@ -214,11 +244,14 @@ class manageR( QDialog ):
       robjects.r( 'rm(list=ls(all=T))' )
       robjects.r( 'gc()' )
       try:
-        for i in list(robjects.r('dev.list()')):
-          robjects.r('dev.next()')
-          robjects.r('dev.off()')
+        robjects.r( 'graphics.off()' )
       except:
-        pass
+        try:
+          for i in list(robjects.r('dev.list()')):
+            robjects.r('dev.next()')
+            robjects.r('dev.off()')
+        except:
+          pass
       e.accept()
 
 # This is used whenever we check for sp objects in manageR
@@ -251,13 +284,17 @@ class manageR( QDialog ):
     Provides the ability to load any vector layer that QGIS
     supports into R. Only selected features will be imported into R
     '''
+    self.label.setText("Running...")
+    self.wgt_console.enableHighlighting( False )
     self.wgt_console.cursor.select( QTextCursor.LineUnderCursor )
     self.wgt_console.cursor.removeSelectedText()
-    self.wgt_console.cursor.insertText( self.wgt_console.defaultPrompt + "Importing data from canvas..." )
+    self.wgt_console.cursor.insertText( self.wgt_console.defaultPrompt + \
+    "Importing data from canvas..." )
     self.repaint()
-    self.repaint()
+    QApplication.processEvents()
     if mlayer is None:
-      self.wgt_console.appendText( "No layer selected in layer list", QConsole.ERR_TYPE )
+      self.wgt_console.appendText( "No layer selected in layer list", \
+      QConsole.ERR_TYPE )
       self.wgt_console.displayPrompt()
       return
     rbuf = QString()
@@ -274,7 +311,8 @@ class manageR( QDialog ):
       self.r_layer_creator = QVectorLayerConverter( mlayer, data_only )
     if mlayer.type() == QgsMapLayer.RasterLayer:
       if data_only:
-        self.wgt_console.appendText( "Cannot load raster layer attributes", QConsole.ERR_TYPE )
+        self.wgt_console.appendText( "Cannot load raster layer attributes", \
+        QConsole.ERR_TYPE )
         self.wgt_console.displayPrompt()
         return
       if not self.isPackageLoaded( "rgdal" ):
@@ -287,7 +325,8 @@ class manageR( QDialog ):
     self.wgt_console.appendText( rbuf, QConsole.OUT_TYPE )
     QObject.connect( self.r_layer_creator, SIGNAL( "threadError( PyQt_PyObject )" ),
     self._showErrors )
-    QObject.connect( self.r_layer_creator, SIGNAL( "threadSuccess( PyQt_PyObject, PyQt_PyObject, PyQt_PyObject )" ),
+    QObject.connect( self.r_layer_creator, \
+    SIGNAL( "threadSuccess( PyQt_PyObject, PyQt_PyObject, PyQt_PyObject )" ), \
     self._showImport )
     self.r_layer_creator.start()
 
@@ -299,6 +338,8 @@ class manageR( QDialog ):
     Saving to file uses the R gdal functions, saving to map 
     canvas is a native manageR implementation
     '''
+    self.label.setText("Running...")
+    self.wgt_console.enableHighlighting( False )
     self.wgt_console.cursor.select( QTextCursor.LineUnderCursor )
     self.wgt_console.cursor.removeSelectedText()
     if to_file:
@@ -307,7 +348,7 @@ class manageR( QDialog ):
       put_text = "to canvas..."
     self.wgt_console.cursor.insertText( self.wgt_console.defaultPrompt + "Exporting layer " + put_text )
     self.repaint()
-    self.repaint()
+    QApplication.processEvents()
     result = self.exportRObjectsDialog( to_file )
     # If there is no input layer, don't do anything
     if result is None: # this needs to be updated to reflect where we  get the R objects from...
@@ -378,6 +419,8 @@ class manageR( QDialog ):
     if add == QMessageBox.Yes or not to_file:
       QgsMapLayerRegistry.instance().addMapLayer( layer )
     self.wgt_console.appendText( message, QConsole.OUT_TYPE )
+    self.wgt_console.enableHighlighting( True )
+    self.label.setText(" ")
     self.wgt_console.displayPrompt()
 
   def _showImport( self, rlayer, layer_name, message ):
@@ -386,9 +429,12 @@ class manageR( QDialog ):
     robjects.globalEnv[ str( layer_name ) ] = rlayer
     self.updateRObjects()
     self.wgt_console.appendText( message, QConsole.OUT_TYPE )
+    self.wgt_console.enableHighlighting( True )
+    self.label.setText(" ")
     self.wgt_console.displayPrompt()
       
   def _showErrors( self, message ):
+    self.wgt_console.enableHighlighting( False )
     try:
       self.r_layer_creator.stop()
       del self.r_layer_creator
@@ -399,6 +445,8 @@ class manageR( QDialog ):
     except:
       pass
     self.wgt_console.appendText( message, QConsole.ERR_TYPE )
+    self.wgt_console.enableHighlighting( True )
+    self.label.setText(" ")
     
   def exportRObjectsDialog( self, to_file ):
     self.export_layer = None

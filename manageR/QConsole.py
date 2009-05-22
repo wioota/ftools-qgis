@@ -202,7 +202,6 @@ class QConsole( QTextEdit ):
             self.insertPlainText( self.history[ self.historyIndex ] )
         # if backspace is pressed, delete until we get to the prompt
         elif e.key() == Qt.Key_Backspace:
-          self.parent.label.setText( " " ) # this is not very generic, better way to do this?
           if not self.cursor.hasSelection() and \
              self.cursor.columnNumber() == self.currentPromptLength:
             return

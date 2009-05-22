@@ -1,3 +1,23 @@
+'''
+This file is part of manageR
+
+Copyright (C) 2009 Carson J. Q. Farmer
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public Licence as published by the Free Software
+Foundation; either version 2 of the Licence, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more 
+details.
+
+You should have received a copy of the GNU General Public Licence along with
+this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
+Street, Fifth Floor, Boston, MA  02110-1301, USA
+'''
+
 import sys
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
@@ -14,13 +34,15 @@ class QConsole( QTextEdit ):
   ERR_TYPE = 0
   OUT_TYPE = 1
   CMD_TYPE = 2
-  def __init__( self, parent, function = None, cmdColour = Qt.black, errColour = Qt.red, outColour = Qt.blue ):
+  def __init__( self, parent, function = None, \
+    cmdColour = Qt.black, errColour = Qt.red, \
+    outColour = Qt.blue ):
     QTextEdit.__init__( self, parent )
     # initialise standard settings
     self.setTextInteractionFlags( Qt.TextEditorInteraction )
     self.setMinimumSize( 30, 30 )
     self.parent = parent
-    self.setDefaultFont()
+    self.setTextFont()
     self.setUndoRedoEnabled( False )
     self.setAcceptRichText( False )
     self.setVerticalScrollBarPolicy( Qt.ScrollBarAlwaysOn )
@@ -29,9 +51,8 @@ class QConsole( QTextEdit ):
     self.history = QStringList()
     self.historyIndex = 0
     self.runningCommand = QString()
-    self.cmdColour = cmdColour
-    self.errColour = errColour
-    self.outColour = outColour
+    self.setOuputColors( errColour, outColour )
+    self.highlightingStatus = True
     # prepare prompt
     self.reset()
     self.setPrompt()
@@ -50,7 +71,7 @@ class QConsole( QTextEdit ):
     self.historyIndex = 0
     self.history.clear()
 
-  def setDefaultFont( self, font = "Monospace" ):
+  def setTextFont( self, font = "Monospace" ):
     '''
     Sets the console display font
     Default is Monospace size 10
@@ -62,14 +83,20 @@ class QConsole( QTextEdit ):
     self.setFont( font )
     self.document().setDefaultFont( font )
     
-  def setThemeColors( self, pair ):
-    p = QPalette( QColor( pair[0] ) )
-    self.setPalette( p )
-    self.setAutoFillBackground( True )
-    #self.setTextColor( QColor( pair[1] ) )
-    self.cmdColour = QColor( pair[1] )
-    self.errColour = QColor( pair[1] )
-    self.outColour = QColor( pair[1] )
+  def setOuputColors( self, err, out ):
+    if isinstance( err, QColor ):
+      self.errColour = err
+    else:
+      self.errColour = Qt.red
+    if isinstance( out, QColor ):
+      self.outColour = out
+    else:
+      self.outColour = Qt.blue
+      
+  def setDefaultColor( self, color ):
+    if isinstance( color, QColor ):
+      self.setTextColor( color )
+      self.defaultColour = color
     
   def setPrompt( self, newPrompt = "> ", alternatePrompt = "+ ", display = False ):
     '''
@@ -82,6 +109,7 @@ class QConsole( QTextEdit ):
     self.currentPrompt = self.defaultPrompt
     self.currentPromptLength = len( self.currentPrompt )
     if display:
+      self.setTextColor( self.defaultColour )
       self.displayPrompt()
 
   def switchPrompt( self, default = True ):
@@ -97,7 +125,7 @@ class QConsole( QTextEdit ):
     Prompt is display in colour specified by cmdColour
     '''
     self.runningCommand.clear()
-    #self.setTextColor( self.cmdColour )
+    self.setTextColor( self.defaultColour )
     self.append( self.currentPrompt )
     self.moveCursor( QTextCursor.End, QTextCursor.MoveAnchor )
 
@@ -126,6 +154,7 @@ class QConsole( QTextEdit ):
           self.runningCommand.clear()
           self.switchPrompt( True )
           self.displayPrompt()
+          self.parent.label.setText( " " ) # this is not very generic, better way to do this?
         # if Return is pressed, then perform the commands
         elif e.key() == Qt.Key_Return:
           command = self.currentCommand()
@@ -173,6 +202,7 @@ class QConsole( QTextEdit ):
             self.insertPlainText( self.history[ self.historyIndex ] )
         # if backspace is pressed, delete until we get to the prompt
         elif e.key() == Qt.Key_Backspace:
+          self.parent.label.setText( " " ) # this is not very generic, better way to do this?
           if not self.cursor.hasSelection() and \
              self.cursor.columnNumber() == self.currentPromptLength:
             return
@@ -214,6 +244,12 @@ class QConsole( QTextEdit ):
         return
     self.setTextCursor( self.cursor )
     self.ensureCursorVisible()
+    
+  def isHighlighting( self ):
+    return self.highlightingStatus
+    
+  def enableHighlighting( self, status ):
+    self.highlightingStatus = status
 
   def checkBrackets( self, command ):
     s = str(command)
@@ -320,13 +356,11 @@ class QConsole( QTextEdit ):
     Error = 1, Command = 2, or Output = 0
     '''
     if out_type == QConsole.ERR_TYPE:
-      #self.setTextColor( self.errColour )
-      pass
+      self.setTextColor( self.errColour )
     elif out_type == QConsole.OUT_TYPE:
-      #self.setTextColor( self.outColour )
-      pass
+      self.setTextColor( self.outColour )
     else:
-      #self.setTextColor( self.cmdColour )
+      self.setTextColor( self.defaultColour )
       pass
     if not out_text == "":
       self.append( out_text )

@@ -1,3 +1,23 @@
+'''
+This file is part of manageR
+
+Copyright (C) 2009 Carson J. Q. Farmer
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public Licence as published by the Free Software
+Foundation; either version 2 of the Licence, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more 
+details.
+
+You should have received a copy of the GNU General Public Licence along with
+this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
+Street, Fifth Floor, Boston, MA  02110-1301, USA
+'''
+
 import sys
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
@@ -7,6 +27,7 @@ class RHighlighter( QSyntaxHighlighter ):
     def __init__( self, parent, theme ):
       QSyntaxHighlighter.__init__( self, parent )
       self.theme = theme
+      self.parent = parent
       keyword = QTextCharFormat()
       reservedClasses = QTextCharFormat()
       assignmentOperator = QTextCharFormat()
@@ -22,8 +43,10 @@ class RHighlighter( QSyntaxHighlighter ):
       
       #parent.setPalette( QPalette( self.getThemeColor( "background" ), self.getThemeColor( "background" ) ) )
       background = self.getThemeColor( "background" )
-      parent.setStyleSheet( "QTextEdit { background-color: " + background + " }")
-      parent.setTextColor( self.getThemeColor( "foreground" ) )
+      self.parent.setStyleSheet( "QTextEdit { background-color: " + background + " }")
+      self.parent.setDefaultColor( QColor( self.getThemeColor( "foreground" ) ) )
+      self.parent.setOuputColors( QColor( self.getThemeColor( "error" ) ), \
+      QColor( self.getThemeColor( "output") ) )
       
       self.highlightingRules = []
 
@@ -126,7 +149,7 @@ class RHighlighter( QSyntaxHighlighter ):
           return Qt.darkBlue
       elif style == "comment":
         if self.theme == "Cobalt":
-          return Qt.blue
+          return QColor( "#0065bf" )
         elif self.theme == "Matrix":
           return Qt.green
         elif self.theme == "Oblivion":
@@ -135,7 +158,7 @@ class RHighlighter( QSyntaxHighlighter ):
           return Qt.blue
       elif style == "value":
         if self.theme == "Cobalt":
-          return Qt.red
+          return QColor( "#80ffbb" )
         elif self.theme == "Matrix":
           return Qt.green
         elif self.theme == "Oblivion":
@@ -144,7 +167,7 @@ class RHighlighter( QSyntaxHighlighter ):
           return Qt.darkGray
       elif style == "string":
         if self.theme == "Cobalt":
-          return Qt.green
+          return QColor( "#3ad900" )
         elif self.theme == "Matrix":
           return Qt.green
         elif self.theme == "Oblivion":
@@ -169,8 +192,29 @@ class RHighlighter( QSyntaxHighlighter ):
           return "#2e3436"
         else:
           return "white"
+      elif style == "output":
+        if self.theme == "Cobalt":
+          return Qt.darkGray
+        elif self.theme == "Matrix":
+          return Qt.green
+        elif self.theme == "Oblivion":
+          return QColor( "#729fcf" )
+        else:
+          return "blue"
+      elif style == "error":
+        if self.theme == "Cobalt":
+          return QColor( "#ff0044" )
+        elif self.theme == "Matrix":
+          return Qt.green
+        elif self.theme == "Oblivion":
+          return QColor( "#edd400" )
+        else:
+          return Qt.red
+      
 
     def highlightBlock( self, text ):
+      if not self.parent.isHighlighting():
+        return
       for rule in self.highlightingRules:
         expression = QRegExp( rule.pattern )
         index = expression.indexIn( text )
@@ -193,14 +237,35 @@ class TestApp( QMainWindow ):
     #font.setFixedPitch( True )
     #font.setPointSize( 10 )
 
-    editor = QTextEdit()
+    editor = TestEdit()
     #editor.setFont( font )
-    highlighter = RHighlighter( editor )
+    highlighter = RHighlighter( editor, "Classic" )
 #    highlighter.setDocument( editor.document() )
     
     self.setCentralWidget( editor )
     self.setWindowTitle( "Syntax Highlighter" )
 
+class TestEdit (QTextEdit ):
+  def __init__(self):
+    QTextEdit.__init__(self)
+    
+  def setDefaultColor( self, color ):
+    if isinstance( color, QColor ):
+      self.setTextColor( color )
+      self.defaultColour = color
+
+  def setOuputColors( self, err, out ):
+    if isinstance( err, QColor ):
+      self.errColour = err
+    else:
+      self.errColour = Qt.red
+    if isinstance( out, QColor ):
+      self.outColour = out
+    else:
+      self.outColour = Qt.blue
+      
+  def isHighlighting( self ):
+    return True
 
 if __name__ == "__main__":
   app = QApplication( sys.argv )

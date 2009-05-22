@@ -1,7 +1,27 @@
+'''
+This file is part of manageR
+
+Copyright (C) 2009 Carson J. Q. Farmer
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public Licence as published by the Free Software
+Foundation; either version 2 of the Licence, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more 
+details.
+
+You should have received a copy of the GNU General Public Licence along with
+this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
+Street, Fifth Floor, Boston, MA  02110-1301, USA
+'''
+
 import sys
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
-from PyQt4.QtXml import QDomDocument
+from PyQt4.QtXml import QDomDocument, QXmlStreamReader
 
 class CommandCompletion( QObject ):
 
@@ -9,6 +29,7 @@ class CommandCompletion( QObject ):
     QObject.__init__( self, parent )
     self.editor = parent
     self.statusBar = statusBar
+    self.choices = QStringList()
     self.popup = QTreeWidget()
     self.popup.setColumnCount(1)
     self.popup.setUniformRowHeights(True)
@@ -43,7 +64,15 @@ class CommandCompletion( QObject ):
   def startTimer( self ):
     self.timer.start()
     
-  def eventFilter(self, obj, ev):
+  def KeyPressEvent( self, e ):
+    if ( ( e.modifiers() == Qt.ControlModifier or \
+      e.modifiers() == Qt.MetaModifier ) and \
+      e.key() == Qt.Key_C ) or e.key() == Qt.Key_Backspace:
+      self.statusBar.setText( " " )
+    else:
+      QDialog.keyPressEvent( self, e )
+
+  def eventFilter( self, obj, ev ):
     if not obj == self.popup:
       return False
     if ev.type() == QEvent.MouseButtonPress:
@@ -53,7 +82,8 @@ class CommandCompletion( QObject ):
     if ev.type() == QEvent.KeyPress:
       consumed = False
       key = ev.key()
-      if key == Qt.Key_Enter or key == Qt.Key_Return:
+      if key == Qt.Key_Enter or \
+      key == Qt.Key_Return:
         self.doneCompletion()
         consumed = True
       elif key == Qt.Key_Escape:
@@ -133,7 +163,7 @@ class CommandCompletion( QObject ):
     textCursor = self.editor.textCursor()
     textCursor.movePosition( QTextCursor.StartOfWord, QTextCursor.KeepAnchor )
     textCursor.insertText( word )
-    
+
   def loadSuggestions( self, commandList ):
     QObject.__init__( self )
     document = QDomDocument( "mydocument" )
@@ -144,7 +174,6 @@ class CommandCompletion( QObject ):
       file.close()
       return
     file.close()
-    self.choices = QStringList()
     xml = QXmlStreamReader( document.toByteArray() )
     while not xml.atEnd():
       xml.readNext()
@@ -152,7 +181,6 @@ class CommandCompletion( QObject ):
         if xml.name() == "cmd":
           strRef = QStringRef( xml.attributes().value("name") )
           self.choices.append( strRef.toString() )
-          print str(strRef.toString())
     
 class TestApp( QMainWindow ):
   def __init__(self):

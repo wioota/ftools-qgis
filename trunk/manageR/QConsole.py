@@ -128,6 +128,7 @@ class QConsole( QTextEdit ):
     self.setTextColor( self.defaultColour )
     self.append( self.currentPrompt )
     self.moveCursor( QTextCursor.End, QTextCursor.MoveAnchor )
+    self.parent.label.setText( " " ) # this is not very generic, better way to do this?
 
   def keyPressEvent( self, e ):
     '''

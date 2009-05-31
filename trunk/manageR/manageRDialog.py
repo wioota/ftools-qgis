@@ -26,7 +26,7 @@ from QConsole import QConsole
 from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
 from RLayerConverter import RVectorLayerConverter
 from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter
-from highlighter import RHighlighter
+from highlighter import ConsoleHighlighter, ScriptHighlighter
 from completer import CommandCompletion
 
 try:
@@ -53,39 +53,75 @@ class manageR( QDialog ):
     self.mapCanvas = self.iface.mapCanvas()
     self.version = version
     # adjust user interface
+    theme = parser.get('general','theme')
+    self.setupUserInterface( theme )
+    autocomplete = parser.get('general', 'auto_completion')
+    delay = int( parser.get('general', 'delay') )
+    if not autocomplete == "None":
+      completer = CommandCompletion( self.console, self.getDefaultCommands(), delay, self.label )
+      if QFile( os.path.join( os.path.dirname( __file__ ), autocomplete ) ).exists():
+        completer.loadSuggestions( os.path.join( os.path.dirname( __file__ ), autocomplete ) )
+    self.console.append( self.welcomeString() )
+    self.console.append( "" )
+    self.console.displayPrompt()
+    self.connect( self.console, \
+    SIGNAL( "executeCommand(PyQt_PyObject)" ), self.runCommand )
+    self.startTimer( 50 )
+
+  def setupUserInterface( self, theme ):
     self.setSizeGripEnabled( True )
     self.setWindowTitle( 'manageR' )
     self.setWindowIcon( QIcon( ":manager.png" ) )
     self.setWindowFlags( Qt.Window )
-    self.wgt_console = QConsole( self, self.runCommand )
     self.label = QLabel()
     self.label.setText(" ")
     self.label.setWordWrap(True)
-    theme = parser.get('general','theme')
-    highlighter = RHighlighter( self.wgt_console, theme )
-    autocomplete = parser.get('general', 'auto_completion')
-    delay = int( parser.get('general', 'delay') )
-    if not autocomplete == "None":
-      completer = CommandCompletion( self.wgt_console, self.getDefaultCommands(), delay, self.label )
-      if QFile( os.path.join( os.path.dirname( __file__ ), autocomplete ) ).exists():
-        completer.loadSuggestions( os.path.join( os.path.dirname( __file__ ), autocomplete ) )
-    self.wgt_console.append( self.welcomeString() )
-    self.wgt_console.append( "" )
-    self.wgt_console.displayPrompt()
-    self.connect( self.wgt_console, \
-    SIGNAL( "executeCommand(PyQt_PyObject)" ), self.runCommand )
-    gbox = QGridLayout()
-    gbox.addWidget( self.wgt_console )
+
+    self.tabs = QTabWidget( self )
+    self.tabs.setTabPosition( QTabWidget.East )
+
+    tab_1 = QWidget()
+    grid_tab_1 = QGridLayout( tab_1 )
+    self.console = QConsole( self, self.runCommand )
+    highlighter_1 = ConsoleHighlighter( self.console, theme )
+    grid_tab_1.addWidget( self.console, 0, 0, 1, 1 )
+    self.tabs.addTab( tab_1, "Console" )
+
+    tab_2 = QWidget()
+    grid_tab_2 = QGridLayout( tab_2 )
+    self.scripting = QTextEdit( tab_2 )
+    highlighter_2 = ScriptHighlighter( self.scripting, theme )
+    self.btn_parse = QToolButton( tab_2 )
+    self.btn_parse.setText( "Execute commands(s)" )
+    self.btn_parse.setToolTip( "Send selected text to R interpreter" )
+    self.btn_parse.setWhatsThis( "Send selected text to R interpreter" )
+    grid_tab_2.addWidget( self.scripting, 0, 0, 1, 3 )
+    grid_tab_2.addWidget( self.btn_parse, 1, 1, 1, 1)
+    self.tabs.addTab( tab_2, "Script" )
+    self.connect( self.btn_parse, SIGNAL( "clicked()" ), self.parseCommands )
+
+    gbox = QGridLayout( self )
+    gbox.addWidget( self.tabs )
     gbox.addWidget( self.label )
-    self.setLayout( gbox )
     self.setGeometry( 100, 100, 550, 400 )
-    self.startTimer( 50 )
 
   def timerEvent( self, e ):
     try:
       robjects.rinterface.process_revents()
     except:
       pass
+      
+  def parseCommands( self ):
+    cursor = self.scripting.textCursor()
+    if cursor.hasSelection():
+      commands = cursor.selectedText()
+    else:
+      commands = self.scripting.toPlainText()
+    if not commands.isEmpty():
+      mime = QMimeData()
+      mime.setText( commands )
+      self.console.insertFromMimeData( mime )
+      self.runCommand( commands )
 
   def helpDialog( self ):
     message = QString( "<center><h2>manageR " + self.version + "</h2>" )
@@ -137,7 +173,8 @@ class manageR( QDialog ):
   def launchBrowser( self, url ):
     QDesktopServices.openUrl( url )
     
-  def welcomeString( self ):    text = QString()
+  def welcomeString( self ):
+    text = QString()
     text.append( "Welcome to manageR " + self.version + "\n")
     text.append( "QGIS interface to the R statistical analysis program\n" )
     text.append( "Copyright (C) 2009  Carson Farmer\n" )
@@ -170,19 +207,27 @@ class manageR( QDialog ):
       self.exportRObjects( True )
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_H:
       self.helpDialog()
+    elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_R:
+      self.parseCommands()
     else:
       QDialog.keyPressEvent( self, e )
 
   def runCommand( self, text ):
-    self.wgt_console.enableHighlighting( False )
+    self.console.enableHighlighting( False )
     self.label.setText("Running...")
     self.repaint()
     QApplication.processEvents()    
     highlighting = True
+    sinking = False
     try:
       if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) and text.count( ")" ) == 1:
-        self.threadError( "System exit not allowed" )
+        self.threadError( "System exit not allowed" )    
       else:
+        if ( ( text.startsWith( 'help(' ) or text.startsWith( 'h(' ) ) \
+        and text.count( ")" ) == 1 ) or ( text.startsWith( "?" ) or ( text.startsWith( "??" ) ) ):
+          sinkFile = robjects.r( "file(open='w+')" )
+          robjects.r.sink( sinkFile )
+          sinking = True
         output_text = QString()
         def write( output ):
           if not QString( output ).startsWith( "Error" ):
@@ -209,29 +254,46 @@ class manageR( QDialog ):
           self.threadError( str( rre ) )
         if not output_text.isEmpty():
           self.threadOutput( output_text )
+        if sinking:
+          QMessageBox.information( None, "help", str( sinkFile ) )
+          robjects.r.sink()
     except Exception, err:
       self.threadError( str( err ) )
     self.label.setText("Complete!")
-    self.wgt_console.enableHighlighting( True )
+    self.console.enableHighlighting( True )
     self.threadComplete()
     
   def threadError( self, error ):
     #self.thread.stop()
-    self.wgt_console.appendText( error, QConsole.ERR_TYPE )
+    self.console.appendText( error, QConsole.ERR_TYPE )
     self.repaint()
     #self.repaint()
       
   def threadOutput( self, output ):
-    #self.wgt_console.appendText( output, QConsole.OUT_TYPE )
-    self.wgt_console.appendText( unicode( output ), QConsole.OUT_TYPE )
+    #self.console.appendText( output, QConsole.OUT_TYPE )
+    self.console.appendText( unicode( output ), QConsole.OUT_TYPE )
     self.repaint()
     QApplication.processEvents()
       
   def threadComplete( self ):
     #self.thread.stop()
     self.label.setText(" ")
-    self.wgt_console.switchPrompt()
-    self.wgt_console.displayPrompt()
+    self.console.switchPrompt()
+    self.console.displayPrompt()
+
+  def messageBox( self, message ):
+    dialog = QDialog( self )
+    dialog.setSizeGripEnabled( True )
+    dialog.setWindowTitle( 'help' )
+    dialog.setWindowIcon( QIcon( ":manager.png" ) )
+    dialog.setWindowFlags( Qt.Window )
+    display = QTextEdit( dialog )
+    display.setReadOnly( True )
+    display.append( message )
+    gbox = QGridLayout()
+    gbox.addWidget( display )
+    dialog.setLayout( gbox )
+    dialog.show()
 
   def closeEvent( self, e ):
     ask_save = QMessageBox.question( self, "manageR", "Save workspace image?", 
@@ -285,44 +347,44 @@ class manageR( QDialog ):
     supports into R. Only selected features will be imported into R
     '''
     self.label.setText("Running...")
-    self.wgt_console.enableHighlighting( False )
-    self.wgt_console.cursor.select( QTextCursor.LineUnderCursor )
-    self.wgt_console.cursor.removeSelectedText()
-    self.wgt_console.cursor.insertText( self.wgt_console.defaultPrompt + \
+    self.console.enableHighlighting( False )
+    self.console.cursor.select( QTextCursor.LineUnderCursor )
+    self.console.cursor.removeSelectedText()
+    self.console.cursor.insertText( self.console.defaultPrompt + \
     "Importing data from canvas..." )
     self.repaint()
     QApplication.processEvents()
     if mlayer is None:
-      self.wgt_console.appendText( "No layer selected in layer list", \
+      self.console.appendText( "No layer selected in layer list", \
       QConsole.ERR_TYPE )
-      self.wgt_console.displayPrompt()
+      self.console.displayPrompt()
       return
     rbuf = QString()
     def f( x ):
       rbuf.append( x )
     robjects.rinterface.setWriteConsole(f)
     if not data_only and not self.isPackageLoaded( "sp" ):
-      self.wgt_console.appendText( "Unable to find R package 'sp'."
+      self.console.appendText( "Unable to find R package 'sp'."
       + "\nPlease manually install the 'sp' package in R via "
       + "install.packages().", QConsole.ERR_TYPE )
-      self.wgt_console.displayPrompt()
+      self.console.displayPrompt()
       return
     if mlayer.type() == QgsMapLayer.VectorLayer:
       self.r_layer_creator = QVectorLayerConverter( mlayer, data_only )
     if mlayer.type() == QgsMapLayer.RasterLayer:
       if data_only:
-        self.wgt_console.appendText( "Cannot load raster layer attributes", \
+        self.console.appendText( "Cannot load raster layer attributes", \
         QConsole.ERR_TYPE )
-        self.wgt_console.displayPrompt()
+        self.console.displayPrompt()
         return
       if not self.isPackageLoaded( "rgdal" ):
-        self.wgt_console.appendText( "Unable to find R package 'rgdal'.\n "
+        self.console.appendText( "Unable to find R package 'rgdal'.\n "
         + "\n Please manually install the 'rgdal' package in R via "
         + "install.packages().", QConsole.ERR_TYPE )
-        self.wgt_console.displayPrompt()
+        self.console.displayPrompt()
         return
       self.r_layer_creator = QRasterLayerConverter( mlayer )
-    self.wgt_console.appendText( rbuf, QConsole.OUT_TYPE )
+    self.console.appendText( rbuf, QConsole.OUT_TYPE )
     QObject.connect( self.r_layer_creator, SIGNAL( "threadError( PyQt_PyObject )" ),
     self._showErrors )
     QObject.connect( self.r_layer_creator, \
@@ -339,43 +401,43 @@ class manageR( QDialog ):
     canvas is a native manageR implementation
     '''
     self.label.setText("Running...")
-    self.wgt_console.enableHighlighting( False )
-    self.wgt_console.cursor.select( QTextCursor.LineUnderCursor )
-    self.wgt_console.cursor.removeSelectedText()
+    self.console.enableHighlighting( False )
+    self.console.cursor.select( QTextCursor.LineUnderCursor )
+    self.console.cursor.removeSelectedText()
     if to_file:
       put_text = "to file..."
     else:
       put_text = "to canvas..."
-    self.wgt_console.cursor.insertText( self.wgt_console.defaultPrompt + "Exporting layer " + put_text )
+    self.console.cursor.insertText( self.console.defaultPrompt + "Exporting layer " + put_text )
     self.repaint()
     QApplication.processEvents()
     result = self.exportRObjectsDialog( to_file )
     # If there is no input layer, don't do anything
     if result is None: # this needs to be updated to reflect where we  get the R objects from...
-      self.wgt_console.appendText( "No R spatial objects available", QConsole.ERR_TYPE )
-      self.wgt_console.displayPrompt()
+      self.console.appendText( "No R spatial objects available", QConsole.ERR_TYPE )
+      self.console.displayPrompt()
       return
     if not result:
       return
     if not to_file and not self.isPackageLoaded( "sp" ):
-      self.wgt_console.appendText( "Unable to find R package 'sp'."
+      self.console.appendText( "Unable to find R package 'sp'."
       + "\nPlease manually install the 'sp' package in R via "
       + "install.packages().", QConsole.ERR_TYPE )
-      self.wgt_console.displayPrompt()
+      self.console.displayPrompt()
       return
     if to_file and not self.isPackageLoaded( "rgdal" ):
-      self.wgt_console.appendText( "Unable to find R package 'rgdal'."
+      self.console.appendText( "Unable to find R package 'rgdal'."
       + "\nPlease manually install the 'rgdal' package in R via "
       + "install.packages().", QConsole.ERR_TYPE )
-      self.wgt_console.displayPrompt()
+      self.console.displayPrompt()
       return
     if not self.export_type == manageR.VECTOR and not self.export_type == manageR.RASTER:
-      self.wgt_console.appendText( "Unrecognised sp object, unable to save to file.", QConsole.ERR_TYPE )
-      self.wgt_console.displayPrompt()
+      self.console.appendText( "Unrecognised sp object, unable to save to file.", QConsole.ERR_TYPE )
+      self.console.displayPrompt()
       return
     if not to_file and self.export_type == manageR.RASTER:
-      self.wgt_console.appendText( "Unable to export raster layers to map canvas at this time.", QConsole.ERR_TYPE )
-      self.wgt_console.displayPrompt()
+      self.console.appendText( "Unable to export raster layers to map canvas at this time.", QConsole.ERR_TYPE )
+      self.console.displayPrompt()
       return
     if not to_file:
       if self.export_type == manageR.VECTOR:
@@ -389,13 +451,14 @@ class manageR( QDialog ):
         + "Network Graphics (*.png);;USGS Optional ASCII DEM (*.dem)"
       fileDialog = QFileDialog()
       fileDialog.setConfirmOverwrite( True )
-      driver = QString()      layer_name = fileDialog.getSaveFileName( self, "Save OGR",".", drivers, driver )
+      driver = QString()
+      layer_name = fileDialog.getSaveFileName( self, "Save OGR",".", drivers, driver )
       if not layer_name.isEmpty():
           fileCheck = QFile( layer_name )
           if fileCheck.exists():
             if not QgsVectorFileWriter.deleteShapeFile( layer_name ):
-              self.wgt_console.appendText( "Unable to overwrite existing file", QConsole.ERR_TYPE )
-              self.wgt_console.displayPrompt()
+              self.console.appendText( "Unable to overwrite existing file", QConsole.ERR_TYPE )
+              self.console.displayPrompt()
               return
       if self.export_type == manageR.VECTOR:
         self.q_layer_creator = RVectorLayerWriter( str( self.export_layer ), layer_name, driver )
@@ -418,23 +481,23 @@ class manageR( QDialog ):
       message = unicode( layer.name() ) + " exported to canvas"
     if add == QMessageBox.Yes or not to_file:
       QgsMapLayerRegistry.instance().addMapLayer( layer )
-    self.wgt_console.appendText( message, QConsole.OUT_TYPE )
-    self.wgt_console.enableHighlighting( True )
+    self.console.appendText( message, QConsole.OUT_TYPE )
+    self.console.enableHighlighting( True )
     self.label.setText(" ")
-    self.wgt_console.displayPrompt()
+    self.console.displayPrompt()
 
   def _showImport( self, rlayer, layer_name, message ):
     self.r_layer_creator.stop()
     del self.r_layer_creator
     robjects.globalEnv[ str( layer_name ) ] = rlayer
     self.updateRObjects()
-    self.wgt_console.appendText( message, QConsole.OUT_TYPE )
-    self.wgt_console.enableHighlighting( True )
+    self.console.appendText( message, QConsole.OUT_TYPE )
+    self.console.enableHighlighting( True )
     self.label.setText(" ")
-    self.wgt_console.displayPrompt()
+    self.console.displayPrompt()
       
   def _showErrors( self, message ):
-    self.wgt_console.enableHighlighting( False )
+    self.console.enableHighlighting( False )
     try:
       self.r_layer_creator.stop()
       del self.r_layer_creator
@@ -444,8 +507,8 @@ class manageR( QDialog ):
       self.q_layer_creator.stop()
     except:
       pass
-    self.wgt_console.appendText( message, QConsole.ERR_TYPE )
-    self.wgt_console.enableHighlighting( True )
+    self.console.appendText( message, QConsole.ERR_TYPE )
+    self.console.enableHighlighting( True )
     self.label.setText(" ")
     
   def exportRObjectsDialog( self, to_file ):

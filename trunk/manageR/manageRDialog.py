@@ -64,6 +64,7 @@ class manageR( QDialog ):
     self.console.append( self.welcomeString() )
     self.console.append( "" )
     self.console.displayPrompt()
+    self.console.setFocus( Qt.ActiveWindowFocusReason )
     self.connect( self.console, \
     SIGNAL( "executeCommand(PyQt_PyObject)" ), self.runCommand )
     self.startTimer( 50 )
@@ -103,7 +104,7 @@ class manageR( QDialog ):
     gbox = QGridLayout( self )
     gbox.addWidget( self.tabs )
     gbox.addWidget( self.label )
-    self.setGeometry( 100, 100, 550, 400 )
+    self.resize( 550, 400 )
 
   def timerEvent( self, e ):
     try:
@@ -165,7 +166,7 @@ class manageR( QDialog ):
     vbox.addWidget( about )
     dialog.setLayout( vbox )
     dialog.setWindowTitle( 'manageR Help' )
-    dialog.setGeometry(200,200,400,400)
+    dialog.resize( 400,400 )
     dialog.setWindowModality( Qt.NonModal )
     dialog.setModal( False )
     dialog.show()
@@ -223,11 +224,20 @@ class manageR( QDialog ):
       if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) and text.count( ")" ) == 1:
         self.threadError( "System exit not allowed" )    
       else:
-        if ( ( text.startsWith( 'help(' ) or text.startsWith( 'h(' ) ) \
-        and text.count( ")" ) == 1 ) or ( text.startsWith( "?" ) or ( text.startsWith( "??" ) ) ):
-          sinkFile = robjects.r( "file(open='w+')" )
-          robjects.r.sink( sinkFile )
-          sinking = True
+        if ( ( text.startsWith( 'help(' ) and text.count( ")" ) == 1 ) \
+        or ( text.startsWith( "?" ) and  text.count( "?" ) == 1 ):
+        # TODO: use the radmin.py code from rpy2 to figure out how to implement the help.search functions
+        # note: these two functions are: help.search("topic") and ??
+          text = text.remove( QRegExp( "(help|h|\?)" ) ).remove( "(" ).remove( ")" )
+          dialog = helpDialog( self, text )
+          dialog.setWindowModality( Qt.NonModal )
+          dialog.setModal( False )
+          dialog.show()
+          self.label.setText("Help dialog opened!")
+          self.console.enableHighlighting( True )
+          self.threadComplete()
+          return
+          
         output_text = QString()
         def write( output ):
           if not QString( output ).startsWith( "Error" ):
@@ -254,9 +264,6 @@ class manageR( QDialog ):
           self.threadError( str( rre ) )
         if not output_text.isEmpty():
           self.threadOutput( output_text )
-        if sinking:
-          QMessageBox.information( None, "help", str( sinkFile ) )
-          robjects.r.sink()
     except Exception, err:
       self.threadError( str( err ) )
     self.label.setText("Complete!")
@@ -280,20 +287,6 @@ class manageR( QDialog ):
     self.label.setText(" ")
     self.console.switchPrompt()
     self.console.displayPrompt()
-
-  def messageBox( self, message ):
-    dialog = QDialog( self )
-    dialog.setSizeGripEnabled( True )
-    dialog.setWindowTitle( 'help' )
-    dialog.setWindowIcon( QIcon( ":manager.png" ) )
-    dialog.setWindowFlags( Qt.Window )
-    display = QTextEdit( dialog )
-    display.setReadOnly( True )
-    display.append( message )
-    gbox = QGridLayout()
-    gbox.addWidget( display )
-    dialog.setLayout( gbox )
-    dialog.show()
 
   def closeEvent( self, e ):
     ask_save = QMessageBox.question( self, "manageR", "Save workspace image?", 
@@ -547,6 +540,37 @@ class manageR( QDialog ):
       for item in items:
         store.append( item )
     return store
+    
+    
+class helpDialog( QDialog ):
+
+  def __init__( self, parent, help_topic ):
+    QDialog.__init__ ( self, parent )
+    #initialise the display text edit
+    display = QTextEdit( self )
+    display.setReadOnly( True )
+    #set the font style of the help display
+    font = QFont( "Monospace" , 10, QFont.Normal )
+    font.setFixedPitch( True )
+    display.setFont( font )
+    display.document().setDefaultFont( font )
+    #initialise grid layout for dialog
+    grid = QGridLayout( self )
+    grid.addWidget( display )
+    self.setWindowTitle( "manageR Help: " + help_topic )
+    #get help output from r 
+    #note: help_topic should only contain the specific
+    #      help topic (i.e. no brackets etc.)
+    help_ = robjects.r['help']
+    help_file = QFile( help_( unicode( help_topic ) )[ 0 ] )
+    help_file.open( QFile.ReadOnly )
+    stream = QTextStream( help_file )
+    help_string = QString( stream.readAll() )
+    #workaround to remove the underline formatting that r uses
+    help_string.remove("_")
+    display.setPlainText( help_string )
+    help_file.close()
+    self.resize( 550, 400 )
 
 class commandThread( QThread ):
 

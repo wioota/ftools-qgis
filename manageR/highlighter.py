@@ -43,7 +43,10 @@ class ConsoleHighlighter( QSyntaxHighlighter ):
       
       #parent.setPalette( QPalette( self.getThemeColor( "background" ), self.getThemeColor( "background" ) ) )
       background = self.getThemeColor( "background" )
-      self.parent.setStyleSheet( "QTextEdit { background-color: " + background + " }")
+      #self.parent.setStyleSheet( "QTextEdit { background-color: " + background + " }")
+      palette = QPalette( QColor( background ) )
+      palette.setColor( QPalette.Active, QPalette.Base, QColor( background ) )
+      self.parent.setPalette( palette )
       self.parent.setDefaultColor( QColor( self.getThemeColor( "foreground" ) ) )
       self.parent.setOuputColors( QColor( self.getThemeColor( "error" ) ), \
       QColor( self.getThemeColor( "output") ) )
@@ -266,7 +269,11 @@ class ScriptHighlighter( QSyntaxHighlighter ):
       
       #parent.setPalette( QPalette( self.getThemeColor( "background" ), self.getThemeColor( "background" ) ) )
       background = self.getThemeColor( "background" )
-      self.parent.setStyleSheet( "QTextEdit { background-color: " + background + " }")
+      #self.parent.setStyleSheet( "QTextEdit { background-color: " + background + "; \n cursor-color: " + background + " }")
+      self.parent.setTextColor( QColor( self.getThemeColor( "foreground" ) ) )
+      palette = QPalette( QColor( background ) )
+      palette.setColor( QPalette.Active, QPalette.Base, QColor( background ) )
+      self.parent.setPalette( palette )
       self.highlightingRules = []
 
       # keyword

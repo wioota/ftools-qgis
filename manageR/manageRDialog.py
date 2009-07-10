@@ -23,6 +23,7 @@ from PyQt4.QtGui import *
 from qgis.core import *
 
 from QConsole import QConsole
+from QScripting import QScripting
 from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
 from RLayerConverter import RVectorLayerConverter
 from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter
@@ -90,17 +91,10 @@ class manageR( QDialog ):
 
     tab_2 = QWidget()
     grid_tab_2 = QGridLayout( tab_2 )
-    self.scripting = QTextEdit( tab_2 )
-    highlighter_2 = ScriptHighlighter( self.scripting, theme )
-    self.btn_parse = QToolButton( tab_2 )
-    self.btn_parse.setText( "Execute commands(s)" )
-    self.btn_parse.setToolTip( "Send selected text to R interpreter" )
-    self.btn_parse.setWhatsThis( "Send selected text to R interpreter" )
-    grid_tab_2.addWidget( self.scripting, 0, 0, 1, 3 )
-    grid_tab_2.addWidget( self.btn_parse, 1, 1, 1, 1)
+    self.scripttab = QScripting( self )
+    highlighter_2 = ScriptHighlighter( self.scripttab.scripting, theme )
+    grid_tab_2.addWidget( self.scripttab )
     self.tabs.addTab( tab_2, "Script" )
-    self.connect( self.btn_parse, SIGNAL( "clicked()" ), self.parseCommands )
-
     gbox = QGridLayout( self )
     gbox.addWidget( self.tabs )
     gbox.addWidget( self.label )
@@ -111,18 +105,6 @@ class manageR( QDialog ):
       robjects.rinterface.process_revents()
     except:
       pass
-      
-  def parseCommands( self ):
-    cursor = self.scripting.textCursor()
-    if cursor.hasSelection():
-      commands = cursor.selectedText()
-    else:
-      commands = self.scripting.toPlainText()
-    if not commands.isEmpty():
-      mime = QMimeData()
-      mime.setText( commands )
-      self.console.insertFromMimeData( mime )
-      self.runCommand( commands )
 
   def helpDialog( self ):
     message = QString( "<center><h2>manageR " + self.version + "</h2>" )
@@ -209,7 +191,7 @@ class manageR( QDialog ):
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_H:
       self.helpDialog()
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_R:
-      self.parseCommands()
+      self.scripttab.parseCommands()
     else:
       QDialog.keyPressEvent( self, e )
 
@@ -221,15 +203,22 @@ class manageR( QDialog ):
     highlighting = True
     sinking = False
     try:
-      if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) and text.count( ")" ) == 1:
+      if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) \
+      and text.count( ")" ) == 1:
         self.threadError( "System exit not allowed" )    
       else:
-        if ( ( text.startsWith( 'help(' ) and text.count( ")" ) == 1 ) \
-        or ( text.startsWith( "?" ) and  text.count( "?" ) == 1 ):
+        if ( text.startsWith( 'help' ) and \
+        text.count( ")" ) + text.count( "(" ) == 2 ) or \
+        text.startsWith( "?" ):
         # TODO: use the radmin.py code from rpy2 to figure out how to implement the help.search functions
         # note: these two functions are: help.search("topic") and ??
-          text = text.remove( QRegExp( "(help|h|\?)" ) ).remove( "(" ).remove( ")" )
-          dialog = helpDialog( self, text )
+          if text.contains( ".search" ) or text.contains( "??" ):
+            search = True
+          text = text.remove( QRegExp( "(help|h|\.search|\?)" ) ).remove( "(" ).remove( ")" ).remove( '"' )
+          if search:
+            dialog = searchDialog( self, text )
+          else:
+            dialog = helpDialog( self, text )
           dialog.setWindowModality( Qt.NonModal )
           dialog.setModal( False )
           dialog.show()
@@ -269,7 +258,41 @@ class manageR( QDialog ):
     self.label.setText("Complete!")
     self.console.enableHighlighting( True )
     self.threadComplete()
-    
+ 
+  def checkCommand( self, command ):
+    message_connections = robjects.r[ "file" ]( ".", open="w+" )
+    robjects.r[ "sink" ]( message_connection, type="message" )
+    #dont forget to drop this sink on exit...
+    output_connections = robjects.r[ "file" ]( open="w+" )
+    robjects.r[ "sink" ]( message_connection, type="output" )
+    #dont forget to drop this sink on exit...
+    try_ = robjects.r[ "try" ]
+    parse_ = robjects.r[ "parse" ]
+    paste_ = robjects.r[ "paste" ]
+    class_= robjects.r[ "class" ]
+    strsplit_ = robjects.r[ "strsplit" ]
+    seq_along_ = robjects.r[ "seq_along" ]
+    withVisible_ = robjects.r[ "withVisible" ]
+    eval_ = robjects.r[ "eval" ]
+    result = try_( parse_( text=paste_( command ) ), silent=True )
+    if class_( result )[0] == "try-error":
+      #check to make sure this is correct (is class(result)[0] what
+      #we're looking for?
+      return paste_( strsplit_( result, ":" )[[1]][2] )
+      #check above as well...
+    else:
+      exprs = result
+      result = None
+    for i in seq_along_( exprs ):
+      ei = exprs[ i ]
+      result =  try_(withVisible_(eval_(ei, envir=robjects.r[".GlobalEnv"])), silent=True)
+      if class_( result )[0] == "try-error":
+      #check to make sure this is correct (is class(result)[0] what
+      #we're looking for?
+        return paste_( strsplit_( result, ":" )[[1]][2] )
+      #check above as well...
+    return result
+   
   def threadError( self, error ):
     #self.thread.stop()
     self.console.appendText( error, QConsole.ERR_TYPE )
@@ -563,6 +586,7 @@ class helpDialog( QDialog ):
     #      help topic (i.e. no brackets etc.)
     help_ = robjects.r['help']
     help_file = QFile( help_( unicode( help_topic ) )[ 0 ] )
+    QMessageBox.information(None, "", "to here")
     help_file.open( QFile.ReadOnly )
     stream = QTextStream( help_file )
     help_string = QString( stream.readAll() )
@@ -570,6 +594,36 @@ class helpDialog( QDialog ):
     help_string.remove("_")
     display.setPlainText( help_string )
     help_file.close()
+    self.resize( 550, 400 )
+
+class searchDialog( QDialog ):
+
+  def __init__( self, parent, help_topic ):
+    QDialog.__init__ ( self, parent )
+    #initialise the display text edit
+    display = QTextEdit( self )
+    display.setReadOnly( True )
+    #set the font style of the help display
+    font = QFont( "Monospace" , 10, QFont.Normal )
+    font.setFixedPitch( True )
+    display.setFont( font )
+    display.document().setDefaultFont( font )
+    #initialise grid layout for dialog
+    grid = QGridLayout( self )
+    grid.addWidget( display )
+    self.setWindowTitle( "manageR Search: " + help_topic )
+    #get help output from r 
+    #note: help_topic should only contain the specific
+    #      help topic (i.e. no brackets etc.)
+    matches = robjects.r["help.search"](string, agrep=agrep).subset("matches")[0]
+    #help_file = QFile( help_( unicode( help_topic ) )[ 0 ] )
+    #help_file.open( QFile.ReadOnly )
+    #stream = QTextStream( help_file )
+    #help_string = QString( stream.readAll() )
+    #workaround to remove the underline formatting that r uses
+    #help_string.remove("_")
+    display.setPlainText( QString( matches ) )
+    #help_file.close()
     self.resize( 550, 400 )
 
 class commandThread( QThread ):

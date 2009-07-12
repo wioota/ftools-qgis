@@ -82,19 +82,13 @@ class manageR( QDialog ):
     self.tabs = QTabWidget( self )
     self.tabs.setTabPosition( QTabWidget.East )
 
-    tab_1 = QWidget()
-    grid_tab_1 = QGridLayout( tab_1 )
     self.console = QConsole( self, self.runCommand )
     highlighter_1 = ConsoleHighlighter( self.console, theme )
-    grid_tab_1.addWidget( self.console, 0, 0, 1, 1 )
-    self.tabs.addTab( tab_1, "Console" )
+    self.tabs.addTab( self.console, "Console" )
 
-    tab_2 = QWidget()
-    grid_tab_2 = QGridLayout( tab_2 )
     self.scripttab = QScripting( self )
     highlighter_2 = ScriptHighlighter( self.scripttab.scripting, theme )
-    grid_tab_2.addWidget( self.scripttab )
-    self.tabs.addTab( tab_2, "Script" )
+    self.tabs.addTab( self.scripttab, "Script" )
     gbox = QGridLayout( self )
     gbox.addWidget( self.tabs )
     gbox.addWidget( self.label )
@@ -118,11 +112,12 @@ class manageR( QDialog ):
     message.append( "<h4>Usage:</h4>" )
     message.append( "<ul><li><tt>Ctrl+L</tt> : Import selected layer</li>" )
     message.append( "<li><tt>Ctrl+T</tt> : Import attribute table of selected layer</li>" )
-    message.append( "<li><tt>Ctrl+M</tt> : Export R layer in map canvas</li>" )
-    message.append( "<li><tt>Ctrl+F</tt> : Export R layer in file</li>")
-    message.append( "<li><tt>Shift+Return</tt> : Manually enter multi-line commands</li></ul>" )
+    message.append( "<li><tt>Ctrl+M</tt> : Export R layer to map canvas</li>" )
+    message.append( "<li><tt>Ctrl+F</tt> : Export R layer to file</li>")
+    message.append( "<li><tt>Ctrl+R</tt> : Send (selected) commands from script window to R console</li></ul>" )
+    message.append( "<li><tt>Ctrl+H</tt> : Display help dialog</li>")
     message.append( "<h4>Details:</h4>" )
-    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the <b>manageR R</b> environment. To limit the import to the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting <b>R</b> layers from the <b>manageR R</b> environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. Multi-line <b>R</b> commands will automatically be recognised by <b>manageR</b>, however, to manaully enter multi-line commands, use the <tt>Shift</tt> modifier when typing <tt>Return</tt> to signify continuation of command on the following line. Note: To change the dialog colour theme, alter the 'theme' variable in the config.ini file in the manageR directory located here: " )
+    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the <b>manageR R</b> environment. To import only the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting <b>R</b> layers from the <b>manageR R</b> environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. Multi-line <b>R</b> commands will automatically be recognised by <b>manageR</b>, however, to manaully enter multi-line commands, use the <tt>Shift</tt> modifier when typing <tt>Return</tt> to signify continuation of command on the following line. To send commands from the script tab to the R console, using Ctrl+R. If the script tab contained text that has been selected, only the selected text will be sent to the R console, otherwise, all text is sent. The script tab also contains buttons for creating new R scripts, loading previously created R scripts, as well as buttons to save the current R script (save and save as). Note: To change the dialog colour theme, alter the 'theme' variable in the config.ini file in the manageR directory located here: " )
     message.append( "<tt>" + here + "</tt>." )
     message.append( "<h4>Features:</h4>" )
     message.append( "<ul><li>Perform complex statistical analysis functions on raster, vector and spatial database formats</li>" )
@@ -131,6 +126,7 @@ class manageR( QDialog ):
     message.append( "<li>Read QGIS vector layers directly from map canvas as R (sp) vector layers, allowing analysis to be carried out on any vector format supported by QGIS</li>" )
     message.append( "<li>Perform all available R commands from within QGIS, including multi-line commands</li>" )
     message.append( "<li>Visualise R commands clearly and cleanly using any one of the four included syntax highlighting themes</li></ul>" )
+    message.append( "<li>Create, edit, and save R scripts for complex statistical and computational operations</li></ul>" )
     message.append( "<h4>References:</h4>" )
     message.append( "<ul><li><a href='http://www.r-project.org/'>The R Project for Statistical Computing</a></li>" )
     message.append( "<li><a href='http://rpy.sourceforge.net/'>RPy: A simple and efficient access to R from Python</a></li>" )
@@ -152,7 +148,7 @@ class manageR( QDialog ):
     dialog.setWindowModality( Qt.NonModal )
     dialog.setModal( False )
     dialog.show()
-    
+
   def launchBrowser( self, url ):
     QDesktopServices.openUrl( url )
     
@@ -177,6 +173,7 @@ class manageR( QDialog ):
     CTRL-T to load the selected layer's attribute table only
     CTRL-M to export an R layer to the map canvas
     CTRL-F to export an R layer to file
+    CTRL-Tab to switch between tabs
     '''
     if ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_L:
       mlayer = self.mapCanvas.currentLayer()
@@ -192,6 +189,19 @@ class manageR( QDialog ):
       self.helpDialog()
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_R:
       self.scripttab.parseCommands()
+    elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and \
+    ( e.key() == Qt.Key_PageUp or e.key() == Qt.Key_PageDown ):
+      current = self.tabs.currentIndex()
+      if e.key() == Qt.Key_PageUp:
+        if current < self.tabs.count() - 1:
+          self.tabs.setCurrentIndex( current + 1 )
+        else:
+          self.tabs.setCurrentIndex( 0 )
+      elif e.key() == Qt.Key_PageDown:
+        if current > 0:
+          self.tabs.setCurrentIndex( current - 1 )
+        else:
+          self.tabs.setCurrentIndex( self.tabs.count() - 1 )
     else:
       QDialog.keyPressEvent( self, e )
 
@@ -210,8 +220,6 @@ class manageR( QDialog ):
         if ( text.startsWith( 'help' ) and \
         text.count( ")" ) + text.count( "(" ) == 2 ) or \
         text.startsWith( "?" ):
-        # TODO: use the radmin.py code from rpy2 to figure out how to implement the help.search functions
-        # note: these two functions are: help.search("topic") and ??
           if text.contains( ".search" ) or text.contains( "??" ):
             search = True
           text = text.remove( QRegExp( "(help|h|\.search|\?)" ) ).remove( "(" ).remove( ")" ).remove( '"' )
@@ -222,11 +230,10 @@ class manageR( QDialog ):
           dialog.setWindowModality( Qt.NonModal )
           dialog.setModal( False )
           dialog.show()
-          self.label.setText("Help dialog opened!")
+          self.label.setText("Help dialog opened")
           self.console.enableHighlighting( True )
           self.threadComplete()
           return
-          
         output_text = QString()
         def write( output ):
           if not QString( output ).startsWith( "Error" ):
@@ -242,15 +249,27 @@ class manageR( QDialog ):
           return input
         robjects.rinterface.setReadConsole( read )
         try:
-          r_code = "withVisible( " + unicode( text ) + " )"
-          output = robjects.r( r_code )
-          visible = output.r["visible"][0][0]
-          if visible:
-            #self.threadOutput( str( output.r["value"][0] ) )
-            #self.threadOutput( robjects.r['print'](output.r["value"][0]) )
-            robjects.r['print'](output.r["value"][0])
+          try_ = robjects.r[ "try" ]
+          parse_ = robjects.r[ "parse" ]
+          paste_ = robjects.r[ "paste" ]
+          seq_along_ = robjects.r[ "seq_along" ]
+          withVisible_ = robjects.r[ "withVisible" ]
+          result =  try_(parse_(text=paste_(unicode(text))), silent=True)
+          exprs = result
+          result = None
+          for i in list(seq_along_(exprs)):
+            ei = exprs[i-1]
+            try:
+              result =  try_( withVisible_( ei ), silent=True )
+            except robjects.rinterface.RRuntimeError, rre:
+              self.threadError( str( rre ) )
+            visible = result.r["visible"][0][0]
+            print visible
+            if visible:
+              robjects.r['print'](result.r["value"][0])
         except robjects.rinterface.RRuntimeError, rre:
-          self.threadError( str( rre ) )
+          # this fixes error output to look more like R's output
+          self.threadError( "Error: " + str(rre).split(":")[1].strip() )
         if not output_text.isEmpty():
           self.threadOutput( output_text )
     except Exception, err:
@@ -260,8 +279,8 @@ class manageR( QDialog ):
     self.threadComplete()
  
   def checkCommand( self, command ):
-    message_connections = robjects.r[ "file" ]( ".", open="w+" )
-    robjects.r[ "sink" ]( message_connection, type="message" )
+    message_connections = robjects.r[ "file" ](open="w+")
+    robjects.r[ "sink" ]( message_connections, type="message" )
     #dont forget to drop this sink on exit...
     output_connections = robjects.r[ "file" ]( open="w+" )
     robjects.r[ "sink" ]( message_connection, type="output" )
@@ -283,14 +302,18 @@ class manageR( QDialog ):
     else:
       exprs = result
       result = None
-    for i in seq_along_( exprs ):
-      ei = exprs[ i ]
+    for i in list(seq_along_( exprs )):
+      ei = exprs[ i - 1 ]
       result =  try_(withVisible_(eval_(ei, envir=robjects.r[".GlobalEnv"])), silent=True)
       if class_( result )[0] == "try-error":
       #check to make sure this is correct (is class(result)[0] what
       #we're looking for?
         return paste_( strsplit_( result, ":" )[[1]][2] )
-      #check above as well...
+      if result[1] == False:
+        result = NULL
+      else:
+        result = result[0]
+
     return result
    
   def threadError( self, error ):
@@ -316,9 +339,8 @@ class manageR( QDialog ):
     QMessageBox.Yes, QMessageBox.No, QMessageBox.Cancel )
     if ask_save == QMessageBox.Cancel:
       e.ignore()
-    else:
-      if ask_save == QMessageBox.Yes:
-        robjects.r( 'save.image(file=".Rdata")' )
+    elif ask_save == QMessageBox.Yes:
+      robjects.r( 'save.image(file=".Rdata")' )
       robjects.r( 'rm(list=ls(all=T))' )
       robjects.r( 'gc()' )
       try:
@@ -331,6 +353,13 @@ class manageR( QDialog ):
         except:
           pass
       e.accept()
+    else:
+      if self.scripttab.scripting.document().isModified():
+        if self.scripttab.maybeSave():
+          e.accept()
+        else:
+          e.ignore()
+
 
 # This is used whenever we check for sp objects in manageR
   def updateRObjects( self ):

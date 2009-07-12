@@ -46,12 +46,11 @@ class QScripting( QWidget ):
     self.btn_parse.setText( "Execute commands(s)" )
     self.btn_parse.setToolTip( "Send selected text to R interpreter" )
     self.btn_parse.setWhatsThis( "Send selected text to R interpreter" )
-    
     self.info_label = QLabel( self )
-    self.info_label.setText( "" )
+    self.info_label.setText( "safdasfasf" )
+    self.info_label.setVisible( True )
     self.info_label.setAlignment ( Qt.AlignHCenter )
     self.info_label.setWordWrap( True )
-    
     self.save_file_as = QToolButton( self )
     self.save_file_as.setIcon( self.qgisThemeIcon( "mActionFileSaveAs.png" ) )
     self.save_file = QToolButton( self )
@@ -70,15 +69,14 @@ class QScripting( QWidget ):
     horiz.addWidget( self.save_file_as )
     grid.addLayout( horiz, 2, 0, 1, 1 )
     grid.addWidget( self.btn_parse, 2, 2, 1, 1 )
-    self.setCurrentFile( "" )
     self.connect( self.btn_parse, SIGNAL( "clicked()" ), self.parseCommands )
     self.connect( self.new_file, SIGNAL( "clicked()" ), self.newFile )
     self.connect( self.open_file, SIGNAL( "clicked()" ), self.openFile )
     self.connect( self.save_file, SIGNAL( "clicked()" ), self.save )
     self.connect( self.save_file_as, SIGNAL( "clicked()" ), self.saveFileAs )
-    
-    self.connect( self.scripting.document(), SIGNAL( "contentsChanged()" ), \
+    self.connect( self.scripting, SIGNAL( "textChanged()" ), \
     self.documentWasModified )
+    self.setCurrentFile( "" )
 
   def newFile( self ):
     if self.maybeSave():
@@ -87,7 +85,8 @@ class QScripting( QWidget ):
       
   def openFile( self ):
     if self.maybeSave():
-      fileName = QFileDialog().getOpenFileName( self )
+      fileName = QFileDialog().getOpenFileName( self, \
+      "Open R script", "", "R Script (*.R)" )
       if fileName.length() != 0:
         self.loadFile( fileName )
 
@@ -98,37 +97,37 @@ class QScripting( QWidget ):
       return self.saveFile( self.cur_file )
 
   def saveFileAs( self ):
-    fileName = QFileDialog().getSaveFileName( self )
+    fileName = QFileDialog().getSaveFileName( self, \
+    "Save R script", "", "R Script (*.R)" )
+    if not fileName.endsWith( ".R" ):
+      fileName += ".R"
     if fileName.length() == 0:
       return False
     return self.saveFile( fileName )
     
   def documentWasModified( self ):
-    self.info_label.setText( "*" + self.show_name )
-    
-  def documentNotModified( self ):
-    self.info_label.setText( self.show_name )
+    if not self.show_name.isEmpty():
+      self.info_label.setText( "*" + self.show_name )
+      self.scripting.document().setModified( True )
     
   def maybeSave( self ):
     if self.scripting.document().isModified():
       ret = QMessageBox.warning( self.parent, "manageR", \
-      "The document has been modified.\nSave your changes?", \
-      QMessageBox.StandardButtons(QMessageBox.StandardButton.Ok, \
-      QMessageBox.StandardButton.Discard, QMessageBox.StandardButton.Cancel ) )
-      if ret == QMessageBox.StandardButton.Ok:
+      "The R script has been modified.\nSave your changes?", \
+      QMessageBox.Ok | QMessageBox.Discard | QMessageBox.Cancel )
+      if ret == QMessageBox.Ok:
         return self.save()
-      elif ret == QMessageBox.StandardButton.Cancel:
+      elif ret == QMessageBox.Cancel:
         return False
     return True
     
   def loadFile( self, fileName ):
     qfile = QFile( fileName )
-    if not qfile.open( QFile.OpenMode( QFile.OpenModeFlag.ReadOnly, \
-    QFile.OpenModeFlag.Text ) ):
+    if not qfile.open( QIODevice.ReadOnly ):
       QMessageBox.warning( self, "manageR", "Cannot read file " + fileName )
       return
     in_file = QTextStream( qfile )
-    QApplication.setOverrideCursor( QCursor( Qt.CursorShape.WaitCursor ) )
+    QApplication.setOverrideCursor( QCursor( Qt.WaitCursor ) )
     self.scripting.setPlainText( in_file.readAll() )
     QApplication.restoreOverrideCursor()
     self.setCurrentFile( fileName )
@@ -136,27 +135,33 @@ class QScripting( QWidget ):
     
   def saveFile( self, fileName ):
     qfile = QFile( fileName )
-    if not qfile.open( QFile.OpenMode( QFile.OpenModeFlag.WriteOnly, \
-    QFile.OpenModeFlag.Text ) ):
+    if not qfile.open( QIODevice.WriteOnly ):
       QMessageBox.warning( self, "manageR", "Cannot write file " + fileName )
       return False
-    out_file = QTextStream( qfile )
-    QApplication.setOverrideCursor( QCursor( Qt.CursorShape.WaitCursor ) )
-    out_file.writeString( self.scripting.toPlainText() )
+    qfile_info = QFileInfo( qfile )
+    qfile.close()
+    QApplication.setOverrideCursor( QCursor( Qt.WaitCursor ) )
+    out_file = open( qfile_info.filePath(), "w" )
+    s = self.scripting.toPlainText()
+    out_file.write( s )
+    if s[-1:] != "\n":
+      out_file.write( "\n" )
+    out_file.flush()
     QApplication.restoreOverrideCursor()
     self.setCurrentFile( fileName )
     self.parent.label.setText( "File saved" )
-    qfile.close()
+    return True
 
   def setCurrentFile( self, fileName ):
     self.cur_file = QString( fileName )
-    self.show_name = "untitled.R"
-    self.scripting.document().setModified( False )
+    self.show_name = QString()
     if not self.cur_file.length() == 0:
-      self.shown_name = self.strippedName( self.cur_file )
+      self.show_name = self.strippedName( self.cur_file )
+    self.scripting.document().setModified( False )
+    self.info_label.setText( self.show_name )
 
   def strippedName( self, fullFileName ):
-    return QFileInfo( fullFileName ).fileName()
+    return QString( QFileInfo( fullFileName ).fileName() )
     
   def qgisThemeIcon( self, icon_name ):
     myPreferredPath = QgsApplication.activeThemePath() + QDir.separator() + icon_name
@@ -171,7 +176,7 @@ class QScripting( QWidget ):
   def parseCommands( self ):
     cursor = self.scripting.textCursor()
     if cursor.hasSelection():
-      commands = cursor.selectedText()
+      commands = cursor.selectedText().replace( u"\u2029", "\n" )
     else:
       commands = self.scripting.toPlainText()
     if not commands.isEmpty():
@@ -180,14 +185,14 @@ class QScripting( QWidget ):
       self.parent.console.insertFromMimeData( mime )
       self.parent.runCommand( commands )
       
-  def keyPressEvent( self, e ):
-    '''
-    Reimplemented key press event:
-    CTRL-R to export selected (or all if no selection) 
-    commands to the R console
-    '''
-    if ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_R:
-      self.parseCommands()
-    else:
-      QWidget.keyPressEvent( self, e )
+#  def keyPressEvent( self, e ):
+#    '''
+#    Reimplemented key press event:
+#    CTRL-R to export selected (or all if no selection) 
+#    commands to the R console
+#    '''
+#    if ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_R:
+#      self.parseCommands()
+#    else:
+#      QWidget.keyPressEvent( self, e )
 

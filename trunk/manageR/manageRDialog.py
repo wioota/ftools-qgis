@@ -217,23 +217,6 @@ class manageR( QDialog ):
       and text.count( ")" ) == 1:
         self.threadError( "System exit not allowed" )    
       else:
-        if ( text.startsWith( 'help' ) and \
-        text.count( ")" ) + text.count( "(" ) == 2 ) or \
-        text.startsWith( "?" ):
-          if text.contains( ".search" ) or text.contains( "??" ):
-            search = True
-          text = text.remove( QRegExp( "(help|h|\.search|\?)" ) ).remove( "(" ).remove( ")" ).remove( '"' )
-          if search:
-            dialog = searchDialog( self, text )
-          else:
-            dialog = helpDialog( self, text )
-          dialog.setWindowModality( Qt.NonModal )
-          dialog.setModal( False )
-          dialog.show()
-          self.label.setText("Help dialog opened")
-          self.console.enableHighlighting( True )
-          self.threadComplete()
-          return
         output_text = QString()
         def write( output ):
           if not QString( output ).startsWith( "Error" ):
@@ -254,6 +237,7 @@ class manageR( QDialog ):
           paste_ = robjects.r[ "paste" ]
           seq_along_ = robjects.r[ "seq_along" ]
           withVisible_ = robjects.r[ "withVisible" ]
+          class_ = robjects.r[ "class" ]
           result =  try_(parse_(text=paste_(unicode(text))), silent=True)
           exprs = result
           result = None
@@ -264,10 +248,14 @@ class manageR( QDialog ):
             except robjects.rinterface.RRuntimeError, rre:
               self.threadError( str( rre ) )
             visible = result.r["visible"][0][0]
-            print visible
             if visible:
-              robjects.r['print'](result.r["value"][0])
+              if class_( result.r["value"][0] )[0] == "help_files_with_topic" or \
+                class_( result.r["value"][0] )[0] == "hsearch":
+                self.helpTopic( result.r["value"][0], class_( result.r["value"][0] )[0] )
+              else:
+                robjects.r['print'](result.r["value"][0])
         except robjects.rinterface.RRuntimeError, rre:
+          print "error happened"
           # this fixes error output to look more like R's output
           self.threadError( "Error: " + str(rre).split(":")[1].strip() )
         if not output_text.isEmpty():
@@ -278,43 +266,18 @@ class manageR( QDialog ):
     self.console.enableHighlighting( True )
     self.threadComplete()
  
-  def checkCommand( self, command ):
-    message_connections = robjects.r[ "file" ](open="w+")
-    robjects.r[ "sink" ]( message_connections, type="message" )
-    #dont forget to drop this sink on exit...
-    output_connections = robjects.r[ "file" ]( open="w+" )
-    robjects.r[ "sink" ]( message_connection, type="output" )
-    #dont forget to drop this sink on exit...
-    try_ = robjects.r[ "try" ]
-    parse_ = robjects.r[ "parse" ]
-    paste_ = robjects.r[ "paste" ]
-    class_= robjects.r[ "class" ]
-    strsplit_ = robjects.r[ "strsplit" ]
-    seq_along_ = robjects.r[ "seq_along" ]
-    withVisible_ = robjects.r[ "withVisible" ]
-    eval_ = robjects.r[ "eval" ]
-    result = try_( parse_( text=paste_( command ) ), silent=True )
-    if class_( result )[0] == "try-error":
-      #check to make sure this is correct (is class(result)[0] what
-      #we're looking for?
-      return paste_( strsplit_( result, ":" )[[1]][2] )
-      #check above as well...
+  def helpTopic( self, topic, search ):
+    if search == "hsearch":
+      print "made it here"
+      dialog = searchDialog( self, topic )
     else:
-      exprs = result
-      result = None
-    for i in list(seq_along_( exprs )):
-      ei = exprs[ i - 1 ]
-      result =  try_(withVisible_(eval_(ei, envir=robjects.r[".GlobalEnv"])), silent=True)
-      if class_( result )[0] == "try-error":
-      #check to make sure this is correct (is class(result)[0] what
-      #we're looking for?
-        return paste_( strsplit_( result, ":" )[[1]][2] )
-      if result[1] == False:
-        result = NULL
-      else:
-        result = result[0]
-
-    return result
+      dialog = helpDialog( self, topic )
+    dialog.setWindowModality( Qt.NonModal )
+    dialog.setModal( False )
+    dialog.show()
+    self.label.setText("Help dialog opened")
+    self.console.enableHighlighting( True )
+    return
    
   def threadError( self, error ):
     #self.thread.stop()
@@ -609,13 +572,8 @@ class helpDialog( QDialog ):
     #initialise grid layout for dialog
     grid = QGridLayout( self )
     grid.addWidget( display )
-    self.setWindowTitle( "manageR Help: " + help_topic )
-    #get help output from r 
-    #note: help_topic should only contain the specific
-    #      help topic (i.e. no brackets etc.)
-    help_ = robjects.r['help']
-    help_file = QFile( help_( unicode( help_topic ) )[ 0 ] )
-    QMessageBox.information(None, "", "to here")
+    self.setWindowTitle( "manageR Help" )
+    help_file = QFile( unicode( help_topic[ 0 ] ) )
     help_file.open( QFile.ReadOnly )
     stream = QTextStream( help_file )
     help_string = QString( stream.readAll() )
@@ -640,18 +598,35 @@ class searchDialog( QDialog ):
     #initialise grid layout for dialog
     grid = QGridLayout( self )
     grid.addWidget( display )
-    self.setWindowTitle( "manageR Search: " + help_topic )
+    self.setWindowTitle( "manageR Help Search" )
     #get help output from r 
     #note: help_topic should only contain the specific
     #      help topic (i.e. no brackets etc.)
-    matches = robjects.r["help.search"](string, agrep=agrep).subset("matches")[0]
-    #help_file = QFile( help_( unicode( help_topic ) )[ 0 ] )
-    #help_file.open( QFile.ReadOnly )
-    #stream = QTextStream( help_file )
-    #help_string = QString( stream.readAll() )
-    #workaround to remove the underline formatting that r uses
-    #help_string.remove("_")
-    display.setPlainText( QString( matches ) )
+    matches = help_topic.subset("matches")[0]
+    fields = help_topic.subset("fields")[0]
+    pattern = help_topic.subset("pattern")[0]
+    fields_string = QString()
+    for i in fields:
+      fields_string.append( i + " or ")
+    fields_string.chop( 3 )
+    display_string = QString( "Help files with " + fields_string )
+    display_string.append( "matching '" + pattern[0] + "' using " )
+    display_string.append( "regular expression matching:\n\n" )
+    nrows = robjects.r.nrow( matches )[0]
+    ncols = robjects.r.ncol( matches )[0]
+    for i in range( 1, nrows + 1 ):
+        row = QString()
+        pack = matches.subset( i, 3 )[0]
+        row.append(pack)
+        row.append("::")
+        pack = matches.subset( i, 1 )[0]
+        row.append(pack)
+        row.append("\t\t")
+        pack = matches.subset( i, 2 )[0]
+        row.append(pack)
+        row.append("\n")
+        display_string.append( row )
+    display.setPlainText( display_string )
     #help_file.close()
     self.resize( 550, 400 )
 

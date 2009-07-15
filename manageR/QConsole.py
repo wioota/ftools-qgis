@@ -40,6 +40,7 @@ class QConsole( QTextEdit ):
     QTextEdit.__init__( self, parent )
     # initialise standard settings
     self.setTextInteractionFlags( Qt.TextEditorInteraction )
+    self.setAcceptDrops( False )
     self.setMinimumSize( 30, 30 )
     self.parent = parent
     self.setTextFont()
@@ -186,7 +187,7 @@ class QConsole( QTextEdit ):
           self.cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
           self.moveToEnd()
         # if Up or Down is pressed
-        elif e.key() == Qt.Key_Down or e.key() == Qt.Key_Up:
+        elif ( e.key() == Qt.Key_Down or e.key() == Qt.Key_Up ) and not self.history.isEmpty():
           # remove the current command
           self.cursor.select( QTextCursor.LineUnderCursor )
           self.cursor.removeSelectedText()
@@ -213,14 +214,22 @@ class QConsole( QTextEdit ):
             anchor = QTextCursor.KeepAnchor
           else:
             anchor = QTextCursor.MoveAnchor
-          self.cursor.movePosition( QTextCursor.Left, anchor )
+          if ( e.modifiers() == Qt.ControlModifier or \
+          e.modifiers() == Qt.MetaModifier ):
+            self.cursor.movePosition( QTextCursor.WordLeft, anchor )
+          else:
+            self.cursor.movePosition( QTextCursor.Left, anchor )
         # use normal operation for right key
         elif e.key() == Qt.Key_Right:
           if e.modifiers() == Qt.ShiftModifier:
             anchor = QTextCursor.KeepAnchor
           else:
             anchor = QTextCursor.MoveAnchor
-          self.cursor.movePosition( QTextCursor.Right, anchor )
+          if ( e.modifiers() == Qt.ControlModifier or \
+          e.modifiers() == Qt.MetaModifier ):
+            self.cursor.movePosition( QTextCursor.WordRight, anchor )
+          else:
+            self.cursor.movePosition( QTextCursor.Right, anchor )
         # if home is pressed, move cursor to right of prompt
         elif e.key() == Qt.Key_Home:
           if e.modifiers() == Qt.ShiftModifier:

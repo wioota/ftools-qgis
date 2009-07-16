@@ -189,7 +189,8 @@ class QConsole( QTextEdit ):
         # if Up or Down is pressed
         elif ( e.key() == Qt.Key_Down or e.key() == Qt.Key_Up ) and not self.history.isEmpty():
           # remove the current command
-          self.cursor.select( QTextCursor.LineUnderCursor )
+          self.cursor.movePosition( QTextCursor.EndOfBlock, QTextCursor.MoveAnchor )
+          self.cursor.movePosition( QTextCursor.StartOfBlock, QTextCursor.KeepAnchor )
           self.cursor.removeSelectedText()
           self.cursor.insertText( self.currentPrompt )
           # update the historyIndex (up or down)
@@ -236,7 +237,7 @@ class QConsole( QTextEdit ):
             anchor = QTextCursor.KeepAnchor
           else:
             anchor = QTextCursor.MoveAnchor
-          self.cursor.movePosition( QTextCursor.StartOfLine, anchor, 1 )
+          self.cursor.movePosition( QTextCursor.StartOfBlock, anchor, 1 )
           self.cursor.movePosition( QTextCursor.Right, anchor, self.currentPromptLength )
         # use normal operation for end key
         elif e.key() == Qt.Key_End:
@@ -244,7 +245,7 @@ class QConsole( QTextEdit ):
             anchor = QTextCursor.KeepAnchor
           else:
             anchor = QTextCursor.MoveAnchor
-          self.cursor.movePosition( QTextCursor.EndOfLine, anchor, 1 )
+          self.cursor.movePosition( QTextCursor.EndOfBlock, anchor, 1 )
         # use normal operation for all remaining keys
         else:
           QTextEdit.keyPressEvent( self, e )
@@ -382,18 +383,18 @@ class QConsole( QTextEdit ):
     Tests whether the cursor is in the edition zone or not
     Return True if yes, False otherwise
     '''
-    self.cursor = self.textCursor()
-    index = self.textCursor().columnNumber()
-    row = self.textCursor().blockNumber()
-    self.setTextCursor( self.cursor )
-    return row == self.document().blockCount()-1 and index >= self.currentPromptLength
+    cursor = self.textCursor()
+    pos = cursor.position()
+    block = self.document().lastBlock()
+    last = block.position() + self.currentPromptLength
+    return pos >= last
     
   def isAnchorInEditionZone( self ):
-    self.cursor = self.textCursor()
-    index = self.textCursor().columnNumber()
+    cursor = self.textCursor()
+    pos = cursor.anchor()
     block = self.document().lastBlock()
-    row = self.cursor.anchor()
-    return row >= ( block.position() + self.currentPromptLength )
+    last =  block.position() + self.currentPromptLength
+    return pos >= last
 
   def updateHistory( self, command ):
     '''

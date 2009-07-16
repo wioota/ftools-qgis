@@ -24,6 +24,7 @@ from qgis.core import *
 
 from QConsole import QConsole
 from QScripting import QScripting
+from QFinder import QFinder
 from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
 from RLayerConverter import RVectorLayerConverter
 from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter
@@ -77,8 +78,8 @@ class manageR( QDialog ):
     self.setWindowFlags( Qt.Window )
     self.label = QLabel()
     self.label.setText(" ")
-    self.label.setWordWrap(True)
-
+    self.label.setWordWrap( True )
+    self.finder = QFinder( self )
     self.tabs = QTabWidget( self )
     self.tabs.setTabPosition( QTabWidget.East )
 
@@ -90,8 +91,9 @@ class manageR( QDialog ):
     highlighter_2 = ScriptHighlighter( self.scripttab.scripting, theme )
     self.tabs.addTab( self.scripttab, "Script" )
     gbox = QGridLayout( self )
-    gbox.addWidget( self.tabs )
-    gbox.addWidget( self.label )
+    gbox.addWidget( self.tabs, 0, 0, 1, 2 )
+    gbox.addWidget( self.label, 1, 0, 1, 1 )
+    gbox.addWidget( self.finder, 1, 1, 1, 1 )
     self.resize( 550, 400 )
 
   def timerEvent( self, e ):
@@ -183,12 +185,18 @@ class manageR( QDialog ):
       self.importRObjects( mlayer, True )
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_M:
       self.exportRObjects( False )
-    elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_F:
+    elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_D:
       self.exportRObjects( True )
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_H:
       self.helpDialog()
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_R:
       self.scripttab.parseCommands()
+    elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_F:
+      if not self.finder.isVisible():
+        self.finder.setVisible( True )
+        self.finder.setFocus()
+      else:
+        self.finder.setVisible( False )
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and \
     ( e.key() == Qt.Key_PageUp or e.key() == Qt.Key_PageDown ):
       current = self.tabs.currentIndex()

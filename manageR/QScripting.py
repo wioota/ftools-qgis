@@ -23,11 +23,6 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from qgis.core import *
 
-def whoami():
-    "returns name of calling function"
-    import sys
-    return sys._getframe(1).f_code.co_name
-
 class QScripting( QWidget ):
   '''
   QScripting Class:

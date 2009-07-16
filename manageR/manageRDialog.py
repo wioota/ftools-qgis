@@ -60,9 +60,11 @@ class manageR( QDialog ):
     autocomplete = parser.get('general', 'auto_completion')
     delay = int( parser.get('general', 'delay') )
     if not autocomplete == "None":
-      completer = CommandCompletion( self.console, self.getDefaultCommands(), delay, self.label )
+      completer_console = CommandCompletion( self.console, self.getDefaultCommands(), delay, self.label )
       if QFile( os.path.join( os.path.dirname( __file__ ), autocomplete ) ).exists():
-        completer.loadSuggestions( os.path.join( os.path.dirname( __file__ ), autocomplete ) )
+        completer_console.loadSuggestions( os.path.join( os.path.dirname( __file__ ), autocomplete ) )
+      completer_script = CommandCompletion( self.scripttab.scripting, completer_console.suggestions(), delay, self.label )
+        
     self.console.append( self.welcomeString() )
     self.console.append( "" )
     self.console.displayPrompt()
@@ -94,7 +96,7 @@ class manageR( QDialog ):
     gbox.addWidget( self.tabs, 0, 0, 1, 2 )
     gbox.addWidget( self.label, 1, 0, 1, 1 )
     gbox.addWidget( self.finder, 1, 1, 1, 1 )
-    self.resize( 550, 400 )
+    self.resize( 600, 500 )
 
   def timerEvent( self, e ):
     try:
@@ -119,15 +121,17 @@ class manageR( QDialog ):
     message.append( "<li><tt>Ctrl+R</tt> : Send (selected) commands from script window to R console</li>" )
     message.append( "<li><tt>Ctrl+H</tt> : Display help dialog</li></ul>")
     message.append( "<h4>Details:</h4>" )
-    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the <b>manageR</b> environment. To import only the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting <b>R</b> layers from the <b>manageR</b> environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. Multi-line <b>R</b> commands will automatically be recognised by <b>manageR</b>, however, to manaully enter multi-line commands, use the <tt>Shift</tt> modifier when typing <tt>Return</tt> to signify continuation of command on the following line. <br/><br/>Use <tt>Ctrl+R</tt> to send commands from the script tab to the <b>R</b> console. If the script tab contains selected text, only this text will be sent to the <b>R</b> console, otherwise, all text is sent. The script tab also contains tools for creating, loading, and saving <b>R</b> scripts, as well as basic functionality such as undo, redo, cut, copy, and paste. These tools are also available via the standard keyboard shortcuts (e.g. Ctrl+C to copy text)<br/><br/>Note: To change the dialog colour theme, alter the 'theme' variable in the config.ini file in the manageR directory located here: " )
-    message.append( "<tt>" + here + "</tt>." )
+    message.append( "Use <tt>Ctrl+L</tt> to import the currently selected layer in the QGIS layer list into the <b>manageR</b> environment. To import only the attribute table of the selected layer, use <tt>Ctrl+T</tt>. Exporting <b>R</b> layers from the <b>manageR</b> environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-F</tt>, where M signifies exporting to the map canvas, and F signifies exporting to file. Multi-line <b>R</b> commands will automatically be recognised by <b>manageR</b>, however, to manaully enter multi-line commands, use the <tt>Shift</tt> modifier when typing <tt>Return</tt> to signify continuation of command on the following line. <br/><br/>Use <tt>Ctrl+R</tt> to send commands from the script tab to the <b>R</b> console. If the script tab contains selected text, only this text will be sent to the <b>R</b> console, otherwise, all text is sent. The script tab also contains tools for creating, loading, and saving <b>R</b> scripts, as well as basic functionality such as undo, redo, cut, copy, and paste. These tools are also available via the standard keyboard shortcuts (e.g. Ctrl+C to copy text)<br/><br/>" )
+    message.append( "Notes: <ul><li>The usual <b>R</b> commands to quit will not work in the <b>manageR</b> console, instead please close the <b>manageR</b> dialog manually.</li>" )
+    message.append( "<li>To change the dialog colour theme, alter the 'theme' variable in the config.ini file in the manageR directory located here: " )
+    message.append( "<tt>" + here + "</tt>.</li></ul>" )
     message.append( "<h4>Features:</h4>" )
     message.append( "<ul><li>Perform complex statistical analysis functions on raster, vector and spatial database formats</li>" )
     message.append( "<li>Use the R statistical environment to graph, plot, and map spatial and aspatial data from within QGIS</li>" )
     message.append( "<li>Export R (sp) vector layers directly to QGIS map canvas as QGIS vector layers</li>" )
     message.append( "<li>Read QGIS vector layers directly from map canvas as R (sp) vector layers, allowing analysis to be carried out on any vector format supported by QGIS</li>" )
     message.append( "<li>Perform all available R commands from within QGIS, including multi-line commands</li>" )
-    message.append( "<li>Visualise R commands clearly and cleanly using any one of the four included syntax highlighting themes</li></ul>" )
+    message.append( "<li>Visualise R commands clearly and cleanly using any one of the four included syntax highlighting themes</li>" )
     message.append( "<li>Create, edit, and save R scripts for complex statistical and computational operations</li></ul>" )
     message.append( "<h4>References:</h4>" )
     message.append( "<ul><li><a href='http://www.r-project.org/'>The R Project for Statistical Computing</a></li>" )
@@ -146,7 +150,7 @@ class manageR( QDialog ):
     vbox.addWidget( about )
     dialog.setLayout( vbox )
     dialog.setWindowTitle( 'manageR Help' )
-    dialog.resize( 400,400 )
+    dialog.resize( 600,500 )
     dialog.setWindowModality( Qt.NonModal )
     dialog.setModal( False )
     dialog.show()
@@ -223,13 +227,11 @@ class manageR( QDialog ):
     try:
       if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) \
       and text.count( ")" ) == 1:
-        self.threadError( "System exit not allowed" )    
+        self.threadError( "System exit from manageR not allowed, close dialog manually" )
       else:
         output_text = QString()
         def write( output ):
           if not QString( output ).startsWith( "Error" ):
-#            #self.threadOutput( output )
-#            output_text.append( output )
             output_text.append( unicode(output, 'utf-8') )
           if output_text.length() >= 50000 and output_text[ -1 ] == "\n":
             self.threadOutput( output_text )

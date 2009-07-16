@@ -181,6 +181,11 @@ class CommandCompletion( QObject ):
         if xml.name() == "cmd":
           strRef = QStringRef( xml.attributes().value("name") )
           self.choices.append( strRef.toString() )
+          
+  def suggestions( self ):
+    if self.choices:
+      return self.choices
+    return QStringList()
     
 class TestApp( QMainWindow ):
   def __init__(self):

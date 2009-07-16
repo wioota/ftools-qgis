@@ -44,19 +44,19 @@ class QFinder( QWidget ):
     self.previous = QToolButton( self )
     self.previous.setToolTip( "Find previous" )
     self.previous.setText( "<" )
-    self.close = QPushButton( self )
-    self.close.setText( "X" )
-    self.close.setFlat( True )
-    self.close.setMaximumSize( QSize( 26, 26 ) )
-    self.close.setToolTip( "Close find bar" )
-    self.close.setSizePolicy( QSizePolicy.Fixed, QSizePolicy.Fixed )
-    self.close.setAutoDefault( False )
-    self.close.setDefault( False )
+#    self.close = QPushButton( self )
+#    self.close.setText( "X" )
+#    self.close.setFlat( True )
+#    self.close.setMaximumSize( QSize( 26, 26 ) )
+#    self.close.setToolTip( "Close find bar" )
+#    self.close.setSizePolicy( QSizePolicy.Fixed, QSizePolicy.Fixed )
+#    self.close.setAutoDefault( False )
+#    self.close.setDefault( False )
     horiz = QHBoxLayout( self )
     horiz.addWidget( self.edit )
     horiz.addWidget( self.previous )
     horiz.addWidget( self.next )
-    horiz.addWidget( self.close )
+#    horiz.addWidget( self.close )
     self.setFocusProxy( self.edit )
     self.setVisible( False )
     self.setMaximumSize( QSize( 300, 50 ) )
@@ -64,7 +64,7 @@ class QFinder( QWidget ):
     
     self.connect( self.next, SIGNAL( "clicked()" ), self.findNext )
     self.connect( self.previous, SIGNAL( "clicked()" ), self.findPrevious )
-    self.connect( self.close, SIGNAL( "clicked()" ), self.hide )
+#    self.connect( self.close, SIGNAL( "clicked()" ), self.hide )
     self.connect( self.edit, SIGNAL( "returnPressed()" ), self.findNext )
     
   def find( self, forward ):
@@ -115,3 +115,13 @@ class QFinder( QWidget ):
         
   def hide( self ):
     self.setVisible( False )
+    
+  def show( self ):
+    self.setVisible( True )
+    self.setFocus()
+    
+  def toggle( self ):
+    if not self.isVisible():
+      self.show()
+    else:
+      self.hide()

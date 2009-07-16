@@ -119,30 +119,26 @@ class QScripting( QWidget ):
     self.setCurrentFile( "" )
 
   def newFile( self ):
-    
     if self.maybeSave():
       self.scripting.clear()
       self.setCurrentFile( "" )
       
   def openFile( self ):
-    
     if self.maybeSave():
       fileName = QFileDialog().getOpenFileName( self, \
-      "Open R script", "", "R Script (*.R)" )
+      "Open R script", "", "R scripts (*.R);;All files (*.*)" )
       if fileName.length() != 0:
         self.loadFile( fileName )
 
   def save( self ):
-    
     if self.cur_file.length() == 0:
       return self.saveFileAs()
     else:
       return self.saveFile( self.cur_file )
 
   def saveFileAs( self ):
-    
     fileName = QFileDialog().getSaveFileName( self, \
-    "Save R script", "", "R Script (*.R)" )
+    "Save R script", "", "R script (*.R)" )
     if not fileName.endsWith( ".R" ):
       fileName += ".R"
     if fileName.length() == 0:
@@ -150,17 +146,16 @@ class QScripting( QWidget ):
     return self.saveFile( fileName )
     
   def documentWasModified( self ):
-    
-    if not self.info_label.text().startsWith( "*" ) and self.isVisible():
+    if not self.info_label.text().startsWith( "*" ) and \
+    self.isVisible():
       self.info_label.setText( "*" + self.show_name )
       self.scripting.document().setModified( True )
     
   def maybeSave( self ):
-    
     if self.scripting.document().isModified():
       ret = QMessageBox.warning( self.parent, "manageR", \
       "The R script has been modified.\nSave your changes?", \
-      QMessageBox.Ok | QMessageBox.Discard | QMessageBox.Cancel )
+      QMessageBox.Ok|QMessageBox.Discard|QMessageBox.Cancel )
       if ret == QMessageBox.Ok:
         return self.save()
       elif ret == QMessageBox.Cancel:
@@ -168,10 +163,10 @@ class QScripting( QWidget ):
     return True
     
   def loadFile( self, fileName ):
-    
     qfile = QFile( fileName )
     if not qfile.open( QIODevice.ReadOnly ):
-      QMessageBox.warning( self, "manageR", "Cannot read file " + fileName )
+      QMessageBox.warning( self, "manageR", \
+      "Cannot read file " + fileName )
       return
     in_file = QTextStream( qfile )
     QApplication.setOverrideCursor( QCursor( Qt.WaitCursor ) )
@@ -181,10 +176,10 @@ class QScripting( QWidget ):
     self.parent.label.setText( "File loaded" )
     
   def saveFile( self, fileName ):
-    
     qfile = QFile( fileName )
     if not qfile.open( QIODevice.WriteOnly ):
-      QMessageBox.warning( self, "manageR", "Cannot write file " + fileName )
+      QMessageBox.warning( self, "manageR", \
+      "Cannot write file " + fileName )
       return False
     qfile_info = QFileInfo( qfile )
     qfile.close()
@@ -210,16 +205,16 @@ class QScripting( QWidget ):
     self.scripting.document().setModified( False )
 
   def strippedName( self, fullFileName ):
-    
     return QString( QFileInfo( fullFileName ).fileName() )
     
   def strippedPath( self, fullFileName ):
     return QString( QFileInfo( fullFileName ).absolutePath() )
     
   def qgisThemeIcon( self, icon_name ):
-    
-    myPreferredPath = QgsApplication.activeThemePath() + QDir.separator() + icon_name
-    myDefaultPath = QgsApplication.defaultThemePath() + QDir.separator() + icon_name
+    myPreferredPath = QgsApplication.activeThemePath() + \
+    QDir.separator() + icon_name
+    myDefaultPath = QgsApplication.defaultThemePath() + \
+    QDir.separator() + icon_name
     if QFile( myPreferredPath ).exists():
       return QIcon( myPreferredPath )
     elif QFile( myDefaultPath ).exists():
@@ -228,7 +223,6 @@ class QScripting( QWidget ):
       return QIcon()
 
   def parseCommands( self ):
-    
     cursor = self.scripting.textCursor()
     if cursor.hasSelection():
       commands = cursor.selectedText().replace( u"\u2029", "\n" )
@@ -241,9 +235,9 @@ class QScripting( QWidget ):
       self.parent.runCommand( commands )
       
   def keyPressEvent( self, e ):
-    
     if ( e.modifiers() == ( Qt.ControlModifier|Qt.ShiftModifier ) or \
-    e.modifiers() == ( Qt.MetaModifier|Qt.ShiftModifier) ) and e.key() == Qt.Key_S:
+    e.modifiers() == ( Qt.MetaModifier|Qt.ShiftModifier) ) and \
+    e.key() == Qt.Key_S:
       self.saveFileAs()
     elif ( e.modifiers() == Qt.ControlModifier or \
     e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_S:

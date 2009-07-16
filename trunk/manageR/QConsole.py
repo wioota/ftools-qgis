@@ -138,120 +138,117 @@ class QConsole( QTextEdit ):
     Movement should be limited to the edition zone
     '''
     self.cursor = self.textCursor()
-    # if the cursor isn't in the edition zone, don't do anything
+    # if the cursor isn't in the edition zone, don't do anything except Ctrl+C
     if not self.isCursorInEditionZone():
-      if e.key() == Qt.Key_C and ( e.modifiers() == Qt.ControlModifier or \
-         e.modifiers() == Qt.MetaModifier ):
-        QTextEdit.keyPressEvent( self, e )
-      if self.cursor.blockNumber() == self.document().blockCount()-1 and \
-         self.cursor.columnNumber() < self.currentPromptLength:
-        self.cursor.select( QTextCursor.LineUnderCursor )
-        self.cursor.removeSelectedText()
-        self.cursor.insertText( self.currentPrompt )
+      if e.modifiers() == Qt.ControlModifier or \
+         e.modifiers() == Qt.MetaModifier:
+        if e.key() == Qt.Key_C:
+          QTextEdit.keyPressEvent( self, e )
+      else:
+        # all other keystrokes get sent to the input line
+        self.cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
     else:
-      if self.cursor.columnNumber() >= self.currentPromptLength and self.cursor.anchor:
-        # if Ctrl + C is pressed, then undo the current command
-        if e.key() == Qt.Key_C and ( e.modifiers() == Qt.ControlModifier or \
-           e.modifiers() == Qt.MetaModifier ) and not self.cursor.hasSelection():
+      # if Ctrl + C is pressed, then undo the current command
+      if e.key() == Qt.Key_C and ( e.modifiers() == Qt.ControlModifier or \
+          e.modifiers() == Qt.MetaModifier ) and not self.cursor.hasSelection():
+        self.runningCommand.clear()
+        self.switchPrompt( True )
+        self.displayPrompt()
+        self.parent.label.setText( " " ) # this is not very generic, better way to do this?
+      # if Return is pressed, then perform the commands
+      elif e.key() == Qt.Key_Return:
+        command = self.currentCommand()
+        check = self.runningCommand.split("\n").last()
+        if not self.runningCommand.isEmpty():
+          if not command == check:
+            self.runningCommand.append( command )
+            self.updateHistory( command )
+        else:
+          if not command.isEmpty():
+            self.runningCommand = command
+            self.updateHistory( command )
+          else:
+            self.switchPrompt( True )
+            self.displayPrompt()
+        if e.modifiers() == Qt.ShiftModifier or \
+          not self.checkBrackets( self.runningCommand ):
+          self.switchPrompt( False )
+          self.cursor.insertText( "\n" + self.currentPrompt )
+          self.runningCommand.append( "\n" )
+        else:
+          if not self.runningCommand.isEmpty():
+            command = self.runningCommand
+          self.executeCommand( command, False )
           self.runningCommand.clear()
           self.switchPrompt( True )
-          self.displayPrompt()
-          self.parent.label.setText( " " ) # this is not very generic, better way to do this?
-        # if Return is pressed, then perform the commands
-        elif e.key() == Qt.Key_Return:
-          command = self.currentCommand()
-          check = self.runningCommand.split("\n").last()
-          if not self.runningCommand.isEmpty():
-            if not command == check:
-              self.runningCommand.append( command )
-              self.updateHistory( command )
-          else:
-            if not command.isEmpty():
-              self.runningCommand = command
-              self.updateHistory( command )
-            else:
-              self.switchPrompt( True )
-              self.displayPrompt()
-          if e.modifiers() == Qt.ShiftModifier or \
-            not self.checkBrackets( self.runningCommand ):
-            self.switchPrompt( False )
-            self.cursor.insertText( "\n" + self.currentPrompt )
-            self.runningCommand.append( "\n" )
-          else:
-            if not self.runningCommand.isEmpty():
-              command = self.runningCommand
-            self.executeCommand( command, False )
-            self.runningCommand.clear()
-            self.switchPrompt( True )
-            #self.displayPrompt()
-          self.cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
-          self.moveToEnd()
-        # if Up or Down is pressed
-        elif ( e.key() == Qt.Key_Down or e.key() == Qt.Key_Up ) and not self.history.isEmpty():
-          # remove the current command
-          self.cursor.movePosition( QTextCursor.EndOfBlock, QTextCursor.MoveAnchor )
-          self.cursor.movePosition( QTextCursor.StartOfBlock, QTextCursor.KeepAnchor )
-          self.cursor.removeSelectedText()
-          self.cursor.insertText( self.currentPrompt )
-          # update the historyIndex (up or down)
-          if e.key() == Qt.Key_Down and self.historyIndex < len( self.history ):
-            self.historyIndex += 1
-          elif e.key() == Qt.Key_Up and self.historyIndex > 0:
-            self.historyIndex -= 1
-          # replace current command with one from the history
-          if self.historyIndex == len( self.history ):
-            self.insertPlainText( "" )
-          else:
-            self.insertPlainText( self.history[ self.historyIndex ] )
-        # if backspace is pressed, delete until we get to the prompt
-        elif e.key() == Qt.Key_Backspace:
-          if not self.cursor.hasSelection() and \
-             self.cursor.columnNumber() == self.currentPromptLength:
-            return
-          QTextEdit.keyPressEvent( self, e )
-        # if the left key is pressed, move left until we get to the prompt
-        elif e.key() == Qt.Key_Left and self.cursor.columnNumber() > self.currentPromptLength:
-          if e.modifiers() == Qt.ShiftModifier:
-            anchor = QTextCursor.KeepAnchor
-          else:
-            anchor = QTextCursor.MoveAnchor
-          if ( e.modifiers() == Qt.ControlModifier or \
-          e.modifiers() == Qt.MetaModifier ):
-            self.cursor.movePosition( QTextCursor.WordLeft, anchor )
-          else:
-            self.cursor.movePosition( QTextCursor.Left, anchor )
-        # use normal operation for right key
-        elif e.key() == Qt.Key_Right:
-          if e.modifiers() == Qt.ShiftModifier:
-            anchor = QTextCursor.KeepAnchor
-          else:
-            anchor = QTextCursor.MoveAnchor
-          if ( e.modifiers() == Qt.ControlModifier or \
-          e.modifiers() == Qt.MetaModifier ):
-            self.cursor.movePosition( QTextCursor.WordRight, anchor )
-          else:
-            self.cursor.movePosition( QTextCursor.Right, anchor )
-        # if home is pressed, move cursor to right of prompt
-        elif e.key() == Qt.Key_Home:
-          if e.modifiers() == Qt.ShiftModifier:
-            anchor = QTextCursor.KeepAnchor
-          else:
-            anchor = QTextCursor.MoveAnchor
-          self.cursor.movePosition( QTextCursor.StartOfBlock, anchor, 1 )
-          self.cursor.movePosition( QTextCursor.Right, anchor, self.currentPromptLength )
-        # use normal operation for end key
-        elif e.key() == Qt.Key_End:
-          if e.modifiers() == Qt.ShiftModifier:
-            anchor = QTextCursor.KeepAnchor
-          else:
-            anchor = QTextCursor.MoveAnchor
-          self.cursor.movePosition( QTextCursor.EndOfBlock, anchor, 1 )
-        # use normal operation for all remaining keys
+          #self.displayPrompt()
+        self.cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
+        self.moveToEnd()
+      # if Up or Down is pressed
+      elif ( e.key() == Qt.Key_Down or e.key() == Qt.Key_Up ) and not self.history.isEmpty():
+        # remove the current command
+        self.cursor.movePosition( QTextCursor.EndOfBlock, QTextCursor.MoveAnchor )
+        self.cursor.movePosition( QTextCursor.StartOfBlock, QTextCursor.KeepAnchor )
+        self.cursor.removeSelectedText()
+        self.cursor.insertText( self.currentPrompt )
+        # update the historyIndex (up or down)
+        if e.key() == Qt.Key_Down and self.historyIndex < len( self.history ):
+          self.historyIndex += 1
+        elif e.key() == Qt.Key_Up and self.historyIndex > 0:
+          self.historyIndex -= 1
+        # replace current command with one from the history
+        if self.historyIndex == len( self.history ):
+          self.insertPlainText( "" )
         else:
-          QTextEdit.keyPressEvent( self, e )
-      # if the cursor is behind the prompt, don't do anything
+          self.insertPlainText( self.history[ self.historyIndex ] )
+      # if backspace is pressed, delete until we get to the prompt
+      elif e.key() == Qt.Key_Backspace:
+        if not self.cursor.hasSelection() and \
+            self.cursor.columnNumber() == self.currentPromptLength:
+          return
+        QTextEdit.keyPressEvent( self, e )
+      # if the left key is pressed, move left until we get to the prompt
+      elif e.key() == Qt.Key_Left and \
+        self.cursor.position() > self.document().lastBlock().position() + \
+        self.currentPromptLength:
+        if e.modifiers() == Qt.ShiftModifier:
+          anchor = QTextCursor.KeepAnchor
+        else:
+          anchor = QTextCursor.MoveAnchor
+        if ( e.modifiers() == Qt.ControlModifier or \
+        e.modifiers() == Qt.MetaModifier ):
+          self.cursor.movePosition( QTextCursor.WordLeft, anchor )
+        else:
+          self.cursor.movePosition( QTextCursor.Left, anchor )
+      # use normal operation for right key
+      elif e.key() == Qt.Key_Right:
+        if e.modifiers() == Qt.ShiftModifier:
+          anchor = QTextCursor.KeepAnchor
+        else:
+          anchor = QTextCursor.MoveAnchor
+        if ( e.modifiers() == Qt.ControlModifier or \
+        e.modifiers() == Qt.MetaModifier ):
+          self.cursor.movePosition( QTextCursor.WordRight, anchor )
+        else:
+          self.cursor.movePosition( QTextCursor.Right, anchor )
+      # if home is pressed, move cursor to right of prompt
+      elif e.key() == Qt.Key_Home:
+        if e.modifiers() == Qt.ShiftModifier:
+          anchor = QTextCursor.KeepAnchor
+        else:
+          anchor = QTextCursor.MoveAnchor
+        self.cursor.movePosition( QTextCursor.StartOfBlock, anchor, 1 )
+        self.cursor.movePosition( QTextCursor.Right, anchor, self.currentPromptLength )
+      # use normal operation for end key
+      elif e.key() == Qt.Key_End:
+        if e.modifiers() == Qt.ShiftModifier:
+          anchor = QTextCursor.KeepAnchor
+        else:
+          anchor = QTextCursor.MoveAnchor
+        self.cursor.movePosition( QTextCursor.EndOfBlock, anchor, 1 )
+      # use normal operation for all remaining keys
       else:
-        return
+        QTextEdit.keyPressEvent( self, e )
     self.setTextCursor( self.cursor )
     self.ensureCursorVisible()
     

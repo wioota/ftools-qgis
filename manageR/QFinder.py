@@ -69,10 +69,8 @@ class QFinder( QWidget ):
     
   def find( self, forward ):
     text = self.edit.text()
-    if self.parent.tabs.tabText( self.parent.tabs.currentIndex() ) == "Console":
-      document = self.parent.console
-    elif self.parent.tabs.tabText( self.parent.tabs.currentIndex() ) == "Script":
-      document = self.parent.scripttab.scripting
+    if self.parent:
+      document = self.parent
     found = False
     if text == "":
       return False
@@ -115,13 +113,18 @@ class QFinder( QWidget ):
         
   def hide( self ):
     self.setVisible( False )
+    return True
     
   def show( self ):
     self.setVisible( True )
     self.setFocus()
+    return True
     
-  def toggle( self ):
-    if not self.isVisible():
-      self.show()
-    else:
-      self.hide()
+  def toggle( self, editor ):
+    if not editor is None:
+      self.parent = editor
+      if not self.isVisible():
+        return self.show()
+      else:
+        return self.hide()
+    return False

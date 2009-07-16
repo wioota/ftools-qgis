@@ -64,7 +64,11 @@ class manageR( QDialog ):
       if QFile( os.path.join( os.path.dirname( __file__ ), autocomplete ) ).exists():
         completer_console.loadSuggestions( os.path.join( os.path.dirname( __file__ ), autocomplete ) )
       completer_script = CommandCompletion( self.scripttab.scripting, completer_console.suggestions(), delay, self.label )
-        
+    history = QFileInfo()
+    history.setFile( QDir( robjects.r( 'getwd()' )[ 0 ] ), ".Rhistory" )
+    if history.exists():
+      if not self.loadRHistory( history ):
+        self.threadError( "Unable to load .Rhistory, try loading manually" )
     self.console.append( self.welcomeString() )
     self.console.append( "" )
     self.console.displayPrompt()
@@ -198,7 +202,12 @@ class manageR( QDialog ):
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_R:
       self.scripttab.parseCommands()
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_F:
-      self.finder.toggle()
+      current = self.tabs.tabText( self.tabs.currentIndex() )
+      if current == "Script":
+        editor = self.scripttab.scripting
+      elif current == "Console":
+        editor = self.console
+      self.finder.toggle( editor )
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and \
     ( e.key() == Qt.Key_PageUp or e.key() == Qt.Key_PageDown ):
       current = self.tabs.currentIndex()
@@ -263,7 +272,6 @@ class manageR( QDialog ):
               else:
                 robjects.r['print'](result.r["value"][0])
         except robjects.rinterface.RRuntimeError, rre:
-          print "error happened"
           # this fixes error output to look more like R's output
           self.threadError( "Error: " + str(rre).split(":")[1].strip() )
         if not output_text.isEmpty():
@@ -276,7 +284,6 @@ class manageR( QDialog ):
  
   def helpTopic( self, topic, search ):
     if search == "hsearch":
-      print "made it here"
       dialog = searchDialog( self, topic )
     else:
       dialog = helpDialog( self, topic )
@@ -312,6 +319,7 @@ class manageR( QDialog ):
       e.ignore()
     elif ask_save == QMessageBox.Yes:
       robjects.r( 'save.image(file=".Rdata")' )
+      robjects.r( 'savehistory(file = ".Rhistory"' )
       robjects.r( 'rm(list=ls(all=T))' )
       robjects.r( 'gc()' )
       try:
@@ -564,7 +572,16 @@ class manageR( QDialog ):
         store.append( item )
     return store
     
-    
+  def loadRHistory( self, file_info ):
+    history = QFile( file_info )
+    if not history.open( QIODevice.ReadOnly | QIODevice.Text ) )
+        return False
+    in = QTextStream( history )
+    while not in.atEnd():
+      line = QString( in.readLine() )
+      self.console.updateHistory( line )
+    return True
+        
 class helpDialog( QDialog ):
 
   def __init__( self, parent, help_topic ):
@@ -582,6 +599,7 @@ class helpDialog( QDialog ):
     grid.addWidget( display )
     self.setWindowTitle( "manageR Help" )
     help_file = QFile( unicode( help_topic[ 0 ] ) )
+    print help_topic
     help_file.open( QFile.ReadOnly )
     stream = QTextStream( help_file )
     help_string = QString( stream.readAll() )
@@ -611,6 +629,7 @@ class searchDialog( QDialog ):
     #note: help_topic should only contain the specific
     #      help topic (i.e. no brackets etc.)
     matches = help_topic.subset("matches")[0]
+    print [matches]
     fields = help_topic.subset("fields")[0]
     pattern = help_topic.subset("pattern")[0]
     fields_string = QString()
@@ -651,13 +670,11 @@ class commandThread( QThread ):
     self.running = False
 
   def run( self ):
-    print "***" + self.words + "***"
     try:
       self.running = True
       if ( self.words.startsWith( 'quit(' ) or self.words.startsWith( 'q(' ) ) and self.words.count( ")" ) == 1:
         self.emit( SIGNAL( "threadError( PyQt_PyObject )" ), "System exit not allowed" )
       def f( x ):
-        print x
         if x.contains("<Return>"):
           self.emit( SIGNAL( "threadComplete()" ) )
         self.emit( SIGNAL( "threadOutput( PyQt_PyObject )" ), x )

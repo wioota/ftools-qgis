@@ -106,7 +106,7 @@ class manageR( QDialog ):
 
   def helpDialog( self ):
     message = QString( "<center><h2>manageR " + self.version + "</h2>" )
-    message.append( "<h3>Interface to the R statistical analysis program</h3>" )
+    message.append( "<h3>Interface to the R statistical programming environment</h3>" )
     message.append( "<h4>Copyright (C) 2009 Carson J.Q. Farmer" )
     message.append( "<br/>carson.farmer@gmail.com" )
     message.append( "<br/><a href='http://www.ftools.ca/manageR.html'>www.ftools.ca/manageR.html</a>" )

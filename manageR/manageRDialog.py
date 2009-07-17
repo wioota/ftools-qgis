@@ -262,14 +262,16 @@ class manageR( QDialog ):
             ei = exprs[i-1]
             try:
               result =  try_( withVisible_( ei ), silent=True )
+              QMessageBox.information(self, "","")
             except robjects.rinterface.RRuntimeError, rre:
               self.threadError( str( rre ) )
+            QMessageBox.information(self, "","")
             visible = result.r["visible"][0][0]
             if visible:
               if class_( result.r["value"][0] )[0] == "help_files_with_topic" or \
                 class_( result.r["value"][0] )[0] == "hsearch":
                 self.helpTopic( result.r["value"][0], class_( result.r["value"][0] )[0] )
-              else:
+              elif not str(result.r["value"][0]) == "NULL":
                 robjects.r['print'](result.r["value"][0])
         except robjects.rinterface.RRuntimeError, rre:
           # this fixes error output to look more like R's output
@@ -319,7 +321,10 @@ class manageR( QDialog ):
       e.ignore()
     elif ask_save == QMessageBox.Yes:
       robjects.r( 'save.image(file=".Rdata")' )
-      robjects.r( 'savehistory(file = ".Rhistory"' )
+      history = QFileInfo()
+      history.setFile( QDir( robjects.r( 'getwd()' )[ 0 ] ), ".Rhistory" )
+      history = history.absoluteFilePath()
+      self.saveHistory( history )
       robjects.r( 'rm(list=ls(all=T))' )
       robjects.r( 'gc()' )
       try:
@@ -573,13 +578,29 @@ class manageR( QDialog ):
     return store
     
   def loadRHistory( self, file_info ):
-    history = QFile( file_info )
-    if not history.open( QIODevice.ReadOnly | QIODevice.Text ) )
-        return False
-    in = QTextStream( history )
-    while not in.atEnd():
-      line = QString( in.readLine() )
+    history = QFile( file_info.absoluteFilePath() )
+    if not history.open( QIODevice.ReadOnly ):
+      return False
+    infile = QTextStream( history )
+    while not infile.atEnd():
+      line = QString( infile.readLine() )
       self.console.updateHistory( line )
+    return True
+    
+  def saveHistory( self, fileName ):
+    qfile = QFile( fileName )
+    if not qfile.open( QIODevice.WriteOnly ):
+      QMessageBox.warning( self, "manageR", \
+      "Cannot write file " + fileName )
+      return False
+    qfile_info = QFileInfo( qfile )
+    qfile.close()
+    QApplication.setOverrideCursor( QCursor( Qt.WaitCursor ) )
+    out_file = open( qfile_info.filePath(), "w" )
+    for line in self.console.history:
+      out_file.write( line + "\n" )
+    out_file.flush()
+    QApplication.restoreOverrideCursor()
     return True
         
 class helpDialog( QDialog ):
@@ -599,7 +620,7 @@ class helpDialog( QDialog ):
     grid.addWidget( display )
     self.setWindowTitle( "manageR Help" )
     help_file = QFile( unicode( help_topic[ 0 ] ) )
-    print help_topic
+    #print help_topic
     help_file.open( QFile.ReadOnly )
     stream = QTextStream( help_file )
     help_string = QString( stream.readAll() )
@@ -629,7 +650,7 @@ class searchDialog( QDialog ):
     #note: help_topic should only contain the specific
     #      help topic (i.e. no brackets etc.)
     matches = help_topic.subset("matches")[0]
-    print [matches]
+    #print [matches]
     fields = help_topic.subset("fields")[0]
     pattern = help_topic.subset("pattern")[0]
     fields_string = QString()

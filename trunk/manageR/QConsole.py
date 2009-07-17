@@ -142,7 +142,7 @@ class QConsole( QTextEdit ):
     if not self.isCursorInEditionZone():
       if e.modifiers() == Qt.ControlModifier or \
          e.modifiers() == Qt.MetaModifier:
-        if e.key() == Qt.Key_C:
+        if e.key() == Qt.Key_C or e.key() == Qt.Key_A:
           QTextEdit.keyPressEvent( self, e )
       else:
         # all other keystrokes get sent to the input line

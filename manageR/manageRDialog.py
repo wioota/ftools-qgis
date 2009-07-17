@@ -262,10 +262,10 @@ class manageR( QDialog ):
             ei = exprs[i-1]
             try:
               result =  try_( withVisible_( ei ), silent=True )
-              QMessageBox.information(self, "","")
             except robjects.rinterface.RRuntimeError, rre:
-              self.threadError( str( rre ) )
-            QMessageBox.information(self, "","")
+              self.threadError( str( rre )
+              self.threadComplete()
+              return
             visible = result.r["visible"][0][0]
             if visible:
               if class_( result.r["value"][0] )[0] == "help_files_with_topic" or \
@@ -276,10 +276,14 @@ class manageR( QDialog ):
         except robjects.rinterface.RRuntimeError, rre:
           # this fixes error output to look more like R's output
           self.threadError( "Error: " + str(rre).split(":")[1].strip() )
+          self.threadComplete()
+          return
         if not output_text.isEmpty():
           self.threadOutput( output_text )
     except Exception, err:
       self.threadError( str( err ) )
+      self.threadComplete()
+      return
     self.label.setText("Complete!")
     self.console.enableHighlighting( True )
     self.threadComplete()

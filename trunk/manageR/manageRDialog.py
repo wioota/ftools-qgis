@@ -25,6 +25,7 @@ from qgis.core import *
 from QConsole import QConsole
 from QScripting import QScripting
 from QFinder import QFinder
+from QWorkspace import QWorkingDir, QVariableTable
 from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
 from RLayerConverter import RVectorLayerConverter
 from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter
@@ -45,8 +46,11 @@ here = os.path.join( os.path.dirname( __file__ ),"config.ini" )
 parser.read( here )
 
 class manageR( QDialog ):
-  VECTOR = 0
-  RASTER = 1
+  VECTORTYPES = [ "SpatialPointsDataFrame",
+    "SpatialPolygonsDataFrame",
+    "SpatialLinesDataFrame" ]
+  RASTERTYPES = [ "SpatialGridDataFrame",
+    "SpatialPixelsDataFrame" ]
   
   def __init__( self, iface, version ):
     QDialog.__init__ ( self )
@@ -55,6 +59,14 @@ class manageR( QDialog ):
     self.mapCanvas = self.iface.mapCanvas()
     self.version = version
     # adjust user interface
+    workspace = QFileInfo()
+    workspace.setFile( QDir( robjects.r( 'getwd()' )[ 0 ] ), ".RData" )
+    if workspace.exists():
+      if self.loadRWorkspace( workspace ):
+        extraMessage = "[Previously saved workspace restored]\n\n"
+      else:
+        extraMessage =  "Error: Unable to load previously saved workspace:"\
+        + "\nCreating new workspace...\n\n"
     theme = parser.get('general','theme')
     self.setupUserInterface( theme )
     autocomplete = parser.get('general', 'auto_completion')
@@ -68,13 +80,16 @@ class manageR( QDialog ):
     history.setFile( QDir( robjects.r( 'getwd()' )[ 0 ] ), ".Rhistory" )
     if history.exists():
       if not self.loadRHistory( history ):
-        self.threadError( "Unable to load .Rhistory, try loading manually" )
+        self.threadError( "Unable to load .Rhistory, try loading manually" )      
     self.console.append( self.welcomeString() )
-    self.console.append( "" )
+    self.console.append( extraMessage )
     self.console.displayPrompt()
     self.console.setFocus( Qt.ActiveWindowFocusReason )
     self.connect( self.console, \
     SIGNAL( "executeCommand(PyQt_PyObject)" ), self.runCommand )
+    self.connect( self, SIGNAL( "newObjectCreated(PyQt_PyObject)" ), \
+    self.variablelist.updateVariables )
+    self.emit( SIGNAL( "newObjectCreated( PyQt_PyObject )" ), self.updateRObjects() )
     self.startTimer( 50 )
 
   def setupUserInterface( self, theme ):
@@ -96,6 +111,16 @@ class manageR( QDialog ):
     self.scripttab = QScripting( self )
     highlighter_2 = ScriptHighlighter( self.scripttab.scripting, theme )
     self.tabs.addTab( self.scripttab, "Script" )
+    
+    self.workingdir = QWorkingDir( self, QString( robjects.r( 'getwd()' )[ 0 ] ) )
+    self.variablelist = QVariableTable( self )
+    tab = QWidget()
+    tab_grid = QGridLayout( tab )
+    tab_grid.addWidget( self.workingdir )
+    tab_grid.addWidget( self.variablelist )
+    #self.tabs.addTab( self.workspace, "Workspace" )
+    self.tabs.addTab( tab, "Workspace" )
+    
     gbox = QGridLayout( self )
     gbox.addWidget( self.tabs, 0, 0, 1, 2 )
     gbox.addWidget( self.label, 1, 0, 1, 1 )
@@ -263,7 +288,7 @@ class manageR( QDialog ):
             try:
               result =  try_( withVisible_( ei ), silent=True )
             except robjects.rinterface.RRuntimeError, rre:
-              self.threadError( str( rre )
+              self.threadError( str( rre ) )
               self.threadComplete()
               return
             visible = result.r["visible"][0][0]
@@ -273,6 +298,8 @@ class manageR( QDialog ):
                 self.helpTopic( result.r["value"][0], class_( result.r["value"][0] )[0] )
               elif not str(result.r["value"][0]) == "NULL":
                 robjects.r['print'](result.r["value"][0])
+            else:
+              self.emit( SIGNAL( "newObjectCreated( PyQt_PyObject )" ), self.updateRObjects() )
         except robjects.rinterface.RRuntimeError, rre:
           # this fixes error output to look more like R's output
           self.threadError( "Error: " + str(rre).split(":")[1].strip() )
@@ -324,7 +351,7 @@ class manageR( QDialog ):
     if ask_save == QMessageBox.Cancel:
       e.ignore()
     elif ask_save == QMessageBox.Yes:
-      robjects.r( 'save.image(file=".Rdata")' )
+      robjects.r( 'save.image()' )
       history = QFileInfo()
       history.setFile( QDir( robjects.r( 'getwd()' )[ 0 ] ), ".Rhistory" )
       history = history.absoluteFilePath()
@@ -358,10 +385,7 @@ class manageR( QDialog ):
     layers = {}
     for item in ls_():
       check = class_( robjects.r[ item ] )[ 0 ]
-      if check == "SpatialPointsDataFrame" or check == "SpatialPolygonsDataFrame" or check == "SpatialLinesDataFrame":
-        layers[ unicode( item ) ] = manageR.VECTOR
-      elif check == "SpatialGridDataFrame" or check == "SpatialPixelsDataFrame":
-        layers[ unicode( item ) ] = manageR.RASTER
+      layers[ unicode( item ) ] = check
     return layers
 
   def isPackageLoaded( self, package="sp" ):
@@ -425,7 +449,8 @@ class manageR( QDialog ):
     self._showImport )
     self.r_layer_creator.start()
 
-  def exportRObjects( self, to_file ):
+  def exportRObjects( self, to_file, export_layer = None, 
+  export_type = None, ask=True ):
     '''
     Export R sp objects to file or mapcanvas
     Vector layers can be saved to file or mapcanvas, raster 
@@ -444,7 +469,10 @@ class manageR( QDialog ):
     self.console.cursor.insertText( self.console.defaultPrompt + "Exporting layer " + put_text )
     self.repaint()
     QApplication.processEvents()
-    result = self.exportRObjectsDialog( to_file )
+    if ask:
+      result, export_layer, export_type = self.exportRObjectsDialog( to_file )
+    else:
+      result = True
     # If there is no input layer, don't do anything
     if result is None: # this needs to be updated to reflect where we  get the R objects from...
       self.console.appendText( "No R spatial objects available", QConsole.ERR_TYPE )
@@ -464,19 +492,19 @@ class manageR( QDialog ):
       + "install.packages().", QConsole.ERR_TYPE )
       self.console.displayPrompt()
       return
-    if not self.export_type == manageR.VECTOR and not self.export_type == manageR.RASTER:
+    if not export_type in manageR.VECTORTYPES or export_type in manageR.RASTERTYPES:
       self.console.appendText( "Unrecognised sp object, unable to save to file.", QConsole.ERR_TYPE )
       self.console.displayPrompt()
       return
-    if not to_file and self.export_type == manageR.RASTER:
+    if not to_file and export_type in manageR.RASTERTYPES:
       self.console.appendText( "Unable to export raster layers to map canvas at this time.", QConsole.ERR_TYPE )
       self.console.displayPrompt()
       return
     if not to_file:
-      if self.export_type == manageR.VECTOR:
-        self.q_layer_creator = RVectorLayerConverter( robjects.r[ str( self.export_layer ) ], self.export_layer )
+      if export_type in manageR.VECTORTYPES:
+        self.q_layer_creator = RVectorLayerConverter( robjects.r[ unicode( export_layer ) ], export_layer )
     else:
-      if self.export_type == manageR.VECTOR:
+      if export_type in manageR.VECTORTYPES:
          drivers = "ESRI Shapefile (*.shp);;MapInfo File (*.mif);;GML (*.gml);;KML (*.kml)"
       else:
         drivers = "GeoTIFF (*.tif);;Erdas Imagine Images (*.img);;Arc/Info ASCII Grid " \
@@ -493,10 +521,10 @@ class manageR( QDialog ):
               self.console.appendText( "Unable to overwrite existing file", QConsole.ERR_TYPE )
               self.console.displayPrompt()
               return
-      if self.export_type == manageR.VECTOR:
-        self.q_layer_creator = RVectorLayerWriter( str( self.export_layer ), layer_name, driver )
+      if export_type in manageR.VECTORTYPES:
+        self.q_layer_creator = RVectorLayerWriter( unicode( export_layer ), layer_name, driver )
       else:
-        self.q_layer_creator = RRasterLayerWriter( str( self.export_layer ), layer_name, driver )
+        self.q_layer_creator = RRasterLayerWriter( unicode( export_layer ), layer_name, driver )
     QObject.connect( self.q_layer_creator, SIGNAL( "threadError( PyQt_PyObject )" ),
     self._showErrors )
     QObject.connect( self.q_layer_creator, SIGNAL( "threadSuccess( PyQt_PyObject, PyQt_PyObject )" ),
@@ -523,7 +551,8 @@ class manageR( QDialog ):
     self.r_layer_creator.stop()
     del self.r_layer_creator
     robjects.globalEnv[ str( layer_name ) ] = rlayer
-    self.updateRObjects()
+    self.emit( SIGNAL( "newObjectCreated( PyQt_PyObject )" ), self.updateRObjects() )
+#    self.updateRObjects()
     self.console.appendText( message, QConsole.OUT_TYPE )
     self.console.enableHighlighting( True )
     self.label.setText(" ")
@@ -545,8 +574,8 @@ class manageR( QDialog ):
     self.label.setText(" ")
     
   def exportRObjectsDialog( self, to_file ):
-    self.export_layer = None
-    self.export_type = None
+    export_layer = None
+    export_type = None
     dialog = QDialog( self )
     layers = QComboBox( dialog )
     buttons = QDialogButtonBox( QDialogButtonBox.Ok|QDialogButtonBox.Cancel, 
@@ -557,7 +586,7 @@ class manageR( QDialog ):
     if not len( r_layers ) > 0:
       return None
     for layer in r_layers.keys():
-      if r_layers[ layer ] == manageR.VECTOR or r_layers[ layer ] == manageR.RASTER:
+      if r_layers[ layer ] in manageR.VECTORTYPES or r_layers[ layer ] in manageR.RASTERTYPES:
         layers.addItem( unicode( layer ) )
     vbox = QVBoxLayout()
     vbox.addWidget( layers )
@@ -566,9 +595,9 @@ class manageR( QDialog ):
     dialog.setWindowTitle( 'Export R Layer' )
     if not dialog.exec_() == QDialog.Accepted:
       return False
-    self.export_layer = layers.currentText()
-    self.export_type = r_layers[ unicode( self.export_layer ) ]
-    return True
+    export_layer = layers.currentText()
+    export_type = r_layers[ unicode( export_layer ) ]
+    return True, export_layer, export_type
     
   def getDefaultCommands( self ):
     packages = ["base"]#robjects.r('.packages()') #changed temp
@@ -580,7 +609,15 @@ class manageR( QDialog ):
       for item in items:
         store.append( item )
     return store
-    
+
+  def loadRWorkspace( self, file_info ):
+    try:
+      workspace = file_info.absoluteFilePath()
+      robjects.r[ 'load' ]( unicode( workspace ) )
+    except Exception, e: 
+      return False
+    return True
+
   def loadRHistory( self, file_info ):
     history = QFile( file_info.absoluteFilePath() )
     if not history.open( QIODevice.ReadOnly ):

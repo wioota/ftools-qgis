@@ -1,5 +1,14 @@
 <RCC>
     <qresource>
         <file>manager.png</file>
+        <file>mActionFolderNew.png</file>
+        <file>mActionFolderUp.png</file>
+        <file>mActionFolderSet.png</file>
+        <file>mActionConsole.png</file>
+        <file>mActionVariableRemove.png</file>
+        <file>mActionVariableExport.png</file>
+        <file>mActionVariableSave.png</file>
+        <file>mActionVariableCanvas.png</file>
+        <file>mActionVariableLoad.png</file>
     </qresource>
 </RCC>

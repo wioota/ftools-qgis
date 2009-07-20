@@ -210,7 +210,7 @@ class QVariableTable( QWidget ):
   def updateVariables( self, variables ):
     self.variables = {}
     self.variableTable.clearContents()
-    for row in range(0,self.variableTable.rowCount()-1):
+    for row in range(0,self.variableTable.rowCount()):
       self.variableTable.removeRow( row )
     #fix this to ensure that variables are also removed from the list...
     for variable in variables.items():
@@ -231,7 +231,8 @@ class QVariableTable( QWidget ):
     
   def selectionChanged( self ):
     row = self.variableTable.currentRow()
-    if row < 0:
+    if row < 0 or row >= self.variableTable.rowCount() or \
+    self.variableTable.rowCount() < 1:
       self.save.setEnabled( False )
       self.rm.setEnabled( False )
       self.canvas.setEnabled( False )
@@ -248,33 +249,38 @@ class QVariableTable( QWidget ):
 
   def removeVariable( self ):
     row = self.variableTable.currentRow()
+    if row < 0:
+      return False
     itemName, itemType = self.getVariableInfo( row )
     self.sendCommands( QString( 'rm(' + itemName + ')' ) )
       
   def exportVariable( self ):
     row = self.variableTable.currentRow()
+    if row < 0:
+      return False
     itemName, itemType = self.getVariableInfo( row )
     if itemType in QVariableTable.VECTORTYPES or \
     itemType in QVariableTable.RASTERTYPES:
       self.parent.exportRObjects( True, itemName, itemType, False )
     else:
-      selectedFilter = QString()
-      selectedFile = QFileDialog().getSaveFileName( self, \
-      "Save data to file", "", \
-      "Comma separated (*.csv);;Text file (*.txt);;All files (*.*)", \
-      selectedFilter )
-      print selectedFile, selectedFilter
+      dialog = QFileDialog( self, "Save data to file", ". ", \
+      "Comma separated (*.csv);;Text file (*.txt);;All files (*.*)" )
+      dialog.setAcceptMode( QFileDialog.AcceptSave )
+      dialog.exec_()
+      selectedFilter = dialog.selectedFilter()
+      selectedFile = QString( dialog.selectedFiles().first() )
       if selectedFile.length() == 0:
         return False
-      command = 'write.table( ' + itemName + ', file = "' + selectedFile 
-      + '", append = FALSE, quote = TRUE, sep = ",", eol = "\\n", na = "NA"'
-      + ', dec = ".", row.names = FALSE, col.names = TRUE, qmethod = "escape" )' #need to fix this so that python likes it...
+      suffix = selectedFilter.lastIndexOf( "(" ) # finish this later...
+      command = QString( 'write.table( ' + itemName + ', file = "' + selectedFile )
+      command.append( QString( '", append = FALSE, quote = TRUE, sep = ",", eol = "\\n", na = "NA"' ) )
+      command.append( QString( ', dec = ".", row.names = FALSE, col.names = TRUE, qmethod = "escape" )' ) )
       self.sendCommands( command )
     self.parent.label.setText( "Data saved" )
     
   def saveVariable( self ):
     row = self.variableTable.currentRow()
-    if row < 0 or row >= self.variableTable.rowCount():
+    if row < 0:
       return False
     itemName, itemType = self.getVariableInfo( row )
     fileName = QFileDialog().getSaveFileName( self, \

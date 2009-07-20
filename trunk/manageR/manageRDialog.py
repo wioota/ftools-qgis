@@ -61,6 +61,7 @@ class manageR( QDialog ):
     # adjust user interface
     workspace = QFileInfo()
     workspace.setFile( QDir( robjects.r( 'getwd()' )[ 0 ] ), ".RData" )
+    extraMessage = ""
     if workspace.exists():
       if self.loadRWorkspace( workspace ):
         extraMessage = "[Previously saved workspace restored]\n\n"

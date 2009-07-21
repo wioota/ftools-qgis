@@ -44,14 +44,6 @@ class QFinder( QWidget ):
     self.previous = QToolButton( self )
     self.previous.setToolTip( "Find previous" )
     self.previous.setText( "<" )
-#    self.close = QPushButton( self )
-#    self.close.setText( "X" )
-#    self.close.setFlat( True )
-#    self.close.setMaximumSize( QSize( 26, 26 ) )
-#    self.close.setToolTip( "Close find bar" )
-#    self.close.setSizePolicy( QSizePolicy.Fixed, QSizePolicy.Fixed )
-#    self.close.setAutoDefault( False )
-#    self.close.setDefault( False )
     horiz = QHBoxLayout( self )
     horiz.addWidget( self.edit )
     horiz.addWidget( self.previous )
@@ -68,9 +60,14 @@ class QFinder( QWidget ):
     self.connect( self.edit, SIGNAL( "returnPressed()" ), self.findNext )
     
   def find( self, forward ):
+    current = self.parent.tabs.tabText( self.parent.tabs.currentIndex() )
+    if current == "Script":
+      document = self.parent.scripttab.scripting
+    elif current == "Console":
+      document = self.parent.console
+    else:
+      return False
     text = self.edit.text()
-    if self.parent:
-      document = self.parent
     found = False
     if text == "":
       return False
@@ -120,11 +117,8 @@ class QFinder( QWidget ):
     self.setFocus()
     return True
     
-  def toggle( self, editor ):
-    if not editor is None:
-      self.parent = editor
-      if not self.isVisible():
-        return self.show()
-      else:
-        return self.hide()
-    return False
+  def toggle( self ):
+    if not self.isVisible():
+      return self.show()
+    else:
+      return self.hide()

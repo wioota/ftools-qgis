@@ -228,12 +228,7 @@ class manageR( QDialog ):
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_R:
       self.scripttab.parseCommands()
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_F:
-      current = self.tabs.tabText( self.tabs.currentIndex() )
-      if current == "Script":
-        editor = self.scripttab.scripting
-      elif current == "Console":
-        editor = self.console
-      self.finder.toggle( editor )
+      self.finder.toggle()
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and \
     ( e.key() == Qt.Key_PageUp or e.key() == Qt.Key_PageDown ):
       current = self.tabs.currentIndex()

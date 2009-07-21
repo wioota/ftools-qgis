@@ -37,6 +37,7 @@ class QScripting( QWidget ):
     self.scripting = QTextEdit( self )
     self.scripting.setUndoRedoEnabled( True )
     self.scripting.setAcceptRichText( False )
+    self.scripting.setTabStopWidth( 20 )
     font = QFont( "Monospace" , 10, QFont.Normal )
     font.setFixedPitch( True )
     self.scripting.setFont( font )

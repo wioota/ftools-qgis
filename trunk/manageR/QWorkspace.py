@@ -163,14 +163,6 @@ class QVariableTable( QWidget ):
     self.export.setEnabled( False )
     self.export.setAutoRaise( True )
     
-    self.save = QToolButton( self )
-    self.save.setText( "save" )
-    self.save.setToolTip( "Save R variable to file" )
-    self.save.setWhatsThis( "Save R variable to file" )
-    self.save.setIcon( QIcon( ":mActionVariableSave.png" ) )
-    self.save.setEnabled( False )
-    self.save.setAutoRaise( True )
-    
     self.canvas = QToolButton( self )
     self.canvas.setText( "canvas" )
     self.canvas.setToolTip( "Export layer to map canvas" )
@@ -179,12 +171,20 @@ class QVariableTable( QWidget ):
     self.canvas.setEnabled( False )
     self.canvas.setAutoRaise( True )
     
+    self.save = QToolButton( self )
+    self.save.setText( "save" )
+    self.save.setToolTip( "Save R variable to file" )
+    self.save.setWhatsThis( "Save R variable to file" )
+    self.save.setIcon( QIcon( ":mActionVariableSave.png" ) )
+    self.save.setEnabled( False )
+    self.save.setAutoRaise( True )
+    
     self.load = QToolButton( self )
-    self.load.setText( "add" )
-    self.load.setToolTip( "Load data from file" )
-    self.load.setWhatsThis( "Load data from file" )
+    self.load.setText( "load" )
+    self.load.setToolTip( "Load R variable(s) from file" )
+    self.load.setWhatsThis( "Load R variable(s) from file" )
     self.load.setIcon( QIcon( ":mActionVariableLoad.png" ) )
-    self.load.setEnabled( False )
+    self.load.setEnabled( True )
     self.load.setAutoRaise( True )
     
     grid = QGridLayout( self )
@@ -192,8 +192,8 @@ class QVariableTable( QWidget ):
     horiz.addWidget( self.label)
     horiz.addWidget( self.rm )
     horiz.addWidget( self.export )
-    horiz.addWidget( self.save )
     horiz.addWidget( self.canvas )
+    horiz.addWidget( self.save )
     horiz.addWidget( self.load )
     #grid.addWidget( self.label )
     grid.addLayout( horiz, 0, 0, 1, 1 )
@@ -204,15 +204,15 @@ class QVariableTable( QWidget ):
     self.connect( self.export, SIGNAL( "clicked()" ), self.exportVariable )
     self.connect( self.save, SIGNAL( "clicked()" ), self.saveVariable )
     self.connect( self.canvas, SIGNAL( "clicked()" ), self.exportToCanvas )
+    self.connect( self.load, SIGNAL( "clicked()" ), self.loadRVariable )
     self.connect( self.variableTable, \
     SIGNAL( "itemSelectionChanged()" ), self.selectionChanged )
 
   def updateVariables( self, variables ):
     self.variables = {}
-    self.variableTable.clearContents()
-    for row in range(0,self.variableTable.rowCount()):
-      self.variableTable.removeRow( row )
-    #fix this to ensure that variables are also removed from the list...
+#    self.variableTable.clearContents()
+    while self.variableTable.rowCount() > 0:
+      self.variableTable.removeRow( 0 )
     for variable in variables.items():
       self.addVariable( variable )
 
@@ -263,15 +263,20 @@ class QVariableTable( QWidget ):
     itemType in QVariableTable.RASTERTYPES:
       self.parent.exportRObjects( True, itemName, itemType, False )
     else:
-      dialog = QFileDialog( self, "Save data to file", ". ", \
+      dialog = QFileDialog( self, "Save data to file", "", \
       "Comma separated (*.csv);;Text file (*.txt);;All files (*.*)" )
       dialog.setAcceptMode( QFileDialog.AcceptSave )
-      dialog.exec_()
+      if dialog.exec_() == QDialog.Rejected:
+        return False
       selectedFilter = dialog.selectedFilter()
       selectedFile = QString( dialog.selectedFiles().first() )
       if selectedFile.length() == 0:
         return False
-      suffix = selectedFilter.lastIndexOf( "(" ) # finish this later...
+      index1 = selectedFilter.lastIndexOf( "(" )-1
+      index2 = selectedFilter.lastIndexOf( ")" )+1
+      suffix = selectedFilter.mid( index1, index2-index1 )
+      if not selectedFile.endsWith( suffix ):
+        selectedFile.append( suffix )
       command = QString( 'write.table( ' + itemName + ', file = "' + selectedFile )
       command.append( QString( '", append = FALSE, quote = TRUE, sep = ",", eol = "\\n", na = "NA"' ) )
       command.append( QString( ', dec = ".", row.names = FALSE, col.names = TRUE, qmethod = "escape" )' ) )
@@ -283,18 +288,48 @@ class QVariableTable( QWidget ):
     if row < 0:
       return False
     itemName, itemType = self.getVariableInfo( row )
-    fileName = QFileDialog().getSaveFileName( self, \
-    "Save R variable", "", "R data file (*.Rda)" )
-    if not fileName.endsWith( ".Rda" ):
-      fileName += ".Rda"
-    if fileName.length() == 0:
+    dialog = QFileDialog( self, "Save R variable to file", "", \
+    "R data file (*.Rda)" )
+    dialog.setAcceptMode( QFileDialog.AcceptSave )
+    if dialog.exec_() == QDialog.Rejected:
       return False
-    self.sendCommands( QString( 'save(' + itemName \
-    + ', file="' + fileName + '")' ) )
-    self.parent.label.setText( "File saved" )
+    selectedFilter = dialog.selectedFilter()
+    selectedFile = QString( dialog.selectedFiles().first() )
+    if selectedFile.length() == 0:
+      return False
+#    index1 = selectedFilter.lastIndexOf( "(" )-1
+#    index2 = selectedFilter.lastIndexOf( ")" )+1
+#    suffix = selectedFilter.mid( index1, index2-index1 )
+#    if not selectedFile.endsWith( suffix ):
+#      selectedFile.append( suffix )
+    if not selectedFile.endsWith( ".Rda" ):
+      selectedFile.append( ".Rda" )
+    commands = QString( 'save(' + itemName )
+    commands.append( QString( ', file="' + selectedFile + '")' ) )
+    self.sendCommands( commands )
+    self.parent.label.setText( "Variable saved" )
     
   def exportToCanvas( self ):
-    self.parent.label.setText( "Export to canvas" )
+    row = self.variableTable.currentRow()
+    if row < 0:
+      return False
+    itemName, itemType = self.getVariableInfo( row )
+    if itemType in QVariableTable.VECTORTYPES:
+      self.parent.exportRObjects( False, itemName, itemType, False )
+      self.parent.label.setText( "Exported to canvas" )
+    else:
+      return False
+      
+  def loadRVariable( self ):
+    dialog = QFileDialog( self, "Load R variable(s) from file", "" )
+    dialog.setAcceptMode( QFileDialog.AcceptOpen )
+    if dialog.exec_() == QDialog.Rejected:
+      return False
+    selectedFile = QString( dialog.selectedFiles().first() )
+    if selectedFile.length() == 0:
+      return False
+    self.sendCommands( QString( 'load("' + selectedFile + '")' ) )
+    self.parent.label.setText( "Variable(s) loaded" )
     
   def getVariableInfo( self, row ):
     item_name = self.variableTable.item( row, 0 )

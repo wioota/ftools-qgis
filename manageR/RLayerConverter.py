@@ -6,7 +6,7 @@ import rpy2.robjects as robjects
 class RVectorLayerConverter( QObject ):
   '''
   RVectorLayerConvert:
-  This thread class is used to convert an R 
+  This aclass is used to convert an R 
   vector layer to a QgsVector layer for export
   to the QGIS map canvas.
   '''
@@ -83,12 +83,18 @@ class RVectorLayerConverter( QObject ):
     To preserve correct order they must be added one-by-one
   '''
     for ( i, j ) in attributeList.iteritems():
-      provider.addAttributes( { i : j } )
+      try:
+        provider.addAttributes( { i : j } )
+      except:
+        if j == "int": j = QVariant.Int
+        elif j == "double": j = QVariant.Double
+        else: j = QVariant.String
+        provider.addAttributes( [ QgsField( i, j ) ] )
 
   def getAttributesList( self ):
     '''
     Get list of attributes for R layer
-    Return: Attribute list in format to be used my memory provider
+    Return: Attribute list in format to be used by memory provider
     '''
     typeof_ = robjects.r['typeof']
     sapply_ = robjects.r['sapply']

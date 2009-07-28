@@ -92,11 +92,11 @@ class QScripting( QWidget ):
     self.paste.setToolTip( "Paste text from clipboard (Ctrl+V)" )
     self.paste.setAutoRaise( True )
     self.find = QToolButton( self )
-    self.find.setIcon( self.qgisThemeIcon( "mActionFind.png" ) )
+    self.find.setIcon( QIcon( ":mActionFind.png" ) )
     self.find.setToolTip( "Find text (Ctrl+F)" )
     self.find.setAutoRaise( True )
     self.replace = QToolButton( self )
-    self.replace.setIcon( self.qgisThemeIcon( "mActionReplace.png" ) )
+    self.replace.setIcon( QIcon( ":mActionReplace.png" ) )
     self.replace.setToolTip( "Find and replace text (Ctrl+F)" )
     self.replace.setAutoRaise( True )
 

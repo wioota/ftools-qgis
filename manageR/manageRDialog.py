@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
 This file is part of manageR
 
@@ -26,6 +27,7 @@ from QConsole import QConsole
 from QScripting import QScripting
 from QFinder import QFinder
 from QWorkspace import QWorkingDir, QVariableTable
+from QGraphics import QGraphicsTable
 from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
 from RLayerConverter import RVectorLayerConverter
 from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter
@@ -90,7 +92,11 @@ class manageR( QDialog ):
     SIGNAL( "executeCommand(PyQt_PyObject)" ), self.runCommand )
     self.connect( self, SIGNAL( "newObjectCreated(PyQt_PyObject)" ), \
     self.variablelist.updateVariables )
+    self.connect( self, SIGNAL( "newObjectCreated(PyQt_PyObject)" ), \
+    self.graphics.updateGraphics )
     self.emit( SIGNAL( "newObjectCreated( PyQt_PyObject )" ), self.updateRObjects() )
+    self.connect( self.tabs, SIGNAL( "currentChanged(int)" ), self.updateFinder )
+    self.updateFinder( 0 )
     self.startTimer( 50 )
 
   def setupUserInterface( self, theme ):
@@ -101,6 +107,7 @@ class manageR( QDialog ):
     self.label = QLabel()
     self.label.setText(" ")
     self.label.setWordWrap( True )
+
     self.finder = QFinder( self )
     self.tabs = QTabWidget( self )
     self.tabs.setTabPosition( QTabWidget.East )
@@ -121,6 +128,9 @@ class manageR( QDialog ):
     tab_grid.addWidget( self.variablelist )
     #self.tabs.addTab( self.workspace, "Workspace" )
     self.tabs.addTab( tab, "Workspace" )
+
+    self.graphics = QGraphicsTable( self )
+    self.tabs.addTab( self.graphics, "Graphics" )
     
     gbox = QGridLayout( self )
     gbox.addWidget( self.tabs, 0, 0, 1, 2 )
@@ -133,6 +143,20 @@ class manageR( QDialog ):
       robjects.rinterface.process_revents()
     except:
       pass
+
+  def updateFinder( self, current ):
+    current = self.tabs.tabText( current )
+    if current == "Script":
+      document = self.scripttab.scripting
+      replace = True
+    elif current == "Console":
+      document = self.console
+      replace = False
+    else:
+      document = None
+      replace = False
+    self.finder.setCurrentDocument( document, replace )
+    return True
 
   def helpDialog( self ):
     message = QString( "<center><h2>manageR " + self.version + "</h2>" )
@@ -378,11 +402,17 @@ class manageR( QDialog ):
     ls_ = robjects.conversion.ri2py(robjects.rinterface.globalEnv.get('ls',wantFun=True))
     #class_ = robjects.r[ 'class' ]
     class_ = robjects.conversion.ri2py(robjects.rinterface.globalEnv.get('class',wantFun=True))
+    dev_list_ = robjects.conversion.ri2py(robjects.rinterface.globalEnv.get('dev.list',wantFun=True))
     layers = {}
+    graphics = {}
     for item in ls_():
       check = class_( robjects.r[ item ] )[ 0 ]
       layers[ unicode( item ) ] = check
-    return layers
+    try:
+      graphics = dict( zip( list(dev_list_()), list(dev_list_().names) ) )
+    except:
+      graphics = {}
+    return layers, graphics
 
   def isPackageLoaded( self, package="sp" ):
     '''
@@ -578,7 +608,7 @@ class manageR( QDialog ):
     Qt.Horizontal, dialog )
     dialog.connect( buttons, SIGNAL( "rejected()" ), dialog.reject )
     dialog.connect( buttons, SIGNAL( "accepted()" ), dialog.accept )
-    r_layers = self.updateRObjects()
+    r_layers, r_graphics = self.updateRObjects()
     if not len( r_layers ) > 0:
       return None
     for layer in r_layers.keys():

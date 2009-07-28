@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
 This file is part of manageR
 
@@ -33,6 +34,7 @@ class QFinder( QWidget ):
     QWidget.__init__( self, parent )
     # initialise standard settings
     self.parent = parent
+    grid = QGridLayout( self )
     self.edit = QLineEdit( self )
     font = QFont( "Monospace" , 10, QFont.Normal )
     font.setFixedPitch( True )
@@ -44,42 +46,78 @@ class QFinder( QWidget ):
     self.previous = QToolButton( self )
     self.previous.setToolTip( "Find previous" )
     self.previous.setText( "<" )
-    horiz = QHBoxLayout( self )
-    horiz.addWidget( self.edit )
-    horiz.addWidget( self.previous )
-    horiz.addWidget( self.next )
-#    horiz.addWidget( self.close )
+    self.whole_words = QCheckBox()
+    self.whole_words.setText( "Whole words only" )
+    self.case_sensitive = QCheckBox()
+    self.case_sensitive.setText( "Case sensitive" )
+    self.find_horiz = QHBoxLayout()
+    self.find_horiz.addWidget( self.edit )
+    self.find_horiz.addWidget( self.previous )
+    self.find_horiz.addWidget( self.next )
+    grid.addWidget( self.whole_words, 0, 0, 1, 1 )
+    grid.addWidget( self.case_sensitive, 0, 1, 1, 1 )
+    grid.addLayout( self.find_horiz, 1, 0, 1, 2 )
+
+    self.replace_edit = QLineEdit( self )
+    self.replace_edit.setFont( font )
+    self.replace_edit.setToolTip( "Replace text" )
+    self.replace = QToolButton( self )
+    self.replace.setText( "Replace" )
+    self.replace.setToolTip( "Replace text" )
+    self.replace_all = QToolButton( self )
+    self.replace_all.setToolTip( "Replace all" )
+    self.replace_all.setText( "Replace all" )
+    self.replace_horiz = QHBoxLayout()
+    self.replace_horiz.addWidget( self.replace_edit )
+    self.replace_horiz.addWidget( self.replace )
+    self.replace_horiz.addWidget( self.replace_all )
+    grid.addLayout( self.replace_horiz, 2, 0, 1, 2 )
     self.setFocusProxy( self.edit )
     self.setVisible( False )
-    self.setMaximumSize( QSize( 300, 50 ) )
-    self.setSizePolicy( QSizePolicy.Maximum, QSizePolicy.Fixed )
+    self.edit.setMaximumSize( QSize( 300, 26 ) )
+    self.edit.setSizePolicy( QSizePolicy.Maximum, QSizePolicy.Fixed )
+    self.replace_edit.setMaximumSize( QSize( 300, 26 ) )
+    self.replace_edit.setSizePolicy( QSizePolicy.Maximum, QSizePolicy.Fixed )
     
     self.connect( self.next, SIGNAL( "clicked()" ), self.findNext )
     self.connect( self.previous, SIGNAL( "clicked()" ), self.findPrevious )
-#    self.connect( self.close, SIGNAL( "clicked()" ), self.hide )
+    self.connect( self.replace, SIGNAL( "clicked()" ), self.replaceText )
     self.connect( self.edit, SIGNAL( "returnPressed()" ), self.findNext )
+    self.connect( self.replace_all, SIGNAL( "clicked()" ), self.replaceAll )
+
+  def setCurrentDocument( self, document, replace ):
+    if not document is None:
+      self.document = document
+      if replace:
+        self.showReplace()
+      else:
+        self.hideReplace()
+    else:
+      self.hide()
+
+  def currentDocument( self ):
+    return self.document
     
   def find( self, forward ):
-    current = self.parent.tabs.tabText( self.parent.tabs.currentIndex() )
-    if current == "Script":
-      document = self.parent.scripttab.scripting
-    elif current == "Console":
-      document = self.parent.console
-    else:
+    if not self.document:
       return False
-    text = self.edit.text()
+    text = QString( self.edit.text() )
     found = False
     if text == "":
       return False
     else:
+      flags = QTextDocument.FindFlag()
+      if self.whole_words.isChecked():
+        flags = ( flags | QTextDocument.FindWholeWords )
+      if self.case_sensitive.isChecked():
+        flags = ( flags | QTextDocument.FindCaseSensitively )
       if not forward:
-        flags = ( QTextDocument.FindWholeWords | QTextDocument.FindBackward )
-        fromPos = document.toPlainText().length() - 1
+        flags = ( flags | QTextDocument.FindBackward )
+        fromPos = self.document.toPlainText().length() - 1
       else:
-        flags = QTextDocument.FindWholeWords
         fromPos = 0
-      if not document.find( text, flags ):
-        cursor = QTextCursor( document.textCursor() )
+      if not self.document.find( text, flags ):
+        cursor = QTextCursor( self.document.textCursor() )
         selection = cursor.hasSelection()
         if selection:
           start = cursor.selectionStart()
@@ -87,38 +125,70 @@ class QFinder( QWidget ):
         else:
           pos = cursor.position()
         cursor.setPosition( fromPos )
-        document.setTextCursor( cursor )
-        if not document.find( text, flags ):
+        self.document.setTextCursor( cursor )
+        if not self.document.find( text, flags ):
           if selection:
               cursor.setPosition(start, QTextCursor.MoveAnchor)
               cursor.setPosition(end, QTextCursor.KeepAnchor)
           else:
               cursor.setPosition( pos )
-          document.setTextCursor( cursor )
+          self.document.setTextCursor( cursor )
           return False
         elif selection:
-          cursor = QTextCursor( document.textCursor() )
+          cursor = QTextCursor( self.document.textCursor() )
           if start == cursor.selectionStart():
             return False
     return True
         
   def findNext( self ):
-    self.find( True )
+    return self.find( True )
     
   def findPrevious( self ):
-    self.find( False )
+    return self.find( False )
         
   def hide( self ):
     self.setVisible( False )
+    if not self.document is None:
+      self.document.setFocus()
     return True
     
   def show( self ):
     self.setVisible( True )
     self.setFocus()
     return True
+
+  def showReplace( self ):
+    self.replace_edit.setVisible( True )
+    self.replace.setVisible( True )
+    self.replace_all.setVisible( True )
+
+  def hideReplace( self ):
+    self.replace_edit.setVisible( False )
+    self.replace.setVisible( False )
+    self.replace_all.setVisible( False )
     
   def toggle( self ):
     if not self.isVisible():
       return self.show()
     else:
       return self.hide()
+
+  def replaceText( self ):
+    cursor = QTextCursor( self.document.textCursor() )
+    selection = cursor.hasSelection()
+    if selection:
+      text = QString( cursor.selectedText() )
+      current = QString( self.edit.text() )
+      replace = QString( self.replace_edit.text() )
+      if text == current:
+        cursor.insertText( replace )
+        cursor.select( QTextCursor.WordUnderCursor )
+    else:
+      return self.findNext()
+    self.findNext()
+    return True
+
+  def replaceAll( self ):
+    while self.findNext():
+      self.replaceText()
+    self.replaceText()

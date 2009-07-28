@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
 This file is part of manageR
 
@@ -213,7 +214,7 @@ class QVariableTable( QWidget ):
 #    self.variableTable.clearContents()
     while self.variableTable.rowCount() > 0:
       self.variableTable.removeRow( 0 )
-    for variable in variables.items():
+    for variable in variables[0].items():
       self.addVariable( variable )
 
   def addVariable( self, variable ):

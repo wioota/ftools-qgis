@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
 This file is part of manageR
 
@@ -90,10 +91,21 @@ class QScripting( QWidget ):
     self.paste.setIcon( self.qgisThemeIcon( "mActionEditPaste.png" ) )
     self.paste.setToolTip( "Paste text from clipboard (Ctrl+V)" )
     self.paste.setAutoRaise( True )
+    self.find = QToolButton( self )
+    self.find.setIcon( self.qgisThemeIcon( "mActionFind.png" ) )
+    self.find.setToolTip( "Find text (Ctrl+F)" )
+    self.find.setAutoRaise( True )
+    self.replace = QToolButton( self )
+    self.replace.setIcon( self.qgisThemeIcon( "mActionReplace.png" ) )
+    self.replace.setToolTip( "Find and replace text (Ctrl+F)" )
+    self.replace.setAutoRaise( True )
+
     frame_one = QFrame( self )
     frame_one.setFrameStyle( QFrame.VLine | QFrame.Sunken )
     frame_two = QFrame( self )
     frame_two.setFrameStyle( QFrame.VLine | QFrame.Sunken )
+    frame_three = QFrame( self )
+    frame_three.setFrameStyle( QFrame.VLine | QFrame.Sunken )
 
     grid = QGridLayout( self )
     grid.addWidget( self.info_label, 0, 0, 1, 3 )
@@ -109,6 +121,9 @@ class QScripting( QWidget ):
     horiz.addWidget( self.cut )
     horiz.addWidget( self.copy )
     horiz.addWidget( self.paste )
+    horiz.addWidget( frame_three )
+    horiz.addWidget( self.find )
+    horiz.addWidget( self.replace )
     grid.addLayout( horiz, 1, 0, 1, 2 )
     horiz_two = QHBoxLayout()
     horiz_two.addStretch()
@@ -126,10 +141,20 @@ class QScripting( QWidget ):
     self.connect( self.cut, SIGNAL( "clicked()" ), self.scripting.cut )
     self.connect( self.copy, SIGNAL( "clicked()" ), self.scripting.copy )
     self.connect( self.paste, SIGNAL( "clicked()" ), self.scripting.paste )
+    self.connect( self.find, SIGNAL( "clicked()" ), self.findText )
+    self.connect( self.replace, SIGNAL( "clicked()" ), self.replaceText )
     self.connect( self.scripting, SIGNAL( "textChanged()" ), \
     self.documentWasModified )
     self.setCurrentFile( "" )
 
+  def findText( self ):
+    self.parent.finder.hideReplace()
+    self.parent.finder.toggle()
+
+  def replaceText( self ):
+    self.parent.finder.showReplace()
+    self.parent.finder.toggle()
+  
   def newFile( self ):
     if self.maybeSave():
       self.scripting.clear()
@@ -151,10 +176,10 @@ class QScripting( QWidget ):
   def saveFileAs( self ):
     fileName = QFileDialog().getSaveFileName( self, \
     "Save R script", "", "R script (*.R)" )
-    if not fileName.endsWith( ".R" ):
-      fileName += ".R"
     if fileName.length() == 0:
       return False
+    if not fileName.endsWith( ".R" ):
+      fileName += ".R"
     return self.saveFile( fileName )
     
   def documentWasModified( self ):

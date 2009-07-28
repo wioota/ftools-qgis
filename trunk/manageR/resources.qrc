@@ -10,5 +10,7 @@
         <file>mActionVariableSave.png</file>
         <file>mActionVariableCanvas.png</file>
         <file>mActionVariableLoad.png</file>
+        <file>mActionFind.png</file>
+        <file>mActionReplace.png</file>
     </qresource>
 </RCC>

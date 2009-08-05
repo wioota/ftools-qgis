@@ -171,6 +171,14 @@ class QVariableTable( QWidget ):
     self.canvas.setIcon( QIcon( ":mActionVariableCanvas.png" ) )
     self.canvas.setEnabled( False )
     self.canvas.setAutoRaise( True )
+
+    self.layer = QToolButton( self )
+    self.layer.setText( "layer" )
+    self.layer.setToolTip( "Import layer from map canvas" )
+    self.layer.setWhatsThis( "Import layer from map canvas" )
+    self.layer.setIcon( QIcon( ":mActionVariableLayer.png" ) )
+    self.layer.setEnabled( True )
+    self.layer.setAutoRaise( True )
     
     self.save = QToolButton( self )
     self.save.setText( "save" )
@@ -194,6 +202,7 @@ class QVariableTable( QWidget ):
     horiz.addWidget( self.rm )
     horiz.addWidget( self.export )
     horiz.addWidget( self.canvas )
+    horiz.addWidget( self.layer )
     horiz.addWidget( self.save )
     horiz.addWidget( self.load )
     #grid.addWidget( self.label )
@@ -206,6 +215,7 @@ class QVariableTable( QWidget ):
     self.connect( self.save, SIGNAL( "clicked()" ), self.saveVariable )
     self.connect( self.canvas, SIGNAL( "clicked()" ), self.exportToCanvas )
     self.connect( self.load, SIGNAL( "clicked()" ), self.loadRVariable )
+    self.connect( self.layer, SIGNAL( "clicked()" ), self.importFromCanvas )
     self.connect( self.variableTable, \
     SIGNAL( "itemSelectionChanged()" ), self.selectionChanged )
 
@@ -264,18 +274,20 @@ class QVariableTable( QWidget ):
     itemType in QVariableTable.RASTERTYPES:
       self.parent.exportRObjects( True, itemName, itemType, False )
     else:
-      dialog = QFileDialog( self, "Save data to file", "", \
+      #self.connect( fd, SIGNAL( "filterSelected(QString)" ), self.setFilter )
+      fd = QFileDialog( self.parent, "Save data to file", "", \
       "Comma separated (*.csv);;Text file (*.txt);;All files (*.*)" )
-      dialog.setAcceptMode( QFileDialog.AcceptSave )
-      if dialog.exec_() == QDialog.Rejected:
+      fd.setAcceptMode( QFileDialog.AcceptSave )
+      if not fd.exec_() == QDialog.Accepted:
         return False
-      selectedFilter = dialog.selectedFilter()
-      selectedFile = QString( dialog.selectedFiles().first() )
+      files = fd.selectedFiles()
+      selectedFile = files.first()
       if selectedFile.length() == 0:
         return False
-      index1 = selectedFilter.lastIndexOf( "(" )-1
-      index2 = selectedFilter.lastIndexOf( ")" )+1
-      suffix = selectedFilter.mid( index1, index2-index1 )
+      suffix = QString( fd.selectedNameFilter() )
+      index1 = suffix.lastIndexOf( "(" )+2
+      index2 = suffix.lastIndexOf( ")" )
+      suffix = suffix.mid( index1, index2-index1 )
       if not selectedFile.endsWith( suffix ):
         selectedFile.append( suffix )
       command = QString( 'write.table( ' + itemName + ', file = "' + selectedFile )
@@ -283,28 +295,27 @@ class QVariableTable( QWidget ):
       command.append( QString( ', dec = ".", row.names = FALSE, col.names = TRUE, qmethod = "escape" )' ) )
       self.sendCommands( command )
     self.parent.label.setText( "Data saved" )
-    
+   
   def saveVariable( self ):
     row = self.variableTable.currentRow()
     if row < 0:
       return False
     itemName, itemType = self.getVariableInfo( row )
-    dialog = QFileDialog( self, "Save R variable to file", "", \
+    fd = QFileDialog( self.parent, "Save data to file", "", \
     "R data file (*.Rda)" )
-    dialog.setAcceptMode( QFileDialog.AcceptSave )
-    if dialog.exec_() == QDialog.Rejected:
+    fd.setAcceptMode( QFileDialog.AcceptSave )
+    if not fd.exec_() == QDialog.Accepted:
       return False
-    selectedFilter = dialog.selectedFilter()
-    selectedFile = QString( dialog.selectedFiles().first() )
+    files = fd.selectedFiles()
+    selectedFile = files.first()
     if selectedFile.length() == 0:
       return False
-#    index1 = selectedFilter.lastIndexOf( "(" )-1
-#    index2 = selectedFilter.lastIndexOf( ")" )+1
-#    suffix = selectedFilter.mid( index1, index2-index1 )
-#    if not selectedFile.endsWith( suffix ):
-#      selectedFile.append( suffix )
-    if not selectedFile.endsWith( ".Rda" ):
-      selectedFile.append( ".Rda" )
+    suffix = QString( fd.selectedNameFilter() )
+    index1 = suffix.lastIndexOf( "(" )+2
+    index2 = suffix.lastIndexOf( ")" )
+    suffix = suffix.mid( index1, index2-index1 )
+    if not selectedFile.endsWith( suffix ):
+      selectedFile.append( suffix )
     commands = QString( 'save(' + itemName )
     commands.append( QString( ', file="' + selectedFile + '")' ) )
     self.sendCommands( commands )
@@ -320,6 +331,11 @@ class QVariableTable( QWidget ):
       self.parent.label.setText( "Exported to canvas" )
     else:
       return False
+
+  def importFromCanvas( self ):
+    mlayer = self.parent.mapCanvas.currentLayer()
+    self.parent.importRObjects( mlayer, False )
+    return True
       
   def loadRVariable( self ):
     dialog = QFileDialog( self, "Load R variable(s) from file", "" )

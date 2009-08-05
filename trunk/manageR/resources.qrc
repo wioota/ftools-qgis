@@ -1,6 +1,7 @@
 <RCC>
     <qresource>
         <file>manager.png</file>
+        <file>splash.png</file>
         <file>mActionFolderNew.png</file>
         <file>mActionFolderUp.png</file>
         <file>mActionFolderSet.png</file>
@@ -9,7 +10,13 @@
         <file>mActionVariableExport.png</file>
         <file>mActionVariableSave.png</file>
         <file>mActionVariableCanvas.png</file>
+        <file>mActionVariableLayer.png</file>
         <file>mActionVariableLoad.png</file>
+        <file>mActionGraphicNew.png</file>
+        <file>mActionGraphicExport.png</file>
+        <file>mActionGraphicSave.png</file>
+        <file>mActionGraphicRemove.png</file>
+        <file>mActionGraphicRefresh.png</file>
         <file>mActionFind.png</file>
         <file>mActionReplace.png</file>
     </qresource>

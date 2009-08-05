@@ -136,7 +136,7 @@ class manageR( QDialog ):
     gbox.addWidget( self.tabs, 0, 0, 1, 2 )
     gbox.addWidget( self.label, 1, 0, 1, 1 )
     gbox.addWidget( self.finder, 1, 1, 1, 1 )
-    self.resize( 600, 500 )
+    self.resize( 700, 500 )
 
   def timerEvent( self, e ):
     try:
@@ -256,12 +256,12 @@ class manageR( QDialog ):
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and \
     ( e.key() == Qt.Key_PageUp or e.key() == Qt.Key_PageDown ):
       current = self.tabs.currentIndex()
-      if e.key() == Qt.Key_PageUp:
+      if e.key() == Qt.Key_PageDown:
         if current < self.tabs.count() - 1:
           self.tabs.setCurrentIndex( current + 1 )
         else:
           self.tabs.setCurrentIndex( 0 )
-      elif e.key() == Qt.Key_PageDown:
+      elif e.key() == Qt.Key_PageUp:
         if current > 0:
           self.tabs.setCurrentIndex( current - 1 )
         else:

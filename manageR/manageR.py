@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
 manageR: Interface to the R statistical programming language
 
@@ -46,9 +47,16 @@ class manageRPlugin:
         self.iface.removeToolBarIcon( self.action )
 
     def run( self ):
+        pixmap = QPixmap( ":splash.png" )
+        splash = QSplashScreen(pixmap)
+        splash.show()
+        splash.showMessage( "Checking for previously saved history and R environment" )
         import manageRDialog
         d = manageRDialog.manageR( self.iface, self.version )
+        splash.showMessage( "Attempting to load command history" )
         d.setWindowModality( Qt.NonModal )
         d.setModal( False )
+        splash.showMessage( "Setting up manageR GUI" )
+        splash.showMessage( "Finished! Welcome to manageR :-)" )
+        splash.finish( d )
         d.show()
-

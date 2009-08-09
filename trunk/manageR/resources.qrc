@@ -1,23 +1,23 @@
 <RCC>
     <qresource>
-        <file>manager.png</file>
-        <file>splash.png</file>
-        <file>mActionFolderNew.png</file>
-        <file>mActionFolderUp.png</file>
-        <file>mActionFolderSet.png</file>
-        <file>mActionConsole.png</file>
-        <file>mActionVariableRemove.png</file>
-        <file>mActionVariableExport.png</file>
-        <file>mActionVariableSave.png</file>
-        <file>mActionVariableCanvas.png</file>
-        <file>mActionVariableLayer.png</file>
-        <file>mActionVariableLoad.png</file>
-        <file>mActionGraphicNew.png</file>
-        <file>mActionGraphicExport.png</file>
-        <file>mActionGraphicSave.png</file>
-        <file>mActionGraphicRemove.png</file>
-        <file>mActionGraphicRefresh.png</file>
-        <file>mActionFind.png</file>
-        <file>mActionReplace.png</file>
+        <file alias="manager.png">icons/manager.png</file>
+        <file alias="splash.png">icons/splash.png</file>
+        <file alias="mActionFolderNew.png">icons/mActionFolderNew.png</file>
+        <file alias="mActionFolderUp.png">icons/mActionFolderUp.png</file>
+        <file alias="mActionFolderSet.png">icons/mActionFolderSet.png</file>
+        <file alias="mActionConsole.png">icons/mActionConsole.png</file>
+        <file alias="mActionVariableRemove.png">icons/mActionVariableRemove.png</file>
+        <file alias="mActionVariableExport.png">icons/mActionVariableExport.png</file>
+        <file alias="mActionVariableSave.png">icons/mActionVariableSave.png</file>
+        <file alias="mActionVariableCanvas.png">icons/mActionVariableCanvas.png</file>
+        <file alias="mActionVariableLayer.png">icons/mActionVariableLayer.png</file>
+        <file alias="mActionVariableLoad.png">icons/mActionVariableLoad.png</file>
+        <file alias="mActionGraphicNew.png">icons/mActionGraphicNew.png</file>
+        <file alias="mActionGraphicExport.png">icons/mActionGraphicExport.png</file>
+        <file alias="mActionGraphicSave.pn">icons/mActionGraphicSave.png</file>
+        <file alias="mActionGraphicRemove.png">icons/mActionGraphicRemove.png</file>
+        <file alias="mActionGraphicRefresh.png">icons/mActionGraphicRefresh.png</file>
+        <file alias="mActionFind.png">icons/mActionFind.png</file>
+        <file alias="mActionReplace.png">icons/mActionReplace.png</file>
     </qresource>
 </RCC>

@@ -122,15 +122,14 @@ class manageR( QDialog ):
     
     self.workingdir = QWorkingDir( self, QString( robjects.r( 'getwd()' )[ 0 ] ) )
     self.variablelist = QVariableTable( self )
+    self.graphics = QGraphicsTable( self )
     tab = QWidget()
     tab_grid = QGridLayout( tab )
-    tab_grid.addWidget( self.workingdir )
     tab_grid.addWidget( self.variablelist )
+    tab_grid.addWidget( self.graphics )
     #self.tabs.addTab( self.workspace, "Workspace" )
-    self.tabs.addTab( tab, "Workspace" )
-
-    self.graphics = QGraphicsTable( self )
-    self.tabs.addTab( self.graphics, "Graphics" )
+    self.tabs.addTab( tab, "Environment" )
+    self.tabs.addTab( self.workingdir, "Workspace" )
     
     gbox = QGridLayout( self )
     gbox.addWidget( self.tabs, 0, 0, 1, 2 )

@@ -49,14 +49,17 @@ class manageRPlugin:
     def run( self ):
         pixmap = QPixmap( ":splash.png" )
         splash = QSplashScreen(pixmap)
+        splash.showMessage( "Checking for previously saved history and R environment", \
+        (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
         splash.show()
-        splash.showMessage( "Checking for previously saved history and R environment" )
+        QApplication.processEvents()
         import manageRDialog
+        splash.showMessage( "Setting up manageR GUI", \
+        (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
         d = manageRDialog.manageR( self.iface, self.version )
-        splash.showMessage( "Attempting to load command history" )
         d.setWindowModality( Qt.NonModal )
         d.setModal( False )
-        splash.showMessage( "Setting up manageR GUI" )
-        splash.showMessage( "Finished! Welcome to manageR :-)" )
+        splash.showMessage( "manageR Ready!", \
+        (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
         splash.finish( d )
         d.show()

@@ -14,7 +14,7 @@
         <file alias="mActionVariableLoad.png">icons/mActionVariableLoad.png</file>
         <file alias="mActionGraphicNew.png">icons/mActionGraphicNew.png</file>
         <file alias="mActionGraphicExport.png">icons/mActionGraphicExport.png</file>
-        <file alias="mActionGraphicSave.pn">icons/mActionGraphicSave.png</file>
+        <file alias="mActionGraphicSave.png">icons/mActionGraphicSave.png</file>
         <file alias="mActionGraphicRemove.png">icons/mActionGraphicRemove.png</file>
         <file alias="mActionGraphicRefresh.png">icons/mActionGraphicRefresh.png</file>
         <file alias="mActionFind.png">icons/mActionFind.png</file>

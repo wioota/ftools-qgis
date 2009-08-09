@@ -162,7 +162,7 @@ class manageR( QDialog ):
     message.append( "<h3>Interface to the R statistical programming environment</h3>" )
     message.append( "<h4>Copyright (C) 2009 Carson J.Q. Farmer" )
     message.append( "<br/>carson.farmer@gmail.com" )
-    message.append( "<br/><a href='http://www.ftools.ca/manageR.html'>www.ftools.ca/manageR.html</a>" )
+    message.append( "<br/><a href='http://www.ftools.ca/manageR'>www.ftools.ca/manageR</a>" )
     message.append( "<br/></h4></center>" )
     message.append( "<h4>Description:</h4>" )
     message.append( "<b>manageR</b> adds comprehensive statistical capabilities to Quantum GIS by loosely coupling QGIS with the <b>R</b> statistical programming environment." )

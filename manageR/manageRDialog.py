@@ -109,6 +109,7 @@ class manageR( QDialog ):
     self.label.setWordWrap( True )
 
     self.finder = QFinder( self )
+    
     self.tabs = QTabWidget( self )
     self.tabs.setTabPosition( QTabWidget.East )
 
@@ -252,6 +253,8 @@ class manageR( QDialog ):
       self.scripttab.parseCommands()
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_F:
       self.finder.toggle()
+    elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and e.key() == Qt.Key_E:
+      raise
     elif ( e.modifiers() == Qt.ControlModifier or e.modifiers() == Qt.MetaModifier ) and \
     ( e.key() == Qt.Key_PageUp or e.key() == Qt.Key_PageDown ):
       current = self.tabs.currentIndex()

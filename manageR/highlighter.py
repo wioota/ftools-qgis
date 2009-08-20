@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
 This file is part of manageR
 
@@ -59,7 +60,8 @@ class ConsoleHighlighter( QSyntaxHighlighter ):
       keyword.setFontWeight( QFont.Bold )
       keywords = QStringList( [ "break", "else", "for", "if", "in", 
                                 "next", "repeat", "return", "switch", 
-                                "try", "while" ] )
+                                "try", "while", "print", "return", "not",
+                                "library", "attach", "detach", "ls", "as"] )
       for word in keywords:
         pattern = QRegExp("\\b" + word + "\\b")
         rule = HighlightingRule( pattern, keyword )

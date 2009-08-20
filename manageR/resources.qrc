@@ -19,5 +19,6 @@
         <file alias="mActionGraphicRefresh.png">icons/mActionGraphicRefresh.png</file>
         <file alias="mActionFind.png">icons/mActionFind.png</file>
         <file alias="mActionReplace.png">icons/mActionReplace.png</file>
+        <file alias="logo.png">icons/logo.png</file>
     </qresource>
 </RCC>

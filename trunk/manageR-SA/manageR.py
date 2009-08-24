@@ -8,7 +8,7 @@ import sys
 import resources
 
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
-        QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp,
+        QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
         QSettings, QString, QT_VERSION_STR, QTextStream, QThread,
         QTimer, QUrl, QVariant, Qt, SIGNAL, QStringList, QMimeData)
 from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
@@ -16,18 +16,19 @@ from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QDialog, QDialogButtonBox, QFileDialog, QFont, QFontComboBox,
         QFontMetrics, QGridLayout, QHBoxLayout, QIcon, QInputDialog,
         QKeySequence, QLabel, QLineEdit, QListWidget, QMainWindow,
-        QMessageBox, QPixmap, QPushButton, QRadioButton,
-        QRegExpValidator, QShortcut, QSpinBox, QSplitter,
+        QMessageBox, QPixmap, QPushButton, QRadioButton, QGroupBox,
+        QRegExpValidator, QShortcut, QSpinBox, QSplitter, QDirModel,
         QSyntaxHighlighter, QTabWidget, QTextBrowser, QTextCharFormat,
         QTextCursor, QTextDocument, QTextEdit, QToolTip, QVBoxLayout,
         QWidget, QDockWidget, QToolButton, QSpacerItem, QSizePolicy,
-        QPalette, QSplashScreen)
+        QPalette, QSplashScreen, QTreeWidget, QTreeWidgetItem, QFrame,
+        QListView)
 
 try:
   import rpy2.robjects as robjects
 #  import rpy2.rinterface as rinterface
 except ImportError:
-  QMessageBox.warning( None , "manageR", "Unable to load manageR: Required package rpy2 was unable to load"
+  QMessageBox.warning( None , "manageR", "Unable to load manageR: Unable to load required package rpy2."
   + "\nPlease ensure that both R, and the corresponding version of Rpy2 are correctly installed.")
 
 __version__ = "0.9.11"
@@ -64,20 +65,21 @@ BUILTINS = ["array", "character", "complex", "data.frame", "double",
 
 CONSTANTS = ["Inf", "NA", "NaN", "NULL", "TRUE", "FALSE"]
 
-TIMEOUT = 5000
-ICONS = {}
-PIXMAPS = {}
+#TIMEOUT = 5000
+#ICONS = {}
+#PIXMAPS = {}
 Config = {}
-CAT = {} # Completions And Tooltips
-MIN_COMPLETION_LEN = 3
-MAX_TOOLTIP_LEN = 1000
-FROM_IMPORT_RE = re.compile(r"from\s+([\w.]+)\s+import\s+(.*)")
-WORDS = set()
-WORD_RE = re.compile(r"[\W+.]")
-MIN_WORD_LEN = 3
-MAX_WORD_LEN = 64
-CATABLE_LINE_RE = QRegExp(r"\b(?:import|def|class)\s+")
-CLASS_OR_DEF_RE = re.compile(r"(class|def) ([^\W(:]+)[:(]")
+CAT = QStringList() # Completions And Tooltips
+Libraries = []
+#MIN_COMPLETION_LEN = 3
+#MAX_TOOLTIP_LEN = 1000
+#FROM_IMPORT_RE = re.compile(r"from\s+([\w.]+)\s+import\s+(.*)")
+#WORDS = set()
+#WORD_RE = re.compile(r"[\W+.]")
+#MIN_WORD_LEN = 3
+#MAX_WORD_LEN = 64
+#CATABLE_LINE_RE = QRegExp(r"\b(?:import|def|class)\s+")
+#CLASS_OR_DEF_RE = re.compile(r"(class|def) ([^\W(:]+)[:(]")
 
 
 def trimQString(qstr, trimText):
@@ -113,24 +115,13 @@ def loadConfig():
                             .availableGeometry().width() / 2)).toInt()[0]
     Config["remembergeometry"] = settings.value("remembergeometry",
             QVariant(True)).toBool()
-    #Config["startwithConsole"] = settings.value("startwithConsole",
-            #QVariant(True)).toBool()
-    #Config["showwindowinfo"] = settings.value("showwindowinfo",
-            #QVariant(True)).toBool()
     setDefaultString("newfile", "")
+    setDefaultString("consolestartup", "")
     Config["backupsuffix"] = settings.value("backupsuffix",
             QVariant(".bak")).toString()
     setDefaultString("beforeinput", ">")
     setDefaultString("afteroutput", "+")
-    Config["cwd"] = settings.value("cwd", QVariant(".")).toString()
-    #Config["tooltipsize"] = settings.value("tooltipsize",
-            #QVariant(150)).toInt()[0]
-    #Config["maxlinestoscan"] = settings.value("maxlinestoscan",
-            #QVariant(5000)).toInt()[0]
-    #Config["pythondocpath"] = settings.value("pythondocpath", 
-            #QVariant("http://docs.python.org")).toString()
-    #Config["autohidefinddialog"] = settings.value("autohidefinddialog",
-            #QVariant(True)).toBool()
+    Config["setwd"] = settings.value("setwd", QVariant(".")).toString()
     Config["findcasesensitive"] = settings.value("findcasesensitive",
             QVariant(False)).toBool()
     Config["findwholewords"] = settings.value("findwholewords",
@@ -158,127 +149,30 @@ def loadConfig():
                 "%sfontbold" % name, QVariant(bold)).toBool()
         Config["%sfontitalic" % name] = settings.value(
                 "%sfontitalic" % name, QVariant(italic)).toBool()
-    setDefaultString("backgroundcolor", "#FFFFFF")
-    setDefaultString("delay", 5000)
-    setDefaultString("consolestartup", "")
+    Config["backgroundcolor"] = settings.value("backgroundcolor",
+            QVariant("#FFFFFF")).toString()
+    Config["delay"] = settings.value("delay",
+            QVariant(500)).toInt()[0]
+    Config["minimumchars"] = settings.value("minimumchars",
+            QVariant(3)).toInt()[0]
+    Config["enablehighlighting"] = settings.value("enablehighlighting",
+            QVariant(True)).toBool()
+    Config["enableautocomplete"] = settings.value("enableautocomplete",
+            QVariant(True)).toBool()
 
 def saveConfig():
     settings = QSettings()
     for key, value in Config.items():
         settings.setValue(key, QVariant(value))
 
-def checkForCAT(line):
-    # We can't use CAT to keep track of which modules we have processed.
-    # This is because if the user does "import os", one of the names we
-    # will get is "os.path", which then goes into CAT; so if later the
-    # user did "import os.path", the name "os.path" will already be in
-    # CAT (from the "import os") and wouldn't be looked for. So we keep
-    # a separate dictionary of modules that we've done in MODULES.
-    line = line.strip()
-    if line.startswith("import "):
-        line = line[len("import "):]
-        for mname in [mname.strip() for mname in line.split(",")]:
-            if not MODULES.get(mname, False):
-                # We have not done this one
-                _updateCAT(mname)
-    else:
-        match = FROM_IMPORT_RE.match(line)
-        if match:
-            if match.group(1) == "__future__" or not match.group(2):
-                return
-            for name in [x for x in
-                         match.group(2).replace(",", " ").split()]:
-                mname = "%s.%s" % (match.group(1), name)
-                if not MODULES.get(mname, False):
-                    # We have not done this one
-                    _updateCAT(mname)
-                i = mname.rfind(".")
-                while i > -1:
-                    mname = mname[:i]
-                    if not MODULES.get(mname, False):
-                        # We have not done this one
-                        _updateCAT(mname)
-                    i = mname.rfind(".")
-        else:
-            for word in WORD_RE.split(line):
-                if (not word or
-                    len(word) < MIN_WORD_LEN or
-                    len(word) > MAX_WORD_LEN or
-                    word in CAT or word in WORDS):
-                    continue
-                WORDS.add(word)
-
-
-def _updateCAT(mname):
-    try:
-        MODULES[mname] = True
-        CAT.setdefault(mname, {})
-        WORDS.discard(mname)
-        module = __import__(mname)
-        components = []
-        if "." in mname:
-            for component in mname.split(".")[1:]:
-                module = getattr(module, component)
-                components.append(component)
-        for aname in dir(module):
-            if aname.startswith("_"):
-                continue
-            fullname = "%s.%s" % (mname, aname)
-            CAT.setdefault(fullname, "")
-            WORDS.discard(fullname)
-            CAT.setdefault(aname, "")
-            WORDS.discard(aname)
-            for component in components:
-                CAT.setdefault("%s.%s" % (component, aname), "")
-                WORDS.discard("%s.%s" % (component, aname))
-            # PyQt4 classes don't have docstrings
-            if not mname.startswith(("Qt", "PyQt4")):
-                try:
-                    tip = eval("sys.modules['%s'].%s.__doc__" % (
-                                mname, aname))
-                    if tip is not None:
-                        tip = (tip[:MAX_TOOLTIP_LEN].strip()
-                               .replace("\n\n", "<p>"))
-                        CAT[fullname] = tip
-                        if CAT[aname] == "":    # First one (i.e., builtin)
-                            CAT[aname] = tip    # wins
-                        for component in components: # Last one wins
-                            CAT["%s.%s" % (component, aname)] = tip
-                except:
-                    pass
-            try:
-                for bname in eval("dir(sys.modules['%s'].%s)" % (
-                        mname, aname)):
-                    if bname.startswith("_"):
-                        continue
-                    cname = "%s.%s" % (fullname, bname)
-                    CAT.setdefault(cname, "")
-                    WORDS.discard(cname)
-                    # PyQt4 classes don't have docstrings
-                    if not mname.startswith(("Qt", "PyQt4")):
-                        tip = None
-                        try:
-                            tip = eval(
-                                    "sys.modules['%s'].%s.%s.__doc__" % (
-                                    mname, aname, bname))
-                        except:
-                            pass
-                        if tip is None:
-                            try:
-                                tip = eval(
-                                        "sys.modules['%s'].%s.__doc__" % (
-                                        mname, aname))
-                            except:
-                                pass
-                        if tip is not None:
-                            tip = (tip[:MAX_TOOLTIP_LEN].strip()
-                                   .replace("\n\n", "<p>"))
-                            CAT[cname] = tip
-            except:
-                pass
-    except:
-        pass
-
+def addLibraryCommands(library):
+    if not library in Libraries:
+        Libraries.append(library)
+        info = robjects.r('lsf.str("package:%s" )' % (library))
+        info = QString(str(info)).replace(", \n    ", ", ")
+        items = info.split('\n')
+        for item in items:
+            CAT.append(item)
 
 class HelpForm(QDialog):
 
@@ -311,7 +205,8 @@ loosely coupling <b>QGIS</b> with the R statistical programming environment.
 <li><tt>Ctrl+T</tt> : Import attribute <b>t</b>able of selected layer</li>
 <li><tt>Ctrl+M</tt> : Export R layer to <b>m</b>ap canvas</li>
 <li><tt>Ctrl+D</tt> : Export R layer to <b>d</b>isk</li>
-<li><tt>Ctrl+Return</tt> : Send (selected) commands from <b>EditR</b> window to <b>manageR</b> console</li>
+<li><tt>Ctrl+Return</tt> : Send (selected) commands from <b>EditR</b> window to 
+<b>manageR</b> console</li></ul>
 <h4>Details:</h4>
 <p>
 Use <tt>Ctrl+L</tt> to import the currently selected layer in the <b>QGIS</b> 
@@ -319,10 +214,6 @@ layer list into the <b>manageR</b> environment. To import only the attribute
 table of the selected layer, use <tt>Ctrl+T</tt>. Exporting R layers 
 from the <b>manageR</b> environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-D</tt>, 
 where M signifies exporting to the map canvas, and D signifies exporting to disk. 
-Multi-line R commands will automatically be recognised by the <b>manageR</b> 
-console, however, to manaully enter multi-line commands, use the <tt>Shift</tt> 
-modifier when typing <tt>Return</tt> to signify continuation of command on the 
-following line.
 </p>
 <p>
 Use <tt>Ctrl+R</tt> to send commands from the an <b>EditR</b> window to the <b>manageR</b> 
@@ -331,7 +222,7 @@ to the <b>manageR</b> console, otherwise, all text is sent. The <b>EditR</b> win
 also contains tools for creating, loading, and saving R scripts, as well as 
 basic functionality such as undo, redo, cut, copy, and paste. These tools are also 
 available via standard keyboard shortcuts (e.g. <tt>Ctrl+C</tt> to copy text) and 
-are outlined in detail in the <tt>Key bindings</tt> section.
+are outlined in detail in the <b>Key bindings</b> section.
 </p>
 <h4>Additional tools:</h4>
 <p>
@@ -339,12 +230,12 @@ If enabled, command completion suggestions are automatically shown after %d seco
 based on the current work. This can also be manually activated using <b>Ctrl+Space</b>. 
 In addition, a tooltip will appear if one is available for the selected command.
 Autocompletion and tooltips are available for R functions and commands within 
-libraries that are automatically loaded by R, or <b>manageR</b> (see the
-File\N{RIGHTWARDS ARROW}Configure dialog's At Startup tab), as well as any additional 
-libraries loaded after the <b>manageR</b> session has started. (This makes loading 
-libraries with many builtin functions or additional libraries slightly longer than 
-in a normal R session). It is possible to turn off autocompletion by unchecking 
-File\N{RIGHTWARDS ARROW}Configure dialog's General tab's enable autocompletion checkbox.
+libraries that are automatically loaded by R, or <b>manageR</b>, 
+as well as any additional libraries loaded after the <b>manageR</b> session has started.
+(This makes loading libraries with many builtin functions or additional libraries slightly 
+longer than in a normal R session). It is possible to turn off autocompletion (and tooltips) 
+by unchecking File\N{RIGHTWARDS ARROW}Configure\N{RIGHTWARDS ARROW}
+General tab\N{RIGHTWARDS ARROW}Enable autocompletion.
 </p>
 <p>
 A Find and Replace toolbar is available for both the <b>manageR</b> console and <b>EditR</b> 
@@ -355,63 +246,69 @@ replace text as it is found, simply type the replacement text in the 'Replace' l
 click 'Replace'. To replace all occurances of the found text, click 'Replace all'. All 
 searches can be refined by using the 'Case sensitive' and 'Whole words' check boxes.
 </p>
-Key bindings:
+<p>
+Additional tools include the ability to specify startup commands to be run whenever <b>manageR</b> 
+is started (see File\N{RIGHTWARDS ARROW}Configure\N{RIGHTWARDS ARROW}At Startup), 
+as well as a tab to specify the text/commands to be included at the top of all new R scripts (see 
+File\N{RIGHTWARDS ARROW}Configure\N{RIGHTWARDS ARROW}On New File).
+</p>
+<h4>Key bindings:</h4>
 <ul>
-<li><b>\N{UPWARDS ARROW}</b> In the <b>manageR</b> console, show the previous command
+<li><tt>\N{UPWARDS ARROW}</tt> : In the <b>manageR</b> console, show the previous command
 from the command history. In the <b>EditR</b> windows, move up one line.
-<li><b>\N{DOWNWARDS ARROW}</b> In the <b>manageR</b> console, show the next command
+<li><tt>\N{DOWNWARDS ARROW}</tt> : In the <b>manageR</b> console, show the next command
 from the command history. In the <b>EditR</b> windows, move down one line.
-<li><b>\N{LEFTWARDS ARROW}</b> Move the cursor left one character
-<li><b>Ctrl+\N{LEFTWARDS ARROW}</b> Move the cursor left one word
-<li><b>\N{RIGHTWARDS ARROW}</b> Move the cursor right one character
-<li><b>Ctrl+\N{RIGHTWARDS ARROW}</b> Move the cursor right one word
-<li><b>Ctrl+]</b> Indent the selected text (or the current line) by %d spaces
-<li><b>Ctrl+[</b> Unindent the selected text (or the current line) by %d spaces
-<li><b>Ctrl+A</b> Select all the text
-<li><b>Backspace</b> Delete the character to the left of the cursor
-<li><b>Ctrl+C</b> In the <b>manageR</b> console, if the cursor is in the command line, clear
+<li><tt>\N{LEFTWARDS ARROW}</tt> : Move the cursor left one character
+<li><tt>Ctrl+\N{LEFTWARDS ARROW}</tt> : Move the cursor left one word
+<li><tt>\N{RIGHTWARDS ARROW}</tt> : Move the cursor right one character
+<li><tt>Ctrl+\N{RIGHTWARDS ARROW}</tt> : Move the cursor right one word
+<li><tt>Ctrl+]</tt> : Indent the selected text (or the current line) by %d spaces
+<li><tt>Ctrl+[</tt> : Unindent the selected text (or the current line) by %d spaces
+<li><tt>Ctrl+A</tt> : Select all the text
+<li><tt>Backspace</tt> : Delete the character to the left of the cursor
+<li><tt>Ctrl+C</tt> : In the <b>manageR</b> console, if the cursor is in the command line, clear
 current command(s), otherwise copy the selected text to the clipboard (same for <b>EditR</b> 
 windows.
-<li><b>Delete</b> Delete the character to the right of the cursor
-<li><b>End</b> Move the cursor to the end of the line
-<li><b>Ctrl+End</b> Move the cursor to the end of the file
-<li><b>Ctrl+Return</b> In an <b>EditR</b> window, execute the (selected) code/text
-<li><b>Ctrl+F</b> Pop up the Find toolbar
-<li><b>Ctrl+R</b> In an <b>EditR</b> window, pop up the Find and Replace toolbar
-<li><b>Home</b> Move the cursor to the beginning of the line
-<li><b>Ctrl+Home</b> Move the cursor to the beginning of the file
-<li><b>Ctrl+K</b> Delete to the end of the line
-<li><b>Ctrl+H</b> Pop up the 'Goto line' dialog
-<li><b>Ctrl+B</b> Go to the matching ([{&lt; or &gt;}]). The matcher looks
+<li><tt>Delete</tt> : Delete the character to the right of the cursor
+<li><tt>End</tt> : Move the cursor to the end of the line
+<li><tt>Ctrl+End</tt> : Move the cursor to the end of the file
+<li><tt>Ctrl+Return</tt> : In an <b>EditR</b> window, execute the (selected) code/text
+<li><tt>Ctrl+F</tt> : Pop up the Find toolbar
+<li><tt>Ctrl+R</tt> : In an <b>EditR</b> window, pop up the Find and Replace toolbar
+<li><tt>Home</tt> : Move the cursor to the beginning of the line
+<li><tt>Ctrl+Home</tt> : Move the cursor to the beginning of the file
+<li><tt>Ctrl+K</tt> : Delete to the end of the line
+<li><tt>Ctrl+H</tt> : Pop up the 'Goto line' dialog
+<li><tt>Ctrl+B</tt> : Go to the matching ([{&lt; or &gt;}]). The matcher looks
 at the character preceding the cursor, and if it is a match character the
 cursor moves so that the matched character precedes the cursor. If no
 suitable character is preceding the cursor, but there is a suitable
 character following the cursor, the cursor will advance one character (so
 that the match character now precedes it), and works as just described.
 (In other words the matching is after\N{LEFT RIGHT ARROW}after.)
-<li><b>Ctrl+N</b> Open a new editor window
-<li><b>Ctrl+O</b> Open a file open dialog to open an R script
-<li><b>Ctrl+Space</b> Pop up a list of possible completions for
+<li><tt>Ctrl+N</tt> : Open a new editor window
+<li><tt>Ctrl+O</tt> : Open a file open dialog to open an R script
+<li><tt>Ctrl+Space</tt> : Pop up a list of possible completions for
 the current word. Use the up and down arrow keys and the page up and page
-up keys (or the mouse) to navigate; click <b>Enter</b> to accept a
-completion or <b>Esc</b> to cancel.
-<li><b>PageUp</b> Move up one screen
-<li><b>PageDown</b> Move down one screen
-<li><b>Ctrl+Q</b> Terminate manageR; prompting to save any unsaved changes
+up keys (or the mouse) to navigate; click <tt>Enter</tt> to accept a
+completion or <tt>Esc</tt> to cancel.
+<li><tt>PageUp</tt> : Move up one screen
+<li><tt>PageDown</tt> : Move down one screen
+<li><tt>Ctrl+Q</tt> : Terminate manageR; prompting to save any unsaved changes
 for every <b>EditR</b> window for which this is necessary. If the user cancels
 any save unsaved changes message box, manageR will not terminate.
-<li><b>Ctrl+S</b> Save the current file
-<li><b>Ctrl+V</b> Paste the clipboard's text
-<li><b>Ctrl+W</b> Close the current file; prompting to save any unsaved
+<li><tt>Ctrl+S</tt> : Save the current file
+<li><tt>Ctrl+V</tt> : Paste the clipboard's text
+<li><tt>Ctrl+W</tt> : Close the current file; prompting to save any unsaved
 changes if necessary
-<li><b>Ctrl+X</b> Cut the selected text to the clipboard
-<li><b>Ctrl+Z</b> Undo the last editing action
-<li><b>Ctrl+Shift+Z</b> Redo the last editing action
+<li><tt>Ctrl+X</tt> : Cut the selected text to the clipboard
+<li><tt>Ctrl+Z</tt> : Undo the last editing action
+<li><tt>Ctrl+Shift+Z</tt> : Redo the last editing action
 </ul>
-Hold down <b>Shift</b> when pressing movement keys to select the text moved over.
+Hold down <tt>Shift</tt> when pressing movement keys to select the text moved over.
 <br>
-Press <b>Esc</b> to close this window.
-""" % (__version__, 5000,#Config["delay"], 
+Press <tt>Esc</tt> to close this window.
+""" % (__version__, Config["delay"], 
       Config["tabwidth"], Config["tabwidth"]))
         layout = QVBoxLayout()
         layout.setMargin(0)
@@ -595,10 +492,7 @@ class RHighlighter(QSyntaxHighlighter):
         RHighlighter.Rules.append((QRegExp(r"[\)\(]+|[\{\}]+|[][]+"),
                 "delimiter"))
         RHighlighter.Rules.append((QRegExp(r"#.*"), "comment"))
-        stringRe = QRegExp(r"""(?:'[^']*'|"[^"]*")""")
-        stringRe.setMinimal(True)
-        RHighlighter.Rules.append((stringRe, "string"))
-        self.stringRe = QRegExp(r"""(:?"["]".*"["]"|'''.*''')""")
+        self.stringRe = QRegExp("(\'[^\']*\'|\"[^\"]*\")")
         self.stringRe.setMinimal(True)
         RHighlighter.Rules.append((self.stringRe, "string"))
         self.multilineSingleStringRe = QRegExp(r"""'(?!")""")
@@ -629,7 +523,7 @@ class RHighlighter(QSyntaxHighlighter):
         self.setFormat(0, textLength,
                        RHighlighter.Formats["normal"])
 
-        if text.startsWith("Error: "):
+        if text.startsWith("Error"):
             self.setCurrentBlockState(ERROR)
             self.setFormat(0, textLength,
                            RHighlighter.Formats["error"])
@@ -653,7 +547,6 @@ class RHighlighter(QSyntaxHighlighter):
 
         if text.indexOf(self.stringRe) != -1:
             return
-        # This is fooled by triple quotes inside single quoted strings
         for i, state in ((text.indexOf(self.multilineSingleStringRe),
                           MULTILINESINGLE),
                          (text.indexOf(self.multilineDoubleStringRe),
@@ -662,17 +555,144 @@ class RHighlighter(QSyntaxHighlighter):
                 if i == -1:
                     i = text.length()
                     self.setCurrentBlockState(state)
-                self.setFormat(0, i + 1,     
-                               RHighlighter.Formats["string"])
+                self.setFormat(0, i + 1, RHighlighter.Formats["string"])
             elif i > -1:
                 self.setCurrentBlockState(state)
-                self.setFormat(i, text.length(),
-                               RHighlighter.Formats["string"])
+                self.setFormat(i, text.length(), RHighlighter.Formats["string"])
 
     def rehighlight(self):
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         QSyntaxHighlighter.rehighlight(self)
         QApplication.restoreOverrideCursor()
+        
+        
+class RCompleter(QObject):
+
+    def __init__( self, parent, delay=500):
+        QObject.__init__(self, parent)
+        self.editor = parent
+        self.popup = QTreeWidget()
+        self.popup.setColumnCount(1)
+        self.popup.setUniformRowHeights(True)
+        self.popup.setRootIsDecorated(False)
+        self.popup.setEditTriggers(QTreeWidget.NoEditTriggers)
+        self.popup.setSelectionBehavior(QTreeWidget.SelectRows)
+        self.popup.setFrameStyle(QFrame.Box|QFrame.Plain)
+        self.popup.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.popup.header().hide()
+        self.popup.installEventFilter(self)
+        self.popup.setMouseTracking(True)
+        self.connect(self.popup,\
+        SIGNAL("itemClicked(QTreeWidgetItem*, int)"),\
+        self.doneCompletion)
+        self.popup.setWindowFlags(Qt.Popup)
+        self.popup.setFocusPolicy(Qt.NoFocus)
+        self.popup.setFocusProxy(self.editor)
+        self.timer = QTimer(self)
+        self.timer.setSingleShot(True)
+        if isinstance(delay,int):
+            self.timer.setInterval(delay)
+        else:
+            self.timer.setInterval(500)
+        self.connect(self.timer, SIGNAL("timeout()"), self.suggest, Config["minimumchars"])
+        self.connect(self.editor, SIGNAL("textChanged()"), self.startTimer)
+
+    def startTimer(self):
+        self.timer.start()
+
+    def eventFilter(self, obj, ev):
+        if not obj == self.popup:
+            return False
+        if ev.type() == QEvent.MouseButtonPress:
+            self.popup.hide()
+            self.editor.setFocus()
+            return True
+        if ev.type() == QEvent.KeyPress:
+            consumed = False
+            key = ev.key()
+            if key == Qt.Key_Enter or \
+            key == Qt.Key_Return:
+                self.doneCompletion()
+                consumed = True
+            elif key == Qt.Key_Escape:
+                self.editor.setFocus()
+                self.popup.hide()
+                consumed = True
+            elif key == Qt.Key_Up or \
+            key == Qt.Key_Down or \
+            key == Qt.Key_Home or \
+            key == Qt.Key_End or \
+            key == Qt.Key_PageUp or \
+            key == Qt.Key_PageDown:
+                pass
+            else:
+                self.editor.setFocus()
+                self.editor.event(ev)
+                self.popup.hide()
+            return consumed
+        return False
+
+    def showCompletion(self, choices):
+        if choices.isEmpty():
+            return
+
+        pal = self.editor.palette()
+        color = pal.color(QPalette.Disabled, 
+                          QPalette.WindowText)
+        self.popup.setUpdatesEnabled(False)
+        self.popup.clear()
+        for i in choices:
+            item = QTreeWidgetItem(self.popup)
+            item.setText(0, i.split(":")[0].simplified())
+            try:
+                item.setData(0, Qt.StatusTipRole, 
+                QVariant( i.split(":")[1].simplified() ) )
+            except:
+                pass
+        self.popup.setCurrentItem(self.popup.topLevelItem(0))
+        self.popup.resizeColumnToContents(0)
+        self.popup.adjustSize()
+        self.popup.setUpdatesEnabled(True)
+
+        h = self.popup.sizeHintForRow(0) * min([7, choices.count()]) + 3
+        self.popup.resize(self.popup.width(), h)
+
+        self.popup.move(self.editor.mapToGlobal(self.editor.cursorRect().bottomRight()))
+        self.popup.setFocus()
+        self.popup.show()
+
+    def doneCompletion( self ):
+        self.timer.stop()
+        self.popup.hide()
+        self.editor.setFocus()
+        item = self.popup.currentItem()
+        self.editor.parent.statusBar().showMessage(
+        item.data(0, Qt.StatusTipRole).toString().\
+        replace("function", item.text(0)))
+        # TODO: Figure out if it's possible the word wrap the statusBar
+        if item:
+            self.replaceCurrentWord(item.text(0))
+            self.preventSuggest()
+
+    def preventSuggest(self):
+        self.timer.stop()
+
+    def suggest(self,minchars=3):
+        text = self.getCurrentWord()
+        if text.contains(QRegExp("\\b.{%d,}" % (minchars))):
+            self.showCompletion(CAT.filter(QRegExp("^%s" % (text))))
+        
+    def getCurrentWord(self):
+        textCursor = self.editor.textCursor()
+        textCursor.movePosition(QTextCursor.StartOfWord, QTextCursor.KeepAnchor)
+        currentWord = textCursor.selectedText()
+        textCursor.setPosition(textCursor.anchor(), QTextCursor.MoveAnchor)
+        return currentWord
+        
+    def replaceCurrentWord(self, word):
+        textCursor = self.editor.textCursor()
+        textCursor.movePosition(QTextCursor.StartOfWord, QTextCursor.KeepAnchor)
+        textCursor.insertText(word)
 
 
 class REditor(QTextEdit):
@@ -681,12 +701,7 @@ class REditor(QTextEdit):
         self.setLineWrapMode(QTextEdit.NoWrap)
         self.indent = 0
         self.tabwidth = tabwidth
-        self.completionListWidget = None
-        self.prefix = ""
-        self.classes = set()
-        self.defs = set()
-        self.completionOffset = QFontMetrics(
-                    self.font()).width("x")
+        self.parent = parent
 
     def event(self, event):
         indent = " " * self.tabwidth
@@ -815,12 +830,17 @@ class REditor(QTextEdit):
         if not commands.isEmpty():
             mime = QMimeData()
             mime.setText(commands)
+            MainWindow.Console.editor.moveToEnd()
+            MainWindow.Console.editor.cursor.movePosition(
+            QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+            MainWindow.Console.editor.cursor.removeSelectedText()
+            MainWindow.Console.editor.cursor.insertText(
+            MainWindow.Console.editor.currentPrompt)
             MainWindow.Console.editor.insertFromMimeData(mime)
-            MainWindow.Console.editor.execute(commands)
+            MainWindow.Console.editor.entered()
 
     def indentRegion(self):
         self._walkTheLines(True, " " * self.tabwidth)
-
 
     def unindentRegion(self):
         self._walkTheLines(False, " " * self.tabwidth)
@@ -865,16 +885,14 @@ class RConsole(QTextEdit):
     def __init__(self, parent):
         super(RConsole, self).__init__(parent)
         # initialise standard settings
-        self.setTextInteractionFlags( Qt.TextEditorInteraction)
+        self.setTextInteractionFlags(Qt.TextEditorInteraction)
         self.setAcceptDrops(False)
         self.setMinimumSize(30, 30)
         self.parent = parent
-        #self.setTextFont()
         self.setUndoRedoEnabled(False)
         self.setAcceptRichText(False)
-        #self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        #self.scrollbar = self.verticalScrollBar()
-        self.highlighter = RHighlighter(self.document())
+        monofont = QFont(Config["fontfamily"], Config["fontsize"])
+        self.setFont(monofont)
         # initialise required variables
         self.history = QStringList()
         self.historyIndex = 0
@@ -883,7 +901,35 @@ class RConsole(QTextEdit):
         self.reset()
         self.setPrompt(Config["beforeinput"]+" ", Config["afteroutput"]+" ")
         self.cursor = self.textCursor()
-        #QObject.connect( self, SIGNAL( "textChanged()" ), self.moveToEnd )
+
+    def loadRHistory(self):
+        success = True
+        try:
+            fileInfo = QFileInfo()
+            fileInfo.setFile(QDir(robjects.r['getwd']()[0]), ".Rhistory")
+            fileFile = QFile(fileInfo.absoluteFilePath())
+            if not fileFile.open(QIODevice.ReadOnly):
+                return False
+            inFile = QTextStream(history)
+            while not inFile.atEnd():
+                line = QString(inFile.readLine())
+                self.updateHistory(line)
+        except:
+            success = False
+        return success
+      
+    def saveRHistory(self):
+        success = True
+        try:
+            fileInfo = QFileInfo()
+            fileInfo.setFile(QDir(robjects.r['getwd']()[0]), ".Rhistory")
+            outFile = open(fileInfo.filePath(), "w")
+            for line in self.history:
+                outFile.write(line+"\n")
+            outFile.flush()
+        except:
+            success = False
+        return success
 
     def reset(self):
         # clear all contents
@@ -935,33 +981,7 @@ class RConsole(QTextEdit):
                 MainWindow.Console.statusBar().clearMessage() # this is not very generic, better way to do this?
               # if Return is pressed, then perform the commands
             elif e.key() == Qt.Key_Return:
-                command = self.currentCommand()
-                check = self.runningCommand.split("\n").last()
-                if not self.runningCommand.isEmpty():
-                    if not command == check:
-                        self.runningCommand.append( command )
-                        self.updateHistory( command )
-                else:
-                    if not command.isEmpty():
-                        self.runningCommand = command
-                        self.updateHistory( command )
-                    else:
-                        self.switchPrompt( True )
-                        self.displayPrompt()
-                if e.modifiers() == Qt.ShiftModifier or \
-                    not self.checkBrackets(self.runningCommand):
-                    self.switchPrompt(False)
-                    self.cursor.insertText("\n"+self.currentPrompt)
-                    self.runningCommand.append( "\n")
-                else:
-                    if not self.runningCommand.isEmpty():
-                        command=self.runningCommand
-                    self.execute(command)
-                    self.runningCommand.clear()
-                    self.switchPrompt(True)
-                    #self.displayPrompt()
-                self.cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
-                self.moveToEnd()
+                self.entered()
               # if Up or Down is pressed
             elif e.key() == Qt.Key_Down:
                 self.showPrevious()
@@ -1011,12 +1031,42 @@ class RConsole(QTextEdit):
                     anchor = QTextCursor.KeepAnchor
                 else:
                     anchor = QTextCursor.MoveAnchor
-                self.cursor.movePosition(QTextCursor.EndOfBlock, anchor, 1)
+                self.cursor.movePosition(
+                QTextCursor.EndOfBlock, anchor, 1)
                 # use normal operation for all remaining keys
             else:
                 QTextEdit.keyPressEvent(self, e)
         self.setTextCursor(self.cursor)
         self.ensureCursorVisible()
+        
+    def entered(self):
+        command = self.currentCommand()
+        check = self.runningCommand.split("\n").last()
+        if not self.runningCommand.isEmpty():
+            if not command == check:
+                self.runningCommand.append(command)
+                self.updateHistory(command)
+        else:
+            if not command.isEmpty():
+                self.runningCommand = command
+                self.updateHistory(command)
+            else:
+                self.switchPrompt(True)
+                self.displayPrompt()
+        if not self.checkBrackets(self.runningCommand):
+            self.switchPrompt( False )
+            self.cursor.insertText( "\n" + self.currentPrompt )
+            self.runningCommand.append( "\n" )
+        else:
+            if not self.runningCommand.isEmpty():
+                command=self.runningCommand
+            self.execute(command)
+            self.runningCommand.clear()
+            self.switchPrompt(True)
+        #self.displayPrompt()
+        self.cursor.movePosition(QTextCursor.End, 
+        QTextCursor.MoveAnchor)
+        self.moveToEnd()
 
     def showPrevious(self):
         if self.historyIndex < len( self.history ) and not self.history.isEmpty():
@@ -1171,23 +1221,21 @@ class RConsole(QTextEdit):
 
     def execute(self, text):
         MainWindow.Console.statusBar().showMessage("Running...")
-        #highlighting = True
-        #sinking = False
         if not text.trimmed() == "":
             try:
-                if ( text.startsWith( 'quit(' ) or text.startsWith( 'q(' ) ) \
-                and text.count( ")" ) == 1:
-                    self.commandError( "System exit from manageR not allowed, close dialog manually" )
+                if ( text.startsWith('quit(') or text.startsWith('q(')) \
+                and text.count(")") == 1:
+                    self.commandError("System exit from manageR not allowed, close dialog manually")
                 else:
                     output_text = QString()
-                    def write( output ):
-                        if not QString( output ).startsWith( "Error" ):
-                            output_text.append( unicode(output, 'utf-8') )
-                        if output_text.length() >= 50000 and output_text[ -1 ] == "\n":
-                            self.commandOutput( output_text )
+                    def write(output):
+                        if not QString(output).startsWith("Error"):
+                            output_text.append(unicode(output, 'utf-8'))
+                        if output_text.length() >= 50000 and output_text[-1] == "\n":
+                            self.commandOutput(output_text)
                             output_text.clear()
-                    robjects.rinterface.setWriteConsole( write )
-                    def read( prompt ):
+                    robjects.rinterface.setWriteConsole(write)
+                    def read(prompt):
                         input = "\n"
                         return input
                     robjects.rinterface.setReadConsole( read )
@@ -1217,11 +1265,16 @@ class RConsole(QTextEdit):
                                 elif not str(result.r["value"][0]) == "NULL":
                                     robjects.r['print'](result.r["value"][0])
                             else:
-                                #self.emit( SIGNAL( "newObjectCreated( PyQt_PyObject )" ), self.updateRObjects() )
-                                pass
+                                try:
+                                    if text.startsWith('library('):
+                                        library = result.r["value"][0][0]
+                                        if not library in Libraries:
+                                            addLibraryCommands(library)
+                                except:
+                                    pass
                     except robjects.rinterface.RRuntimeError, rre:
                         # this fixes error output to look more like R's output
-                        self.commandError( "Error: " + str(rre).split(":")[1].strip() )
+                        self.commandError( "Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
                         self.commandComplete()
                         return
                     if not output_text.isEmpty():
@@ -1257,9 +1310,6 @@ class RConsole(QTextEdit):
         self.displayPrompt()
         MainWindow.Console.statusBar().showMessage("Complete!", 5000)
         # Also should emit a signal here
-
-    def complete(self):
-        pass
 
     def gotoMatching(self):
         # move the cursor to the matching ()[]<>{} or do nothing
@@ -1323,7 +1373,7 @@ class ConfigForm(QDialog):
 
         self.highlightingChanged = False
         fm = QFontMetrics(self.font())
-        monofont = QFont(Config["fontfamily"], Config["fontsize"])
+        monofont = QFont(Config["fontfamily"], 10)
         pixmap = QPixmap(16, 16)
         self.colors = {}
         self.boldCheckBoxes = {}
@@ -1333,18 +1383,16 @@ class ConfigForm(QDialog):
 
         generalWidget = QWidget()
         self.rememberGeometryCheckBox = QCheckBox(
-                "&Remember Geometry")
+                "&Remember geometry")
         self.rememberGeometryCheckBox.setToolTip("<p>Check this to make "
-                "manageR remember the size and position of the Console "
+                "manageR remember the size and position of the console "
                 "window and one editR window")
         self.rememberGeometryCheckBox.setChecked(
                 Config["remembergeometry"])
-        self.autoHideFindDlgCheckBox = QCheckBox(
-                "Automati&cally Hide the Find and Replace dialog")
         self.backupLineEdit = QLineEdit(Config["backupsuffix"])
         self.backupLineEdit.setToolTip("<p>If nonempty, a backup will be "
                 "kept with the given suffix. If empty, no backup will be "
-                "made.")
+                "made.</p>")
         regex = QRegExp(r"[~.].*")
         self.backupLineEdit.setValidator(QRegExpValidator(regex, self))
         self.backupLineEdit.setFont(monofont)
@@ -1355,63 +1403,40 @@ class ConfigForm(QDialog):
         self.inputLineEdit.setValidator(QRegExpValidator(regex, self))
         self.inputLineEdit.setInputMask("x" * 40)
         self.inputLineEdit.setFont(monofont)
-        inputPromptLabel = QLabel("&Input Prompt:")
+        self.inputLineEdit.setToolTip("<p>Specify the prompt (e.g. '>') "
+                "that will be displayed each time the console is ready "
+                "for input.</p>")
+        inputPromptLabel = QLabel("&Input prompt:")
         inputPromptLabel.setBuddy(self.inputLineEdit)
         self.outputLineEdit = QLineEdit(Config["afteroutput"])
         self.outputLineEdit.setValidator(QRegExpValidator(regex, self))
         self.outputLineEdit.setInputMask("x" * 40)
         self.outputLineEdit.setFont(monofont)
-        outputPromptLabel = QLabel("&Output Prompt:")
+        self.outputLineEdit.setToolTip("<p>Specify the prompt (e.g. '+') "
+                "that will be displayed each time further input to the "
+                "console is required.</p>")
+        outputPromptLabel = QLabel("&Continuation prompt:")
         outputPromptLabel.setBuddy(self.outputLineEdit)
-        self.cwdLineEdit = QLineEdit(Config["cwd"])
-        cwdLabel = QLabel("Working &Directory:")
+        self.cwdLineEdit = QLineEdit(Config["setwd"])
+        cwdLabel = QLabel("&Default working directory:")
         cwdLabel.setBuddy(self.cwdLineEdit)
+        self.cwdLineEdit.setToolTip("<p>Specify the default working "
+                "directory for the manageR console. Settings this to "
+                "blank, or '.', will use the current Python working "
+                "directory.</p>")
         self.tabWidthSpinBox = QSpinBox()
-        self.tabWidthSpinBox.setAlignment(Qt.AlignVCenter|
-                                          Qt.AlignRight)
+        self.tabWidthSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
         self.tabWidthSpinBox.setRange(2, 20)
         self.tabWidthSpinBox.setSuffix(" spaces")
         self.tabWidthSpinBox.setValue(Config["tabwidth"])
+        self.tabWidthSpinBox.setToolTip("<p>Specify the number of "
+                "spaces that a single tab should span.</p>")
         tabWidthLabel = QLabel("&Tab width:")
         tabWidthLabel.setBuddy(self.tabWidthSpinBox)
-        minWidth = 0
-        for label in (backupLabel, inputPromptLabel, outputPromptLabel,
-                cwdLabel, tabWidthLabel):
-            minWidth = max(minWidth, fm.width(label.text()))
-        for label in (backupLabel, inputPromptLabel, outputPromptLabel,
-                cwdLabel, tabWidthLabel):
-            label.setMinimumWidth(minWidth)
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.rememberGeometryCheckBox)
-        hbox = QHBoxLayout()
-        hbox.addWidget(backupLabel)
-        hbox.addWidget(self.backupLineEdit)
-        hbox.addStretch()
-        vbox.addLayout(hbox)
-        hbox = QHBoxLayout()
-        hbox.addWidget(inputPromptLabel)
-        hbox.addWidget(self.inputLineEdit)
-        hbox.addStretch()
-        vbox.addLayout(hbox)
-        hbox = QHBoxLayout()
-        hbox.addWidget(outputPromptLabel)
-        hbox.addWidget(self.outputLineEdit)
-        hbox.addStretch()
-        vbox.addLayout(hbox)
-        hbox = QHBoxLayout()
-        hbox.addWidget(cwdLabel)
-        hbox.addWidget(self.cwdLineEdit)
-        vbox.addLayout(hbox)
-        hbox = QHBoxLayout()
-        hbox.addWidget(tabWidthLabel)
-        hbox.addWidget(self.tabWidthSpinBox)
-        hbox.addStretch()
-        vbox.addLayout(hbox)
-        generalWidget.setLayout(vbox)
-
-        highlightingWidget = QWidget()
         self.fontComboBox = QFontComboBox()
         self.fontComboBox.setCurrentFont(monofont)
+        self.fontComboBox.setToolTip("<p>Specify the font family for "
+                "the manageR console and all EditR windows.</p>")
         fontLabel = QLabel("&Font:")
         fontLabel.setBuddy(self.fontComboBox)
         self.fontSpinBox = QSpinBox()
@@ -1419,10 +1444,89 @@ class ConfigForm(QDialog):
         self.fontSpinBox.setRange(6, 20)
         self.fontSpinBox.setSuffix(" pt")
         self.fontSpinBox.setValue(Config["fontsize"])
+        self.fontSpinBox.setToolTip("<p>Specify the font size for  "
+                "the manageR console, and all EditR windows.</p>")
+        self.timeoutSpinBox = QSpinBox()
+        self.timeoutSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
+        self.timeoutSpinBox.setRange(0, 20000)
+        self.timeoutSpinBox.setSingleStep(100)
+        self.timeoutSpinBox.setSuffix(" ms")
+        self.timeoutSpinBox.setValue(Config["delay"])
+        self.timeoutSpinBox.setToolTip("<p>Specify the time (in milliseconds) "
+                "to wait before displaying the autocomplete popup when a set of "
+                "possible matches are found.</p>")
+        timeoutLabel = QLabel("Popup time delay:")
+        timeoutLabel.setBuddy(self.timeoutSpinBox)
+        self.mincharsSpinBox = QSpinBox()
+        self.mincharsSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
+        self.mincharsSpinBox.setRange(1, 4)
+        self.mincharsSpinBox.setSuffix(" characters")
+        self.mincharsSpinBox.setValue(Config["minimumchars"])
+        self.mincharsSpinBox.setToolTip("<p>Specify the minimum number of characters "
+                "that must be typed before displaying the autocomplete popup when a "
+                "set of possible matches are found.</p>")
+        mincharsLabel = QLabel("Minimum word size:")
+        mincharsLabel.setBuddy(self.mincharsSpinBox)        
+        self.autocompleteCheckBox = QCheckBox("Enable autocomplete/tooltips")
+        self.autocompleteCheckBox.setToolTip("<p>Check this to enable "
+                "autocompletion of R commands. For the current manageR session," 
+                "only newly imported library commands will be added to the "
+                "autocomplete list.")
+        self.autocompleteCheckBox.setChecked(Config["enableautocomplete"])
+        
+        maxWidth = fm.width(mincharsLabel.text())
+        for widget in (self.backupLineEdit, self.inputLineEdit, self.outputLineEdit,
+                self.tabWidthSpinBox, self.mincharsSpinBox, self.timeoutSpinBox,
+                self.fontSpinBox):
+            maxWidth = max(maxWidth, fm.width(widget.text()))
+        for widget in (self.backupLineEdit, self.inputLineEdit, self.outputLineEdit,
+                self.tabWidthSpinBox, self.mincharsSpinBox, self.timeoutSpinBox,
+                self.fontSpinBox):
+            widget.setFixedWidth(maxWidth)
+
+        vbox = QVBoxLayout()
+        grid0 = QGridLayout()
+        grid0.addWidget(self.rememberGeometryCheckBox,0,0,1,3)
+        grid0.addWidget(fontLabel,1,0,1,1)
+        grid0.addWidget(self.fontComboBox,1,1,1,1)
+        grid0.addWidget(self.fontSpinBox,1,2,1,1)
+        grid0.addWidget(tabWidthLabel,2,0,1,1)
+        grid0.addWidget(self.tabWidthSpinBox,2,2,1,1,Qt.AlignRight)
+        grid0.addWidget(backupLabel,3,0,1,1)
+        grid0.addWidget(self.backupLineEdit,3,2,1,1,Qt.AlignRight)
+        vbox.addLayout(grid0)
+        
+        gbox1 = QGroupBox("Console")
+        grid1 = QGridLayout()
+        grid1.addWidget(inputPromptLabel,0,0,1,1)
+        grid1.addWidget(self.inputLineEdit,0,1,1,1,Qt.AlignRight)
+        grid1.addWidget(outputPromptLabel,1,0,1,1)
+        grid1.addWidget(self.outputLineEdit,1,1,1,1,Qt.AlignRight)
+        grid1.addWidget(cwdLabel,2,0,1,1)
+        grid1.addWidget(self.cwdLineEdit,2,1,1,1)
+        gbox1.setLayout(grid1)
+        vbox.addWidget(gbox1)
+        
+        gbox2 = QGroupBox("Autocompletion")
+        grid2 = QGridLayout()
+        grid2.addWidget(timeoutLabel,0,0,1,1)
+        grid2.addWidget(self.timeoutSpinBox,0,1,1,1,Qt.AlignRight)
+        grid2.addWidget(mincharsLabel,1,0,1,1)
+        grid2.addWidget(self.mincharsSpinBox,1,1,1,1,Qt.AlignRight)
+        grid2.addWidget(self.autocompleteCheckBox,2,0,1,2)
+        gbox2.setLayout(grid2)
+        vbox.addWidget(gbox2)
+        generalWidget.setLayout(vbox)
+
+        highlightingWidget = QWidget()
+        self.highlightingCheckBox = QCheckBox("Enable syntax highlighting")
+        self.highlightingCheckBox.setToolTip("<p>Check this to enable "
+                "syntax highlighting in the console and EditR windows."
+                "Changes made here only take effect when manageR is next run.</p>")
+        self.highlightingCheckBox.setChecked(Config["enablehighlighting"])
         minButtonWidth = 0
         minWidth = 0
         label = QLabel("Background:")
-        #minWidth = max(minWidth, fm.width(label.text())) + 175
         label.setMinimumWidth(minWidth)
         minWidth = 0
         color = Config["backgroundcolor"]
@@ -1437,17 +1541,9 @@ class ConfigForm(QDialog):
         lambda name="background": self.setColor("background"))
 
         gbox = QGridLayout()
-        #hbox = QHBoxLayout()
-        gbox.addWidget(fontLabel,0,0,1,1)
-        gbox.addWidget(self.fontComboBox,0,1,1,2)
-        gbox.addWidget(self.fontSpinBox,0,3,1,1)
-        #hbox.addStretch()
-        #vbox.addLayout(hbox)
-        #hbox = QHBoxLayout()
-        gbox.addWidget(label,1,0,1,1)
-        gbox.addWidget(colorButton,1,3,1,1)
-        #hbox.addStretch()
-        #vbox.addLayout(hbox)
+        gbox.addWidget(self.highlightingCheckBox, 0,0,1,3)
+        gbox.addWidget(label,2,0,1,1)
+        gbox.addWidget(colorButton,2,3,1,1)
         count = 1
         labels = []
         buttons = []
@@ -1458,7 +1554,6 @@ class ConfigForm(QDialog):
                 ("number", "Numbers:"), ("error", "Errors:"),
                 ("assignment", "Assignment operator:")):
             label = QLabel(labelText)
-            #minWidth = max(minWidth, fm.width(label.text()))
             labels.append(label)
             boldCheckBox = QCheckBox("Bold")
             boldCheckBox.setChecked(Config["%sfontbold" % name])
@@ -1480,20 +1575,13 @@ class ConfigForm(QDialog):
             buttons.append(colorButton)
             colorButton.setIcon(QIcon(pixmap))
             self.colors[name][1] = colorButton
-            #hbox = QHBoxLayout()
-            gbox.addWidget(label,count+1,0,1,1)
-            gbox.addWidget(boldCheckBox,count+1,1,1,1)
-            gbox.addWidget(italicCheckBox,count+1,2,1,1)
-            gbox.addWidget(colorButton,count+1,3,1,1)
-            #hbox.addStretch()
-            #vbox.addLayout(hbox)
+            gbox.addWidget(label,count+2,0,1,1)
+            gbox.addWidget(boldCheckBox,count+2,1,1,1)
+            gbox.addWidget(italicCheckBox,count+2,2,1,1)
+            gbox.addWidget(colorButton,count+2,3,1,1)
             self.connect(colorButton, SIGNAL("clicked()"),
                         lambda name=name: self.setColor(name))
-        #for label in labels:
-            #label.setMinimumWidth(minWidth)
-        #for button in buttons:
-            #button.setMinimumWidth(minButtonWidth)
-        #vbox.addStretch()
+
         highlightingWidget.setLayout(gbox)
 
         tabWidget = QTabWidget()
@@ -1501,19 +1589,18 @@ class ConfigForm(QDialog):
         tabWidget.addTab(highlightingWidget, "&Highlighting")
 
         for name, label, msg in (
-                ("newfile", "On &New File",
+                ("newfile", "On &new file",
                  "<font color=green><i>The text here is automatically "
                  "inserted into new R scripts.<br>It may be convenient to add "
-                 "your standard libraries and copyright notice here."),
-                ("consolestartup", "&At Startup",
-                 "<font color=green><i>manageR executes the lines above "
-                 "whenever the R interpreter is started.<br>"
-                 "Use them to add convenience, e.g.</font>"
-                 "</i><br/><b>library(rgdal)"
-                 "<br/>library(spdep)</b>"
-                 "<br/><font color=green><i>"
+                 "your standard libraries and copyright<br/>"
+                 "notice here."),
+                ("consolestartup", "&At startup",
+                 "<font color=green><i><p>manageR executes the lines above "
+                 "whenever the R interpreter is started.<br/>"
+                 "Use them to add custom functions and/or load "
+                 "libraries or additional tools.<br/>"
                  "Changes made here only take "
-                 "effect when manageR is next run.</font>")):
+                 "effect when manageR is next run.</p></font>")):
             editor = REditor(self)
             editor.setPlainText(Config[name])
             editor.setTabChangesFocus(True)
@@ -1540,7 +1627,7 @@ class ConfigForm(QDialog):
 
 
     def updateUi(self):
-        pass # TODO validation, e.g., valid Consolestartup, etc.
+        pass # TODO validation, e.g., valid consolestartup, etc.
 
     def setColor(self, which):
         color = QColorDialog.getColor(
@@ -1552,18 +1639,19 @@ class ConfigForm(QDialog):
             self.colors[which][1].setIcon(QIcon(pixmap))
 
     def accept(self):
-        Config["remembergeometry"] = (self.rememberGeometryCheckBox
-                                      .isChecked())
-        #Config["showwindowinfo"] = self.showWindowInfoCheckBox.isChecked()
-        #Config["autohidefinddialog"] = (self.autoHideFindDlgCheckBox
-                                        #.isChecked())
+        Config["remembergeometry"] = (self.rememberGeometryCheckBox.isChecked())
         Config["backupsuffix"] = self.backupLineEdit.text()
         Config["beforeinput"] = self.inputLineEdit.text()
         Config["afteroutput"] = self.outputLineEdit.text()
-        Config["cwd"] = self.cwdLineEdit.text()
+        Config["setwd"] = self.cwdLineEdit.text()
         for name in ("consolestartup", "newfile"):
             Config[name] = unicode(self.editors[name].toPlainText())
         Config["tabwidth"] = self.tabWidthSpinBox.value()
+        Config["delay"] = self.timeoutSpinBox.value()
+        Config["minimumchars"] = self.mincharsSpinBox.value()
+        Config["enableautocomplete"] = (self.autocompleteCheckBox.isChecked())
+        Config["enablehighlighting"] = (self.highlightingCheckBox.isChecked())
+        
         #Config["tooltipsize"] = self.toolTipSizeSpinBox.value()
         family = self.fontComboBox.currentFont().family()
         if Config["fontfamily"] != family:
@@ -1594,32 +1682,34 @@ class ConfigForm(QDialog):
             Config["backgroundcolor"] = color
         QDialog.accept(self)
 
-class helpDialog( QDialog ):
+class helpDialog(QDialog):
 
-    def __init__( self, parent, help_topic ):
-        QDialog.__init__ ( self, parent )
+    def __init__(self, parent, help_topic):
+        QDialog.__init__ (self, parent)
         #initialise the display text edit
-        display = QTextEdit( self )
-        display.setReadOnly( True )
+        display = QTextEdit(self)
+        display.setReadOnly(True)
         #set the font style of the help display
-        font = QFont( "Monospace" , 10, QFont.Normal )
-        font.setFixedPitch( True )
-        display.setFont( font )
-        display.document().setDefaultFont( font )
+        font = QFont(Config["fontfamily"], Config["fontsize"])
+        font.setFixedPitch(True)
+        display.setFont(font)
+        display.document().setDefaultFont(font)
         #initialise grid layout for dialog
-        grid = QGridLayout( self )
-        grid.addWidget( display )
-        self.setWindowTitle( "manageR - Help" )
-        help_file = QFile( unicode( help_topic[ 0 ] ) )
-        #print help_topic
-        help_file.open( QFile.ReadOnly )
-        stream = QTextStream( help_file )
-        help_string = QString( stream.readAll() )
+        grid = QGridLayout(self)
+        grid.addWidget(display)
+        self.setWindowTitle("manageR - Help")
+        try:
+            help_file = QFile(unicode(help_topic[0]))
+        except:
+            raise Exception, "Error: %s" % (unicode(help_topic))
+        help_file.open(QFile.ReadOnly)
+        stream = QTextStream(help_file)
+        help_string = QString(stream.readAll())
         #workaround to remove the underline formatting that r uses
         help_string.remove("_")
-        display.setPlainText( help_string )
+        display.setPlainText(help_string)
         help_file.close()
-        self.resize( 550, 400 )
+        self.resize(550, 400)
 
 class searchDialog( QDialog ):
 
@@ -1629,14 +1719,14 @@ class searchDialog( QDialog ):
       display = QTextEdit( self )
       display.setReadOnly( True )
       #set the font style of the help display
-      font = QFont( "Monospace" , 10, QFont.Normal )
+      font = QFont(Config["fontfamily"], Config["fontsize"])
       font.setFixedPitch( True )
       display.setFont( font )
       display.document().setDefaultFont( font )
       #initialise grid layout for dialog
       grid = QGridLayout( self )
       grid.addWidget( display )
-      self.setWindowTitle( "manageR - Help Search" )
+      self.setWindowTitle( "manageR - Search Help" )
       #get help output from r 
       #note: help_topic should only contain the specific
       #      help topic (i.e. no brackets etc.)
@@ -1669,6 +1759,55 @@ class searchDialog( QDialog ):
       #help_file.close()
       self.resize( 550, 400 )
 
+class RWDWidget(QWidget):
+
+    def __init__(self, parent, base):
+        QWidget.__init__(self, parent)
+        # initialise standard settings
+        self.setMinimumSize(30, 30)
+        self.parent = parent
+        self.base = base
+
+        self.current = QLineEdit( self )
+        font = QFont(Config["fontfamily"], Config["fontsize"])
+        self.setwd.setToolTip("Current working directory")
+        self.setwd.setWhatsThis("Current working directory")
+        font.setFixedPitch(True)
+        self.current.setFont(font)
+        self.current.setText(base)
+
+        self.setwd = QToolButton(self)
+        self.setwd.setToolTip("Set working directory")
+        self.setwd.setWhatsThis("Set working directory")
+        self.setwd.setIcon(QIcon(":mActionFolderSet.png"))
+        self.setwd.setText("setwd")
+        self.setwd.setAutoRaise(True)
+        
+        horiz = QHBoxLayout(self)
+        horiz.addWidget(self.current)
+        horiz.addWidget(self.setwd)
+        self.connect(self.setwd, SIGNAL("clicked()"), self.browseToFolder)
+    
+    def browseToFolder(self):
+        directory = QFileDialog.getExistingDirectory(
+        self, "Choose working folder",self.current.text(),
+        (QFileDialog.ShowDirsOnly|QFileDialog.DontResolveSymlinks))
+        self.current.setText(directory)
+        self.setWorkingDir(directory)
+
+    def setWorkingDir(self,directory):
+        commands = QString('setwd("%s")' % (directory))
+        if not commands.isEmpty():
+            mime = QMimeData()
+            mime.setText(commands)
+            MainWindow.Console.editor.moveToEnd()
+            MainWindow.Console.editor.cursor.movePosition(
+            QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+            MainWindow.Console.editor.cursor.removeSelectedText()
+            MainWindow.Console.editor.cursor.insertText(
+            MainWindow.Console.editor.currentPrompt)
+            MainWindow.Console.editor.insertFromMimeData(mime)
+            MainWindow.Console.editor.entered()
 
 class MainWindow(QMainWindow):
 
@@ -1683,40 +1822,42 @@ class MainWindow(QMainWindow):
         MainWindow.Instances.add(self)
         self.setWindowTitle("manageR[*]")
         if isConsole:
-            pixmap = QPixmap( ":splash.png" )
+            pixmap = QPixmap(":splash.png")
             splash = QSplashScreen(pixmap)
             splash.show()
             QApplication.processEvents()
             self.setAttribute(Qt.WA_DeleteOnClose)
             splash.showMessage( "Loading R interpreter", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+            QApplication.processEvents()
             self.editor = RConsole(self)
             MainWindow.Console = self
             self.editor.append( __welcomestring__ )
-            self.editor.displayPrompt()
             self.editor.setFocus(Qt.ActiveWindowFocusReason)
-            splash.showMessage( "Checking manageR configuration", \
-            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
         else:
             self.editor = REditor(self)
-
-        palette = QPalette(QColor(Config["backgroundcolor"]))
-        palette.setColor(QPalette.Active, QPalette.Base, QColor(Config["backgroundcolor"]))
-        self.editor.setPalette(palette)
-        self.editor.setTextColor(QColor(Config["normalfontcolor"]))
         self.setCentralWidget(self.editor)
-        self.highlighter = RHighlighter( self.editor )
+        if Config["enableautocomplete"]:
+            self.completer = RCompleter(self.editor,
+            delay=Config["delay"])
+        if Config["enablehighlighting"]:
+            self.highlighter = RHighlighter( self.editor )
+            palette = QPalette(QColor(Config["backgroundcolor"]))
+            palette.setColor(QPalette.Active, QPalette.Base, QColor(Config["backgroundcolor"]))
+            self.editor.setPalette(palette)
+            #self.editor.setTextColor(QColor(Config["normalfontcolor"]))
         self.finder = RFinder( self, self.editor )
-        self.finderDockWidget = QDockWidget( "Find and Replace Toolbar", self )          
-        self.finderDockWidget.setObjectName( "findReplace" )
-        self.finderDockWidget.setAllowedAreas( Qt.BottomDockWidgetArea)
-        self.finderDockWidget.setWidget( self.finder )
-        self.setCorner( Qt.BottomRightCorner, Qt.BottomDockWidgetArea )
-        self.addDockWidget( Qt.BottomDockWidgetArea, self.finderDockWidget )
+        self.finderDockWidget = QDockWidget("Find and Replace Toolbar", self)          
+        self.finderDockWidget.setObjectName("findReplace")
+        self.finderDockWidget.setAllowedAreas(Qt.BottomDockWidgetArea)
+        self.finderDockWidget.setWidget( self.finder)
+        self.setCorner(Qt.BottomRightCorner, Qt.BottomDockWidgetArea)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.finderDockWidget)
 
         if isConsole:
             splash.showMessage( "Creating menus and toolbars", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+            QApplication.processEvents()
 
         fileNewAction = self.createAction("&New File", self.fileNew,
                 QKeySequence.New, "mActionFileNew", "Create a R script")
@@ -1740,12 +1881,13 @@ class MainWindow(QMainWindow):
                 tip="Configure manageR")
         fileQuitAction = self.createAction("&Quit", self.fileQuit,
                 "Ctrl+Q", "mActionFileQuit", "Close manageR")
-        editUndoAction = self.createAction("&Undo", self.editor.undo,
-                QKeySequence.Undo, "mActionEditUndo",
-                "Undo last editing action")
-        editRedoAction = self.createAction("&Redo", self.editor.redo,
-                QKeySequence.Redo, "mActionEditRedo",
-                "Redo last editing action")
+        if not isConsole:
+            editUndoAction = self.createAction("&Undo", self.editor.undo,
+                    QKeySequence.Undo, "mActionEditUndo",
+                    "Undo last editing action")
+            editRedoAction = self.createAction("&Redo", self.editor.redo,
+                    QKeySequence.Redo, "mActionEditRedo",
+                    "Redo last editing action")
         editCopyAction = self.createAction("&Copy", self.editor.copy,
                 QKeySequence.Copy, "mActionEditCopy",
                 "Copy text to clipboard")
@@ -1759,7 +1901,7 @@ class MainWindow(QMainWindow):
                 self.editor.selectAll, QKeySequence.SelectAll,
                 "mActionEditSelectAll", "Select all text")
         editCompleteAction = self.createAction("Com&plete",
-                self.editor.complete, "Ctrl+Space", "mActionEditComplete",
+                self.forceSuggest, "Ctrl+Space", "mActionEditComplete",
                 "Initiate autocomplete suggestions")
         editFindNextAction = self.createAction("&Find",
                 self.toggleFind, QKeySequence.Find,
@@ -1788,8 +1930,6 @@ class MainWindow(QMainWindow):
             actionRunAction = self.createAction("E&xecute",
                     self.editor.execute, "Ctrl+Return", "mActionRun",
                     "Execute the (selected) text in the manageR console")
-            #actionRunAction.setShortcuts([QKeySequence("Ctrl+Enter"),
-                    #QKeySequence("Ctrl+Return")])
         else:
             actionShowPrevAction = self.createAction(
                     "Show Previous Command", self.editor.showNext,
@@ -1819,9 +1959,10 @@ class MainWindow(QMainWindow):
         self.addActions(fileMenu, (fileQuitAction,))
 
         editMenu = self.menuBar().addMenu("&Edit")
-        self.addActions(editMenu, (editUndoAction, editRedoAction, None,
-                editCopyAction, editCutAction, editPasteAction,
-                editSelectAllAction, None, editCompleteAction))
+        if not isConsole:
+            self.addActions(editMenu, (editUndoAction, editRedoAction, None,))
+        self.addActions(editMenu, (editCopyAction, editCutAction, editPasteAction,
+                                   editSelectAllAction, None, editCompleteAction))
         
         self.addActions(editMenu, (editFindNextAction,))
         if not isConsole:
@@ -1844,7 +1985,7 @@ class MainWindow(QMainWindow):
         else:
             self.addActions(actionMenu, (actionShowPrevAction, 
                 actionShowNextAction,))
-        viewMenu = self.menuBar().addMenu("&View")
+        self.viewMenu = self.menuBar().addMenu("&View")
         self.windowMenu = self.menuBar().addMenu("&Window")
         self.connect(self.windowMenu, SIGNAL("aboutToShow()"),
                      self.updateWindowMenu)
@@ -1860,9 +2001,11 @@ class MainWindow(QMainWindow):
         self.editToolbar = self.addToolBar("Edit Toolbar")
         self.editToolbar.setObjectName("EditToolbar")
         MainWindow.Toolbars[self.editToolbar] = None
-        self.addActions(self.editToolbar, (editUndoAction, editRedoAction,
-                None, editCopyAction, editCutAction, editPasteAction,
-                None, editFindNextAction,))
+        if not isConsole:
+            self.addActions(self.editToolbar, (editUndoAction, editRedoAction,
+                                               None,))
+        self.addActions(self.editToolbar, (editCopyAction, editCutAction, editPasteAction,
+                                           None, editFindNextAction,))
         if not isConsole:
             self.addActions(self.editToolbar, (editReplaceNextAction, None,
                     editIndentRegionAction, editUnindentRegionAction,
@@ -1877,7 +2020,7 @@ class MainWindow(QMainWindow):
                 actionShowNextAction))
         for toolbar in (self.fileToolbar, self.editToolbar,
                         self.actionToolbar):
-            action = viewMenu.addAction("&%s" % toolbar.windowTitle())
+            action = self.viewMenu.addAction("&%s" % toolbar.windowTitle())
             self.connect(action, SIGNAL("toggled(bool)"),
                          self.toggleToolbars)
             action.setCheckable(True)
@@ -1885,11 +2028,12 @@ class MainWindow(QMainWindow):
         action = self.finderDockWidget.toggleViewAction()
         self.connect(action, SIGNAL("toggled(bool)"), self.toggleToolbars)
         action.setCheckable(True)
-        viewMenu.addAction( action )
+        self.viewMenu.addAction(action)
         MainWindow.Toolbars[self.finderDockWidget] = action
         if isConsole:
             self.finderDockWidget.setWindowTitle("Find Toolbar")
             self.finder.hideReplace()
+            self.createConsoleWidgets()
         self.connect(self, SIGNAL("destroyed(QObject*)"),
                      MainWindow.updateInstances)
 
@@ -1910,6 +2054,7 @@ class MainWindow(QMainWindow):
         else:
             splash.showMessage( "Adjusting window size", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+            QApplication.processEvents()
         if Config["remembergeometry"]:
             if isConsole:
                 self.resize(Config["consolewidth"], Config["consoleheight"])
@@ -1921,11 +2066,8 @@ class MainWindow(QMainWindow):
                     self.move(Config["windowx"], Config["windowy"])
 
         self.restoreState(Config["toolbars"])
-
         self.filename = QString("")
         if isConsole:
-            splash.showMessage( "Setting toolbar status", \
-            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
             self.setWindowTitle("manageR")
         else:
             self.filename = filename
@@ -1944,18 +2086,82 @@ class MainWindow(QMainWindow):
                 self.loadFile()
             self.connect(self.editor, SIGNAL("textChanged()"),
                          self.updateDirty)
+
         if isConsole:
-            splash.showMessage( "Ready!", \
+            # If requested, set/change working directory
+            if not QString(Config["setwd"]).isEmpty() or \
+            not QString(Config["setwd"]) == ".":
+                splash.showMessage( "Setting default working directory", \
+                (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+                QApplication.processEvents()
+                self.editor.execute(QString('setwd("%s")' % (Config["setwd"])))
+                cursor = self.editor.textCursor()
+                cursor.movePosition(QTextCursor.StartOfLine,
+                QTextCursor.KeepAnchor)
+                cursor.removeSelectedText()
+            # Process required R frontend tasks (load workspace and history)
+            splash.showMessage( "Checking for previously saved workspace", \
+            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+            QApplication.processEvents()
+            workspace = QFileInfo()
+            workspace.setFile(QDir(robjects.r['getwd']()[0]), ".RData")
+            if workspace.exists():
+                if self.loadRWorkspace(workspace):
+                    self.editor.append("[Previously saved workspace restored]\n\n")
+                else:
+                    self.editor.append("Error: Unable to load previously saved workspace:"
+                                     "\nCreating new workspace...\n\n")
+            splash.showMessage( "Checking for history file", \
+            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+            if self.editor.loadRHistory():
+                QApplication.processEvents()
+            self.editor.displayPrompt()
+            # If requested, execute startup commands
+            if not QString(Config["consolestartup"]).isEmpty():
+                splash.showMessage( "Executing startup commands", \
+                (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+                QApplication.processEvents()
+                mime = QMimeData()
+                mime.setText(Config["consolestartup"])
+                self.editor.insertFromMimeData(mime)
+                self.editor.execute(QString(Config["consolestartup"]))
+            # If requested, load all default library functions into CAT
+            if Config["enableautocomplete"]:
+                splash.showMessage( "Loading default library commands", \
+                    (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+                QApplication.processEvents()
+                for library in robjects.r('.packages()'):
+                    addLibraryCommands(library)
+                
+            splash.showMessage( "manageR ready!", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
             splash.finish( self )
         QTimer.singleShot(0, self.updateToolbars)
-        self.startTimer( 50 )
+        self.startTimer(50)
+        
+    def createConsoleWidgets(self):
+        # Working directory widget
+        cwdWidget = RWDWidget(self,robjects.r('getwd()')[0])
+        self.cwdDockWidget = QDockWidget("Working directory", self)          
+        self.cwdDockWidget.setObjectName("cwdDockWidget")
+        self.cwdDockWidget.setAllowedAreas(Qt.TopDockWidgetArea|Qt.BottomDockWidgetArea)
+        self.cwdDockWidget.setWidget(cwdWidget)
+        self.addDockWidget(Qt.TopDockWidgetArea, self.cwdDockWidget)
+        for widget in [self.cwdDockWidget]:
+            action = widget.toggleViewAction()
+            self.connect(action, SIGNAL("toggled(bool)"), self.toggleToolbars)
+            action.setCheckable(True)
+            self.viewMenu.addAction(action)
+            MainWindow.Toolbars[widget] = action
 
     def timerEvent(self, e):
         try:
             robjects.rinterface.process_revents()
         except:
             pass
+        
+    def forceSuggest(self):
+        self.completer.suggest(1)
 
     def toggleFind(self):
         title = self.sender().text()
@@ -1966,6 +2172,14 @@ class MainWindow(QMainWindow):
             self.finder.showReplace()
         else:
             self.finder.hideReplace()
+
+    def loadRWorkspace(self, fileInfo):
+        try:
+            workspace = fileInfo.absoluteFilePath()
+            robjects.r['load'](unicode(workspace))
+        except Exception, e: 
+            return False
+        return True
 
     @staticmethod
     def updateInstances(qobj):
@@ -2085,7 +2299,8 @@ class MainWindow(QMainWindow):
                         window.statusBar().showMessage("Rehighlighting...")
                         window.editor.setFont(font)
                         window.editor.textcharformat = (textcharformat)
-                        window.editor.highlighter.rehighlight()
+                        if window.highlighter:
+                            window.highlighter.rehighlight()
                         palette = QPalette(QColor(Config["backgroundcolor"]))
                         palette.setColor(QPalette.Active, 
                         QPalette.Base, QColor(Config["backgroundcolor"]))
@@ -2355,19 +2570,6 @@ def main():
     app.setWindowIcon(QIcon(":mActionIcon.png"))
     loadConfig()
 
-    #for name in KEYWORDS + BUILTINS + CONSTANTS:
-        #if len(name) >= MIN_COMPLETION_LEN and not name.startswith("_"):
-            #CAT[name] = ""
-            #try:
-                #tip = eval("%s.__doc__" % name)
-                #if tip is not None:
-                    #CAT[name] = (tip[:MAX_TOOLTIP_LEN]
-                                 #.strip().replace("\n\n", "<p>"))
-            #except:
-                #pass
-    #for name in MODULES.keys():
-        #CAT[name] = None
-
     if len(sys.argv) > 1:
         args = sys.argv[1:]
         if args[0] in ("-h", "--help"):
@@ -2375,11 +2577,10 @@ def main():
             print """usage: manageR.py [-n|filenames]
 -n or --new means start with new file
 filenames   means start with the given files (which must have .R suffixes);
-otherwise starts with new file or console
-            depending on configuration
+otherwise starts with console.
 manageR requires Python 2.5 and PyQt 4.2 (or later versions)
 For more information run the program and click
-Help->About and Help->Help"""
+Help->About and/or Help->Help"""
             return
         if args and args[0] in ("-n", "--new"):
             args.pop(0)
@@ -2391,46 +2592,12 @@ Help->About and Help->Help"""
                         dir.absoluteFilePath((fname)))).show()
     if not MainWindow.Instances:
         MainWindow(isConsole=True).show()
-
     app.exec_()
     saveConfig()
 
-
 main()
 
-### Ideas for improvements ##############################################
-#
-# - Make Indent & Unindent smarter, i.e., Indent should insert _up to_
-#   tabwidth spaces to make the number of leading spaces an exact multiple
-#   of tabwidth. Similarly, Unindent should remove _up to_ tabwidth
-#   spaces on the same basis
-# - Recent files handling
-# - Add tooltips to all ConfigForm editing widgets & improve validation
-# - Add tooltips to all main window actions that don't have any.
-# - Goto menu. Use submenus to reflect the structure of the code, i.e.,
-#   classes
-#      Class1
-#        Method1
-#        Method2
-#   functions
-#       Func1
-#       Func2
-#          InnerFuncA
-#   This should be doable when reading, but trickier to maintain when 
-#   users add or change classes and defs since the right "parent" must be
-#   found, and the name put in the right place in the tree
-# - Robustness? catch exceptions better, etc.
-# - Help? Handle help() in the console?
-# - Tools menu? (modeless delete on close dialogs); e.g.,
-#   Regular Expression Editor (similar to the one I wrote as an
-#   example for TT); support multiple syntaxes, e.g., re, glob,
-#   (fnmatch?), QRegExp, and QRegExp wildcard
-# - i18n? use a custom dictionary-like function and keep all
-#   translations in this same file; or embed .qm files in base64?
-# - Autosave? If not zero auto saves every N seconds to
-#   .sb$.self.filename. On close the .sb$. file is deleted after the
-#   save. On open, if a .sb$. file exists, rename it self.filename#1 (or
-#   2 or whatever to make it unique) and then give a warning to the user
-#   that they may wish to diff against it. So we don't do recover as
-#   such.
-# - Make keyboard shortcuts customisable? (apart from the standard ones)
+# TODO:
+# Add tooltips to all ConfigForm editing widgets & improve validation
+# Add tooltips to all main window actions that don't have any.
+

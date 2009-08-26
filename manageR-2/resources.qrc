@@ -1,0 +1,51 @@
+<RCC>
+    <qresource>
+        <file alias="mActionFileQuit.png">icons/mActionFileQuit.png</file>
+        <file alias="mActionFolderUp.png">icons/mActionFolderUp.png</file>
+        <file alias="mActionVariableImport.png">icons/mActionVariableImport.png</file>
+        <file alias="mActionGotoLine.png">icons/mActionGotoLine.png</file>
+        <file alias="mActionVariableSave.png">icons/mActionVariableSave.png</file>
+        <file alias="mActionGraphicRefresh.png">icons/mActionGraphicRefresh.png</file>
+        <file alias="mActionFileConfigure.png">icons/mActionFileConfigure.png</file>
+        <file alias="mActionEditUncomment.png">icons/mActionEditUncomment.png</file>
+        <file alias="splash.png">icons/splash.png</file>
+        <file alias="mActionGotoMatching.png">icons/mActionGotoMatching.png</file>
+        <file alias="mActionFolderNew.png">icons/mActionFolderNew.png</file>
+        <file alias="mActionEditComplete.png">icons/mActionEditComplete.png</file>
+        <file alias="mActionGraphicExport.png">icons/mActionGraphicExport.png</file>
+        <file alias="mActionEditCut.png">icons/mActionEditCut.png</file>
+        <file alias="mActionIcon.png">icons/mActionIcon.png</file>
+        <file alias="mActionEditIndent.png">icons/mActionEditIndent.png</file>
+        <file alias="mActionLogo.png">icons/mActionLogo.png</file>
+        <file alias="mActionNext.png">icons/mActionNext.png</file>
+        <file alias="mActionFileNew.png">icons/mActionFileNew.png</file>
+        <file alias="mActionFileClose.png">icons/mActionFileClose.png</file>
+        <file alias="mActionGraphicNew.png">icons/mActionGraphicNew.png</file>
+        <file alias="mActionPrevious.png">icons/mActionPrevious.png</file>
+        <file alias="mActionEditFindNext.png">icons/mActionEditFindNext.png</file>
+        <file alias="mActionEditUnindent.png">icons/mActionEditUnindent.png</file>
+        <file alias="mActionRun.png">icons/mActionRun.png</file>
+        <file alias="mActionEditUndo.png">icons/mActionEditUndo.png</file>
+        <file alias="mActionGraphicSave.png">icons/mActionGraphicSave.png</file>
+        <file alias="mActionWindow.png">icons/mActionWindow.png</file>
+        <file alias="mActionVariableLoad.png">icons/mActionVariableLoad.png</file>
+        <file alias="mActionFileSaveAll.png">icons/mActionFileSaveAll.png</file>
+        <file alias="mActionHelpHelp.png">icons/mActionHelpHelp.png</file>
+        <file alias="mActionFileSaveAs.png">icons/mActionFileSaveAs.png</file>
+        <file alias="mActionEditSelectAll.png">icons/mActionEditSelectAll.png</file>
+        <file alias="mActionEditCopy.png">icons/mActionEditCopy.png</file>
+        <file alias="mActionVariableLayer.png">icons/mActionVariableLayer.png</file>
+        <file alias="mActionEditComment.png">icons/mActionEditComment.png</file>
+        <file alias="mActionGraphicRemove.png">icons/mActionGraphicRemove.png</file>
+        <file alias="mActionEditRedo.png">icons/mActionEditRedo.png</file>
+        <file alias="mActionFileSave.png">icons/mActionFileSave.png</file>
+        <file alias="mActionVariableCanvas.png">icons/mActionVariableCanvas.png</file>
+        <file alias="mActionVariableExport.png">icons/mActionVariableExport.png</file>
+        <file alias="mActionEditReplaceNext.png">icons/mActionEditReplaceNext.png</file>
+        <file alias="mActionEditPaste.png">icons/mActionEditPaste.png</file>
+        <file alias="mActionFileOpen.png">icons/mActionFileOpen.png</file>
+        <file alias="mActionConsole.png">icons/mActionConsole.png</file>
+        <file alias="mActionVariableRemove.png">icons/mActionVariableRemove.png</file>
+        <file alias="mActionFolderSet.png">icons/mActionFolderSet.png</file>
+    </qresource>
+</RCC>

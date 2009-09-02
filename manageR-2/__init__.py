@@ -19,24 +19,22 @@ this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
 Street, Fifth Floor, Boston, MA  02110-1301, USA
 '''
 
-import ConfigParser
-import os.path
-p = ConfigParser.ConfigParser()
-here = os.path.join(os.path.dirname(__file__),"config.ini")
-p.read(here)
 
 def name():
-  return p.get('general','name')
+  return "manageR"
 
 def description():
-  return p.get('general','description')
+  return "Interface to the R statistical programming language"
 
 def version():
-  return p.get('general','version')
+  return "0.8"
 
 def qgisMinimumVersion():
-  return p.get("general","qgisMinimumVersion")
+  return "1.0"
+  
+def author():
+  return "Carson J. Q. Farmer <carson.farmer@gmail.com>"
 
-def classFactory( iface ):
+def classFactory(iface):
   from plugin import Plugin
-  return Plugin( iface, version() )
+  return Plugin(iface, version())

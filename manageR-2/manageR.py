@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import base64
-import os
-import re
-import sys
-import resources
+import os, re, sys
 
 from qgis.core import *
 
+import resources
 from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
+from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter, RVectorLayerConverter
 
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
@@ -26,13 +25,13 @@ from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QTextCursor, QTextDocument, QTextEdit, QToolTip, QVBoxLayout,
         QWidget, QDockWidget, QToolButton, QSpacerItem, QSizePolicy,
         QPalette, QSplashScreen, QTreeWidget, QTreeWidgetItem, QFrame,
-        QListView)
+        QListView, QTableWidget, QTableWidgetItem,QHeaderView,QAbstractItemView)
 
 try:
   import rpy2.robjects as robjects
 #  import rpy2.rinterface as rinterface
 except ImportError:
-  QMessageBox.warning( None , "manageR", "Unable to load manageR: Unable to load required package rpy2."
+  QMessageBox.warning(None , "manageR", "Unable to load manageR: Unable to load required package rpy2."
   + "\nPlease ensure that both R, and the corresponding version of Rpy2 are correctly installed.")
 
 __license__ = """<font color=green>\
@@ -66,21 +65,9 @@ VECTORTYPES = ["SpatialPointsDataFrame",
 RASTERTYPES = ["SpatialGridDataFrame",
                "SpatialPixelsDataFrame"]
 
-#TIMEOUT = 5000
-#ICONS = {}
-#PIXMAPS = {}
 Config = {}
 CAT = QStringList() # Completions And Tooltips
 Libraries = []
-#MIN_COMPLETION_LEN = 3
-#MAX_TOOLTIP_LEN = 1000
-#FROM_IMPORT_RE = re.compile(r"from\s+([\w.]+)\s+import\s+(.*)")
-#WORDS = set()
-#WORD_RE = re.compile(r"[\W+.]")
-#MIN_WORD_LEN = 3
-#MAX_WORD_LEN = 64
-#CATABLE_LINE_RE = QRegExp(r"\b(?:import|def|class)\s+")
-#CLASS_OR_DEF_RE = re.compile(r"(class|def) ([^\W(:]+)[:(]")
 
 def welcomeString(version):
     string = """Welcome to manageR %s
@@ -92,14 +79,6 @@ the GNU General Public License as published by the Free Software Foundation;
 either version 2 of the License, or (at your option) any later version.
 Currently running %s""" % (version,robjects.r.version[12][0])
     return string
-
-def trimQString(qstr, trimText):
-    while qstr.startsWith(trimText):
-        qstr = qstr.mid(len(trimText))
-    while qstr.endsWith(trimText):
-        qstr.chop(len(trimText))
-    return qstr
-
 
 def loadConfig():
     def setDefaultString(name, default):
@@ -179,7 +158,7 @@ def saveConfig():
 def addLibraryCommands(library):
     if not library in Libraries:
         Libraries.append(library)
-        info = robjects.r('lsf.str("package:%s" )' % (library))
+        info = robjects.r('lsf.str("package:%s")' % (library))
         info = QString(str(info)).replace(", \n    ", ", ")
         items = info.split('\n')
         for item in items:
@@ -187,6 +166,31 @@ def addLibraryCommands(library):
             
 def isLibraryLoaded(package="sp"):
     return robjects.r("require(%s)" % (package))[0]
+    
+# This is used whenever we check for sp objects in manageR
+def currentRObjects():
+    ls_ = robjects.conversion.ri2py(
+    robjects.rinterface.globalEnv.get('ls',wantFun=True))
+    class_ = robjects.conversion.ri2py(
+    robjects.rinterface.globalEnv.get('class',wantFun=True))
+    dev_list_ = robjects.conversion.ri2py(
+    robjects.rinterface.globalEnv.get('dev.list',wantFun=True))
+    getwd_ = robjects.conversion.ri2py(
+    robjects.rinterface.globalEnv.get('getwd',wantFun=True))
+    layers = {}
+    graphics = {}
+    for item in ls_():
+        check = class_(robjects.r[item])[0]
+        layers[unicode(item)] = check
+        if not unicode(item) in CAT:
+            CAT.append(unicode(item))
+    try:
+        graphics = dict(zip(list(dev_list_()),
+        list(dev_list_().names)))
+    except:
+        graphics = {}
+    cwd = getwd_()[0]
+    return (layers, graphics, cwd)
 
 class HelpForm(QDialog):
 
@@ -332,6 +336,14 @@ Press <tt>Esc</tt> to close this window.
         QShortcut(QKeySequence("Escape"), self, self.close)
         self.setWindowTitle("manageR - Help")
 
+class RLibraryError(Exception):
+    def __init__(self, library):
+        self.library = library
+    def __str__(self):
+        message = "Error: Unable to find R package '%s'.\n"
+        + "Please manually install the '%s' package in R via "
+        + "install.packages()." % (self.library, self.library)
+        return message
 
 class RFinder(QWidget):
 
@@ -339,11 +351,11 @@ class RFinder(QWidget):
         QWidget.__init__(self, parent)
         # initialise standard settings
         self.document = document
-        grid = QGridLayout(self )
+        grid = QGridLayout(self)
         self.edit = QLineEdit(self)
         font = QFont(Config["fontfamily"], Config["fontsize"])
-        font.setFixedPitch( True )
-        find_label = QLabel( "Find:")
+        font.setFixedPitch(True)
+        find_label = QLabel("Find:")
         self.edit.setFont(font)
         self.edit.setToolTip("Find text")
         self.next = QToolButton(self)
@@ -351,7 +363,7 @@ class RFinder(QWidget):
         self.next.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.next.setIcon(QIcon(":mActionNext.png"))
         self.next.setToolTip("Find next")
-        self.previous = QToolButton( self )
+        self.previous = QToolButton(self)
         self.previous.setToolTip("Find previous")
         self.previous.setText("Previous")
         self.previous.setIcon(QIcon(":mActionPrevious.png"))
@@ -471,7 +483,7 @@ class RFinder(QWidget):
         self.findNext()
         return True
 
-    def replaceAll( self ):
+    def replaceAll(self):
         while self.findNext():
             self.replaceText()
         self.replaceText()
@@ -582,7 +594,7 @@ class RHighlighter(QSyntaxHighlighter):
         
 class RCompleter(QObject):
 
-    def __init__( self, parent, delay=500):
+    def __init__(self, parent, delay=500):
         QObject.__init__(self, parent)
         self.editor = parent
         self.popup = QTreeWidget()
@@ -660,7 +672,7 @@ class RCompleter(QObject):
             item.setText(0, i.split(":")[0].simplified())
             try:
                 item.setData(0, Qt.StatusTipRole, 
-                QVariant( i.split(":")[1].simplified() ) )
+                QVariant(i.split(":")[1].simplified()))
             except:
                 pass
         self.popup.setCurrentItem(self.popup.topLevelItem(0))
@@ -675,7 +687,7 @@ class RCompleter(QObject):
         self.popup.setFocus()
         self.popup.show()
 
-    def doneCompletion( self ):
+    def doneCompletion(self):
         self.timer.stop()
         self.popup.hide()
         self.editor.setFocus()
@@ -731,12 +743,15 @@ class REditor(QTextEdit):
             if event.key() == Qt.Key_Tab:
                 if not self.tabChangesFocus():
                     cursor = self.textCursor()
-                    cursor.movePosition(
-                            QTextCursor.PreviousCharacter,
-                            QTextCursor.KeepAnchor)
-                    if cursor.selectedText().trimmed().isEmpty():
-                        cursor = self.textCursor()
+                    #cursor.movePosition(
+                            #QTextCursor.PreviousCharacter,
+                            #QTextCursor.KeepAnchor)
+                    #if cursor.selectedText().trimmed().isEmpty():
+                        #cursor = self.textCursor()
+                    if not cursor.hasSelection():
                         cursor.insertText(indent)
+                    else:
+                        self.indentRegion()
                     #else:
                         #self.complete()
                     return True
@@ -880,6 +895,7 @@ class REditor(QTextEdit):
             cursor = QTextCursor(block)
             cursor.movePosition(QTextCursor.StartOfBlock)
             if insert:
+                cursor.clearSelection()
                 cursor.insertText(text)
             else:
                 cursor.movePosition(QTextCursor.NextCharacter,
@@ -924,7 +940,7 @@ class RConsole(QTextEdit):
             fileFile = QFile(fileInfo.absoluteFilePath())
             if not fileFile.open(QIODevice.ReadOnly):
                 return False
-            inFile = QTextStream(history)
+            inFile = QTextStream(fileFile)
             while not inFile.atEnd():
                 line = QString(inFile.readLine())
                 self.updateHistory(line)
@@ -969,7 +985,7 @@ class RConsole(QTextEdit):
             self.currentPrompt = self.alternatePrompt
         self.currentPromptLength = len(self.currentPrompt)
 
-    def displayPrompt( self ):
+    def displayPrompt(self):
         self.runningCommand.clear()
         self.append(self.currentPrompt)
         self.moveCursor(QTextCursor.End, QTextCursor.MoveAnchor)
@@ -981,16 +997,16 @@ class RConsole(QTextEdit):
             if e.modifiers() == Qt.ControlModifier or \
                 e.modifiers() == Qt.MetaModifier:
                 if e.key() == Qt.Key_C or e.key() == Qt.Key_A:
-                    QTextEdit.keyPressEvent( self, e )
+                    QTextEdit.keyPressEvent(self, e)
             else:
                 # all other keystrokes get sent to the input line
-                self.cursor.movePosition( QTextCursor.End, QTextCursor.MoveAnchor )
+                self.cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
         else:
             # if Ctrl + C is pressed, then undo the current command
-            if e.key() == Qt.Key_C and ( e.modifiers() == Qt.ControlModifier or \
-                e.modifiers() == Qt.MetaModifier ) and not self.cursor.hasSelection():
+            if e.key() == Qt.Key_C and (e.modifiers() == Qt.ControlModifier or \
+                e.modifiers() == Qt.MetaModifier) and not self.cursor.hasSelection():
                 self.runningCommand.clear()
-                self.switchPrompt( True )
+                self.switchPrompt(True)
                 self.displayPrompt()
                 MainWindow.Console.statusBar().clearMessage() # this is not very generic, better way to do this?
               # if Return is pressed, then perform the commands
@@ -1006,7 +1022,7 @@ class RConsole(QTextEdit):
                 if not self.cursor.hasSelection() and \
                     self.cursor.columnNumber() == self.currentPromptLength:
                     return
-                QTextEdit.keyPressEvent( self, e )
+                QTextEdit.keyPressEvent(self, e)
               # if the left key is pressed, move left until we get to the prompt
             elif e.key() == Qt.Key_Left and \
                 self.cursor.position() > self.document().lastBlock().position() + \
@@ -1015,30 +1031,30 @@ class RConsole(QTextEdit):
                     anchor = QTextCursor.KeepAnchor
                 else:
                     anchor = QTextCursor.MoveAnchor
-                if ( e.modifiers() == Qt.ControlModifier or \
-                e.modifiers() == Qt.MetaModifier ):
-                    self.cursor.movePosition( QTextCursor.WordLeft, anchor )
+                if (e.modifiers() == Qt.ControlModifier or \
+                e.modifiers() == Qt.MetaModifier):
+                    self.cursor.movePosition(QTextCursor.WordLeft, anchor)
                 else:
-                    self.cursor.movePosition( QTextCursor.Left, anchor )
+                    self.cursor.movePosition(QTextCursor.Left, anchor)
               # use normal operation for right key
             elif e.key() == Qt.Key_Right:
                 if e.modifiers() == Qt.ShiftModifier:
                     anchor = QTextCursor.KeepAnchor
                 else:
                     anchor = QTextCursor.MoveAnchor
-                if ( e.modifiers() == Qt.ControlModifier or \
-                e.modifiers() == Qt.MetaModifier ):
-                    self.cursor.movePosition( QTextCursor.WordRight, anchor )
+                if (e.modifiers() == Qt.ControlModifier or \
+                e.modifiers() == Qt.MetaModifier):
+                    self.cursor.movePosition(QTextCursor.WordRight, anchor)
                 else:
-                    self.cursor.movePosition( QTextCursor.Right, anchor )
+                    self.cursor.movePosition(QTextCursor.Right, anchor)
               # if home is pressed, move cursor to right of prompt
             elif e.key() == Qt.Key_Home:
                 if e.modifiers() == Qt.ShiftModifier:
                     anchor = QTextCursor.KeepAnchor
                 else:
                     anchor = QTextCursor.MoveAnchor
-                self.cursor.movePosition( QTextCursor.StartOfBlock, anchor, 1 )
-                self.cursor.movePosition( QTextCursor.Right, anchor, self.currentPromptLength )
+                self.cursor.movePosition(QTextCursor.StartOfBlock, anchor, 1)
+                self.cursor.movePosition(QTextCursor.Right, anchor, self.currentPromptLength)
               # use normal operation for end key
             elif e.key() == Qt.Key_End:
                 if e.modifiers() == Qt.ShiftModifier:
@@ -1068,9 +1084,9 @@ class RConsole(QTextEdit):
                 self.switchPrompt(True)
                 self.displayPrompt()
         if not self.checkBrackets(self.runningCommand):
-            self.switchPrompt( False )
-            self.cursor.insertText( "\n" + self.currentPrompt )
-            self.runningCommand.append( "\n" )
+            self.switchPrompt(False)
+            self.cursor.insertText("\n" + self.currentPrompt)
+            self.runningCommand.append("\n")
         else:
             if not self.runningCommand.isEmpty():
                 command=self.runningCommand
@@ -1083,7 +1099,7 @@ class RConsole(QTextEdit):
         self.moveToEnd()
 
     def showPrevious(self):
-        if self.historyIndex < len( self.history ) and not self.history.isEmpty():
+        if self.historyIndex < len(self.history) and not self.history.isEmpty():
             self.cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.MoveAnchor)
             self.cursor.movePosition(QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
             self.cursor.removeSelectedText()
@@ -1120,10 +1136,10 @@ class RConsole(QTextEdit):
             if not instring:
                 if s[0] in ')]}':
                     if stack and brackets[stack[-1]]==s[0]:
-                        del stack[ -1 ]
+                        del stack[-1]
                     else:
                         return False
-                elif s[ 0 ] in '"\'':
+                elif s[0] in '"\'':
                     if stack and brackets[stack[-1]]==s[0]:
                         del stack[-1]
                         instring = False
@@ -1158,11 +1174,11 @@ class RConsole(QTextEdit):
         else:
             QTextEdit.mousePressEvent(self, e)
         
-    def moveToEnd( self ):
+    def moveToEnd(self):
         cursor = self.textCursor()
-        cursor.movePosition( QTextCursor.End, 
-        QTextCursor.MoveAnchor )
-        self.setTextCursor( cursor )
+        cursor.movePosition(QTextCursor.End, 
+        QTextCursor.MoveAnchor)
+        self.setTextCursor(cursor)
         self.emit(SIGNAL("textChanged()"))
 
     def insertFromMimeData(self, source):
@@ -1198,10 +1214,10 @@ class RConsole(QTextEdit):
         else:
             QTextEdit.delete(self)
     
-    def currentCommand( self ):
+    def currentCommand(self):
         block = self.cursor.block()
         text = block.text()
-        return text.right( text.length()-self.currentPromptLength )
+        return text.right(text.length()-self.currentPromptLength)
 
     def appendText(self, out_text):
         if not out_text == "":
@@ -1210,14 +1226,14 @@ class RConsole(QTextEdit):
         cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
         self.setTextCursor(cursor)
 
-    def isCursorInEditionZone( self ):
+    def isCursorInEditionZone(self):
         cursor = self.textCursor()
         pos = cursor.position()
         block = self.document().lastBlock()
         last = block.position() + self.currentPromptLength
         return pos >= last
       
-    def isAnchorInEditionZone( self ):
+    def isAnchorInEditionZone(self):
         cursor = self.textCursor()
         pos = cursor.anchor()
         block = self.document().lastBlock()
@@ -1229,7 +1245,7 @@ class RConsole(QTextEdit):
             self.history.append(command)
             self.historyIndex = len(self.history)
 
-    def insertPlainText( self, text ):
+    def insertPlainText(self, text):
         if self.isCursorInEditionZone():
           QTextEdit.insertPlainText(self, text)
 
@@ -1237,7 +1253,7 @@ class RConsole(QTextEdit):
         MainWindow.Console.statusBar().showMessage("Running...")
         if not text.trimmed() == "":
             try:
-                if ( text.startsWith('quit(') or text.startsWith('q(')) \
+                if (text.startsWith('quit(') or text.startsWith('q(')) \
                 and text.count(")") == 1:
                     self.commandError("System exit from manageR not allowed, close dialog manually")
                 else:
@@ -1252,30 +1268,30 @@ class RConsole(QTextEdit):
                     def read(prompt):
                         input = "\n"
                         return input
-                    robjects.rinterface.setReadConsole( read )
+                    robjects.rinterface.setReadConsole(read)
                     try:
-                        try_ = robjects.r[ "try" ]
-                        parse_ = robjects.r[ "parse" ]
-                        paste_ = robjects.r[ "paste" ]
-                        seq_along_ = robjects.r[ "seq_along" ]
-                        withVisible_ = robjects.r[ "withVisible" ]
-                        class_ = robjects.r[ "class" ]
+                        try_ = robjects.r["try"]
+                        parse_ = robjects.r["parse"]
+                        paste_ = robjects.r["paste"]
+                        seq_along_ = robjects.r["seq_along"]
+                        withVisible_ = robjects.r["withVisible"]
+                        class_ = robjects.r["class"]
                         result =  try_(parse_(text=paste_(unicode(text))), silent=True)
                         exprs = result
                         result = None
                         for i in list(seq_along_(exprs)):
                             ei = exprs[i-1]
                             try:
-                                result =  try_( withVisible_( ei ), silent=True )
+                                result =  try_(withVisible_(ei), silent=True)
                             except robjects.rinterface.RRuntimeError, rre:
-                                self.commandError( str( rre ) )
+                                self.commandError(str(rre))
                                 self.commandComplete()
                                 return
                             visible = result.r["visible"][0][0]
                             if visible:
-                                if class_( result.r["value"][0] )[0] == "help_files_with_topic" or \
-                                    class_( result.r["value"][0] )[0] == "hsearch":
-                                    self.helpTopic( result.r["value"][0], class_( result.r["value"][0] )[0] )
+                                if class_(result.r["value"][0])[0] == "help_files_with_topic" or \
+                                    class_(result.r["value"][0])[0] == "hsearch":
+                                    self.helpTopic(result.r["value"][0], class_(result.r["value"][0])[0])
                                 elif not str(result.r["value"][0]) == "NULL":
                                     robjects.r['print'](result.r["value"][0])
                             else:
@@ -1288,13 +1304,13 @@ class RConsole(QTextEdit):
                                     pass
                     except robjects.rinterface.RRuntimeError, rre:
                         # this fixes error output to look more like R's output
-                        self.commandError( "Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
+                        self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
                         self.commandComplete()
                         return
                     if not output_text.isEmpty():
-                        self.commandOutput( output_text )
+                        self.commandOutput(output_text)
             except Exception, err:
-                self.commandError( str( err ) )
+                self.commandError(str(err))
                 self.commandComplete()
                 return
             self.commandComplete()
@@ -1302,11 +1318,11 @@ class RConsole(QTextEdit):
 
     def helpTopic(self, topic, search):
         if search == "hsearch":
-            dialog = searchDialog( self, topic )
+            dialog = searchDialog(self, topic)
         else:
-            dialog = helpDialog( self, topic )
-        dialog.setWindowModality( Qt.NonModal )
-        dialog.setModal( False )
+            dialog = helpDialog(self, topic)
+        dialog.setWindowModality(Qt.NonModal)
+        dialog.setModal(False)
         dialog.show()
         MainWindow.Console.statusBar().showMessage("Help dialog opened", 5000)
         return
@@ -1319,11 +1335,11 @@ class RConsole(QTextEdit):
         self.appendText(unicode(output))
         # Emit a signal here?
         
-    def commandComplete( self ):
+    def commandComplete(self):
         self.switchPrompt()
         self.displayPrompt()
         MainWindow.Console.statusBar().showMessage("Complete!", 5000)
-        # Also should emit a signal here
+        self.emit(SIGNAL("commandComplete()"))
 
     def gotoMatching(self):
         # move the cursor to the matching ()[]<>{} or do nothing
@@ -1435,9 +1451,9 @@ class ConfigForm(QDialog):
         cwdLabel = QLabel("&Default working directory:")
         cwdLabel.setBuddy(self.cwdLineEdit)
         self.cwdLineEdit.setToolTip("<p>Specify the default working "
-                "directory for the manageR console. Settings this to "
-                "blank, or '.', will use the current Python working "
-                "directory.</p>")
+                "directory for the manageR console. Setting this to "
+                "blank, or '.', will use the current Python working directory."
+                "Changes made here only take effect when manageR is next run.</p>")
         self.tabWidthSpinBox = QSpinBox()
         self.tabWidthSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
         self.tabWidthSpinBox.setRange(2, 20)
@@ -1725,22 +1741,22 @@ class helpDialog(QDialog):
         help_file.close()
         self.resize(550, 400)
 
-class searchDialog( QDialog ):
+class searchDialog(QDialog):
 
-  def __init__( self, parent, help_topic ):
-      QDialog.__init__ ( self, parent )
+  def __init__(self, parent, help_topic):
+      QDialog.__init__ (self, parent)
       #initialise the display text edit
-      display = QTextEdit( self )
-      display.setReadOnly( True )
+      display = QTextEdit(self)
+      display.setReadOnly(True)
       #set the font style of the help display
       font = QFont(Config["fontfamily"], Config["fontsize"])
-      font.setFixedPitch( True )
-      display.setFont( font )
-      display.document().setDefaultFont( font )
+      font.setFixedPitch(True)
+      display.setFont(font)
+      display.document().setDefaultFont(font)
       #initialise grid layout for dialog
-      grid = QGridLayout( self )
-      grid.addWidget( display )
-      self.setWindowTitle( "manageR - Search Help" )
+      grid = QGridLayout(self)
+      grid.addWidget(display)
+      self.setWindowTitle("manageR - Search Help")
       #get help output from r 
       #note: help_topic should only contain the specific
       #      help topic (i.e. no brackets etc.)
@@ -1750,28 +1766,28 @@ class searchDialog( QDialog ):
       pattern = help_topic.subset("pattern")[0]
       fields_string = QString()
       for i in fields:
-          fields_string.append( i + " or ")
-      fields_string.chop( 3 )
-      display_string = QString( "Help files with " + fields_string )
-      display_string.append( "matching '" + pattern[0] + "' using " )
-      display_string.append( "regular expression matching:\n\n" )
-      nrows = robjects.r.nrow( matches )[0]
-      ncols = robjects.r.ncol( matches )[0]
-      for i in range( 1, nrows + 1 ):
+          fields_string.append(i + " or ")
+      fields_string.chop(3)
+      display_string = QString("Help files with " + fields_string)
+      display_string.append("matching '" + pattern[0] + "' using ")
+      display_string.append("regular expression matching:\n\n")
+      nrows = robjects.r.nrow(matches)[0]
+      ncols = robjects.r.ncol(matches)[0]
+      for i in range(1, nrows + 1):
             row = QString()
-            pack = matches.subset( i, 3 )[0]
+            pack = matches.subset(i, 3)[0]
             row.append(pack)
             row.append("::")
-            pack = matches.subset( i, 1 )[0]
+            pack = matches.subset(i, 1)[0]
             row.append(pack)
             row.append("\t\t")
-            pack = matches.subset( i, 2 )[0]
+            pack = matches.subset(i, 2)[0]
             row.append(pack)
             row.append("\n")
-            display_string.append( row )
-      display.setPlainText( display_string )
+            display_string.append(row)
+      display.setPlainText(display_string)
       #help_file.close()
-      self.resize( 550, 400 )
+      self.resize(550, 400)
 
 class RWDWidget(QWidget):
 
@@ -1782,7 +1798,7 @@ class RWDWidget(QWidget):
         self.parent = parent
         self.base = base
 
-        self.current = QLineEdit( self )
+        self.current = QLineEdit(self)
         font = QFont(Config["fontfamily"], Config["fontsize"])
         self.current.setToolTip("Current working directory")
         self.current.setWhatsThis("Current working directory")
@@ -1793,7 +1809,7 @@ class RWDWidget(QWidget):
         self.setwd = QToolButton(self)
         self.setwd.setToolTip("Set working directory")
         self.setwd.setWhatsThis("Set working directory")
-        self.setwd.setIcon(QIcon(":mActionFolderSet.png"))
+        self.setwd.setIcon(QIcon(":mActionWorkingSet.png"))
         self.setwd.setText("setwd")
         self.setwd.setAutoRaise(True)
         
@@ -1801,16 +1817,460 @@ class RWDWidget(QWidget):
         horiz.addWidget(self.current)
         horiz.addWidget(self.setwd)
         self.connect(self.setwd, SIGNAL("clicked()"), self.browseToFolder)
+        
+    def displayWorkingDir(self,directory):
+        if isinstance(directory, tuple):
+            directory = directory[-1]
+        self.current.setText(directory)
     
     def browseToFolder(self):
         directory = QFileDialog.getExistingDirectory(
         self, "Choose working folder",self.current.text(),
         (QFileDialog.ShowDirsOnly|QFileDialog.DontResolveSymlinks))
-        self.current.setText(directory)
-        self.setWorkingDir(directory)
+        if not directory.isEmpty():
+            self.displayWorkingDir(directory)
+            self.setWorkingDir(directory)
 
     def setWorkingDir(self,directory):
         commands = QString('setwd("%s")' % (directory))
+        if not commands.isEmpty():
+            mime = QMimeData()
+            mime.setText(commands)
+            MainWindow.Console.editor.moveToEnd()
+            MainWindow.Console.editor.cursor.movePosition(
+            QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+            MainWindow.Console.editor.cursor.removeSelectedText()
+            MainWindow.Console.editor.cursor.insertText(
+            MainWindow.Console.editor.currentPrompt)
+            MainWindow.Console.editor.insertFromMimeData(mime)
+            MainWindow.Console.editor.entered()
+            
+class RVariableWidget(QWidget):
+
+    def __init__(self, parent):
+        QWidget.__init__(self, parent)
+        # initialise standard settings
+        self.setMinimumSize(30,30)
+        self.parent = parent
+        
+        self.variableTable = QTableWidget(0, 2, self)
+        labels = QStringList()
+        labels.append("Name")
+        labels.append("Type")
+        self.variableTable.setHorizontalHeaderLabels(labels)
+        self.variableTable.horizontalHeader().setResizeMode(1, QHeaderView.Stretch)
+        self.variableTable.setShowGrid(True)
+        self.variableTable.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.variableTable.setSelectionMode(QAbstractItemView.SingleSelection)
+
+        self.rm = QToolButton(self)
+        self.rm.setText("rm")
+        self.rm.setToolTip("Remove selected variable")
+        self.rm.setWhatsThis("Removed selected variable")
+        self.rm.setIcon(QIcon(":mActionVariableRemove.png"))
+        self.rm.setEnabled(False)
+        self.rm.setAutoRaise(True)
+        
+        self.export = QToolButton(self)
+        self.export.setText("export")
+        self.export.setToolTip("Export data to file")
+        self.export.setWhatsThis("Export data to file")
+        self.export.setIcon(QIcon(":mActionVariableExport.png"))
+        self.export.setEnabled(False)
+        self.export.setAutoRaise(True)
+        
+        self.canvas = QToolButton(self)
+        self.canvas.setText("canvas")
+        self.canvas.setToolTip("Export layer to map canvas")
+        self.canvas.setWhatsThis("Export layer to map canvas")
+        self.canvas.setIcon(QIcon(":mActionVariableCanvas.png"))
+        self.canvas.setEnabled(False)
+        self.canvas.setAutoRaise(True)
+
+        self.layer = QToolButton(self)
+        self.layer.setText("layer")
+        self.layer.setToolTip("Import layer from map canvas")
+        self.layer.setWhatsThis("Import layer from map canvas")
+        self.layer.setIcon(QIcon(":mActionVariableLayer.png"))
+        self.layer.setEnabled(True)
+        self.layer.setAutoRaise(True)
+        
+        self.save = QToolButton(self)
+        self.save.setText("save")
+        self.save.setToolTip("Save R variable to file")
+        self.save.setWhatsThis("Save R variable to file")
+        self.save.setIcon(QIcon(":mActionVariableSave.png"))
+        self.save.setEnabled(False)
+        self.save.setAutoRaise(True)
+        
+        self.load = QToolButton(self)
+        self.load.setText("load")
+        self.load.setToolTip("Load R variable(s) from file")
+        self.load.setWhatsThis("Load R variable(s) from file")
+        self.load.setIcon(QIcon(":mActionVariableLoad.png"))
+        self.load.setEnabled(True)
+        self.load.setAutoRaise(True)
+        
+        grid = QGridLayout(self)
+        horiz = QHBoxLayout()
+        horiz.addWidget(self.rm)
+        horiz.addWidget(self.export)
+        horiz.addWidget(self.canvas)
+        horiz.addWidget(self.layer)
+        horiz.addWidget(self.save)
+        horiz.addWidget(self.load)
+        #grid.addWidget(self.label)
+        grid.addLayout(horiz, 0, 0, 1, 1)
+        grid.addWidget(self.variableTable, 1, 0, 1, 1)
+        
+        self.variables = dict()
+        self.connect(self.rm, SIGNAL("clicked()"), self.removeVariable)
+        self.connect(self.export, SIGNAL("clicked()"), self.exportVariable)
+        self.connect(self.save, SIGNAL("clicked()"), self.saveVariable)
+        self.connect(self.canvas, SIGNAL("clicked()"), self.exportToCanvas)
+        self.connect(self.load, SIGNAL("clicked()"), self.loadRVariable)
+        self.connect(self.layer, SIGNAL("clicked()"), self.importFromCanvas)
+        self.connect(self.variableTable, \
+        SIGNAL("itemSelectionChanged()"), self.selectionChanged)
+
+    def updateVariables(self, variables):
+        self.variables = {}
+        while self.variableTable.rowCount() > 0:
+            self.variableTable.removeRow(0)
+        if isinstance(variables, tuple):
+            variables = variables[0]
+        for variable in variables.items():
+            self.addVariable(variable)
+
+    def addVariable(self, variable):
+        self.variables[variable[0]] = variable[1]
+        nameItem = QTableWidgetItem(QString(variable[0]))
+        nameItem.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEnabled)
+        typeItem = QTableWidgetItem(QString(variable[1]))
+        typeItem.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        typeItem.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEnabled)
+        row = self.variableTable.rowCount()
+        self.variableTable.insertRow(row)
+        self.variableTable.setItem(row, 0, nameItem)
+        self.variableTable.setItem(row, 1, typeItem)
+        self.variableTable.resizeColumnsToContents
+      
+    def selectionChanged(self):
+        row = self.variableTable.currentRow()
+        if row < 0 or row >= self.variableTable.rowCount() or \
+        self.variableTable.rowCount() < 1:
+            self.save.setEnabled(False)
+            self.rm.setEnabled(False)
+            self.canvas.setEnabled(False)
+            self.export.setEnabled(False)
+        else:
+            itemName, itemType = self.getVariableInfo(row)
+            self.save.setEnabled(True)
+            self.rm.setEnabled(True)
+            self.export.setEnabled(True)
+            if itemType in VECTORTYPES:
+                self.canvas.setEnabled(True)
+            else:
+                self.canvas.setEnabled(False)
+
+    def removeVariable(self):
+        row = self.variableTable.currentRow()
+        if row < 0:
+            return False
+        itemName, itemType = self.getVariableInfo(row)
+        self.sendCommands(QString('rm(%s)' % (itemName)))
+        
+    def exportVariable(self):
+        row = self.variableTable.currentRow()
+        if row < 0:
+            return False
+        itemName, itemType = self.getVariableInfo(row)
+        if itemType in VECTORTYPES or \
+        itemType in RASTERTYPES:
+            self.parent.exportRObjects(True, itemName, itemType, False)
+        else:
+            fd = QFileDialog(self.parent, "Save data to file", "", \
+            "Comma separated (*.csv);;Text file (*.txt);;All files (*.*)")
+            fd.setAcceptMode(QFileDialog.AcceptSave)
+            if not fd.exec_() == QDialog.Accepted:
+              return False
+            files = fd.selectedFiles()
+            selectedFile = files.first()
+            if selectedFile.length() == 0:
+                return False
+            suffix = QString(fd.selectedNameFilter())
+            index1 = suffix.lastIndexOf("(")+2
+            index2 = suffix.lastIndexOf(")")
+            suffix = suffix.mid(index1, index2-index1)
+            if not selectedFile.endsWith(suffix):
+                selectedFile.append(suffix)
+            command = QString('write.table(%s, file = "%s",' % (itemName,selectedFile))
+            command.append(QString('append = FALSE, quote = TRUE, sep = ",", eol = "\\n", na = "NA"'))
+            command.append(QString(', dec = ".", row.names = FALSE, col.names = TRUE, qmethod = "escape")'))
+            self.sendCommands(command)
+    
+    def saveVariable(self):
+        row = self.variableTable.currentRow()
+        if row < 0:
+            return False
+        itemName, itemType = self.getVariableInfo(row)
+        fd = QFileDialog(self.parent, "Save data to file", "", \
+        "R data file (*.Rda)")
+        fd.setAcceptMode(QFileDialog.AcceptSave)
+        if not fd.exec_() == QDialog.Accepted:
+            return False
+        files = fd.selectedFiles()
+        selectedFile = files.first()
+        if selectedFile.length() == 0:
+            return False
+        suffix = QString(fd.selectedNameFilter())
+        index1 = suffix.lastIndexOf("(")+2
+        index2 = suffix.lastIndexOf(")")
+        suffix = suffix.mid(index1, index2-index1)
+        if not selectedFile.endsWith(suffix):
+            selectedFile.append(suffix)
+        commands = QString('save(%s, file="%s")' % (itemName,selectedFile))
+        self.sendCommands(commands)
+      
+    def exportToCanvas(self):
+        row = self.variableTable.currentRow()
+        if row < 0:
+            return False
+        itemName, itemType = self.getVariableInfo(row)
+        if itemType in VECTORTYPES:
+            self.parent.exportRObjects(False, itemName, itemType, False)
+            self.parent.label.setText("Exported to canvas")
+        else:
+            return False
+
+    def importFromCanvas(self):
+        mlayer = self.parent.iface.mapCanvas().currentLayer()
+        self.parent.importRObjects(mlayer, False)
+        return True
+        
+    def loadRVariable(self):
+        fd = QFileDialog(self.parent, "Load R variable(s) from file", "",
+        "R data (*.Rda);;All files (*.*)")
+        fd.setAcceptMode(QFileDialog.AcceptOpen)
+        if fd.exec_() == QDialog.Rejected:
+            return False
+        files = fd.selectedFiles()
+        selectedFile = files.first()
+        if selectedFile.length() == 0:
+            return False
+        self.sendCommands(QString('load("%s")' % (selectedFile)))
+      
+    def getVariableInfo(self, row):
+        item_name = self.variableTable.item(row, 0)
+        item_name = item_name.data(Qt.DisplayRole).toString()
+        item_type = self.variableTable.item(row, 1)
+        item_type = item_type.data(Qt.DisplayRole).toString()
+        return (item_name, item_type)
+      
+    def sendCommands(self, commands):
+        if not commands.isEmpty():
+            mime = QMimeData()
+            mime.setText(commands)
+            MainWindow.Console.editor.moveToEnd()
+            MainWindow.Console.editor.cursor.movePosition(
+            QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+            MainWindow.Console.editor.cursor.removeSelectedText()
+            MainWindow.Console.editor.cursor.insertText(
+            MainWindow.Console.editor.currentPrompt)
+            MainWindow.Console.editor.insertFromMimeData(mime)
+            MainWindow.Console.editor.entered()
+            
+class RGraphicsWidget(QWidget):
+
+    def __init__(self, parent):
+        QWidget.__init__(self, parent)
+        # initialise standard settings
+        self.setMinimumSize(30, 30)
+        self.parent = parent
+        
+        self.graphicsTable = QTableWidget(0, 2, self)
+        labels = QStringList()
+        labels.append("Item")
+        labels.append("Device")
+        self.graphicsTable.setHorizontalHeaderLabels(labels)
+        self.graphicsTable.horizontalHeader().setResizeMode(1, QHeaderView.Stretch)
+        self.graphicsTable.setShowGrid(True)
+        self.graphicsTable.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.graphicsTable.setSelectionMode(QAbstractItemView.SingleSelection)
+        
+        self.rm = QToolButton(self)
+        self.rm.setText("close")
+        self.rm.setToolTip("Close selected graphic")
+        self.rm.setWhatsThis("Close selected graphic")
+        self.rm.setIcon(QIcon(":mActionGraphicRemove.png"))
+        self.rm.setEnabled(False)
+        self.rm.setAutoRaise(True)
+        
+        self.export = QToolButton(self)
+        self.export.setText("export")
+        self.export.setToolTip("Export graphic as bitmap")
+        self.export.setWhatsThis("Export graphic as bitmap")
+        self.export.setIcon(QIcon(":mActionGraphicExport.png"))
+        self.export.setEnabled(False)
+        self.export.setAutoRaise(True)
+        
+        self.save = QToolButton(self)
+        self.save.setText("save")
+        self.save.setToolTip("Export graphic to vector file")
+        self.save.setWhatsThis("Export graphic to vector file")
+        self.save.setIcon(QIcon(":mActionGraphicSave.png"))
+        self.save.setEnabled(False)
+        self.save.setAutoRaise(True)
+
+        self.new = QToolButton(self)
+        self.new.setText("new")
+        self.new.setToolTip("Create new graphics device")
+        self.new.setWhatsThis("Create new graphics device")
+        self.new.setIcon(QIcon(":mActionGraphicNew.png"))
+        self.new.setEnabled(True)
+        self.new.setAutoRaise(True)
+
+        #self.refresh = QToolButton(self)
+        #self.refresh.setText("refresh")
+        #self.refresh.setToolTip("Refresh list of graphic devices")
+        #self.refresh.setWhatsThis("Refresh list of graphic devices")
+        #self.refresh.setIcon(QIcon(":mActionGraphicRefresh.png"))
+        #self.refresh.setEnabled(True)
+        #self.refresh.setAutoRaise(True)
+      
+        grid = QGridLayout(self)
+        horiz = QHBoxLayout()
+        #horiz.addWidget(self.refresh)
+        horiz.addWidget(self.rm)
+        horiz.addWidget(self.export)
+        horiz.addWidget(self.save)
+        horiz.addWidget(self.new)
+        grid.addLayout(horiz, 0, 0, 1, 1)
+        grid.addWidget(self.graphicsTable, 1, 0, 1, 1)
+        
+        self.graphics = dict()
+        self.connect(self.rm, SIGNAL("clicked()"), self.removeGraphic)
+        self.connect(self.export, SIGNAL("clicked()"), self.exportGraphic)
+        self.connect(self.save, SIGNAL("clicked()"), self.saveGraphic)
+        self.connect(self.new, SIGNAL("clicked()"), self.newGraphic)
+        #self.connect(self.refresh, SIGNAL("clicked()"), self.refreshGraphics)
+        self.connect(self.graphicsTable, \
+        SIGNAL("itemSelectionChanged()"), self.selectionChanged)
+
+    def updateGraphics(self, graphics):
+        self.graphics = {}
+        while self.graphicsTable.rowCount() > 0:
+            self.graphicsTable.removeRow(0)
+        if isinstance(graphics, tuple):
+            graphics = graphics[1]
+        for graphic in graphics.items():
+            self.addGraphic(graphic)
+
+    def refreshGraphics(self):
+        self.parent.updateWidgets()
+
+    def addGraphic(self, graphic):
+        self.graphics[graphic[0]] = graphic[1]
+        itemID = QTableWidgetItem(QString(str(graphic[0])))
+        itemID.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEnabled)
+        itemDevice = QTableWidgetItem(QString(graphic[1]))
+        itemDevice.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        itemDevice.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEnabled)
+        row = self.graphicsTable.rowCount()
+        self.graphicsTable.insertRow(row)
+        self.graphicsTable.setItem(row, 0, itemID)
+        self.graphicsTable.setItem(row, 1, itemDevice)
+        self.graphicsTable.resizeColumnsToContents
+      
+    def selectionChanged(self):
+        row = self.graphicsTable.currentRow()
+        if row < 0 or row >= self.graphicsTable.rowCount() or \
+        self.graphicsTable.rowCount() < 1:
+            self.save.setEnabled(False)
+            self.rm.setEnabled(False)
+            self.export.setEnabled(False)
+        else:
+            itemName, itemType = self.getGraphicInfo(row)
+            self.save.setEnabled(True)
+            self.rm.setEnabled(True)
+            self.export.setEnabled(True)
+
+    def removeGraphic(self):
+        row = self.graphicsTable.currentRow()
+        if row < 0:
+            return False
+        itemID, itemDevice = self.getGraphicInfo(row)
+        self.graphicsTable.removeRow(row)
+        self.sendCommands(QString('dev.off(%s)' % (itemID)))
+
+    def newGraphic(self):
+      self.sendCommands(QString('dev.new()'))
+        
+    def exportGraphic(self):
+        row = self.graphicsTable.currentRow()
+        if row < 0:
+            return False
+        itemID, itemDevice = self.getGraphicInfo(row)
+        #self.connect(fd, SIGNAL("filterSelected(QString)"), self.setFilter)
+        fd = QFileDialog(self.parent, "Save graphic to file", "", \
+        "PNG (*.png);;JPEG (*.jpeg);;TIFF (*.TIFF);;BMP (*.bmp)")
+        fd.setAcceptMode(QFileDialog.AcceptSave)
+        if not fd.exec_() == QDialog.Accepted:
+            return False
+        files = fd.selectedFiles()
+        selectedFile = files.first()
+        if selectedFile.length() == 0:
+            return False
+        suffix = QString(fd.selectedNameFilter())
+        index1 = suffix.lastIndexOf("(")+2
+        index2 = suffix.lastIndexOf(")")
+        suffix = suffix.mid(index1, index2-index1)
+        if not selectedFile.endsWith(suffix):
+            selectedFile.append(suffix)
+        command = QString('dev.set(' + itemID + ')')
+        self.sendCommands(command)
+        command = QString('dev.copy(%s, filename = "%s", ' % (suffix.remove("."), selectedFile))
+        command.append('width = dev.size("px")[1], height = dev.size("px")[2], ')
+        command.append('units = "px", bg = "transparent")')
+        self.sendCommands(command)
+        command = QString('dev.off()')
+        self.sendCommands(command)
+      
+    def saveGraphic(self):
+        row = self.graphicsTable.currentRow()
+        if row < 0:
+            return False
+        itemID, itemDevice = self.getGraphicInfo(row)
+        fd = QFileDialog(self.parent, "Save R  graphic to file", "", \
+        "PDF (*.pdf);;EPS (*.eps);;SVG (*.svg)")
+        fd.setAcceptMode(QFileDialog.AcceptSave)
+        if not fd.exec_() == QDialog.Accepted:
+            return False
+        files = fd.selectedFiles()
+        selectedFile = files.first()
+        if selectedFile.length() == 0:
+            return False
+        suffix = QString(fd.selectedNameFilter())
+        index1 = suffix.lastIndexOf("(")+2
+        index2 = suffix.lastIndexOf(")")
+        suffix = suffix.mid(index1, index2-index1)
+        if not selectedFile.endsWith(suffix):
+            selectedFile.append(suffix)
+        command = QString('dev.set(%s)' % (itemID))
+        self.sendCommands(command)
+        command = QString('dev.copy(%s, file = "%s")'% (suffix.remove("."), selectedFile))
+        self.sendCommands(command)
+        command = QString('dev.off()')
+        self.sendCommands(command)
+        
+    def getGraphicInfo(self, row):
+        itemID = self.graphicsTable.item(row, 0)
+        itemID = itemID.data(Qt.DisplayRole).toString()
+        itemDevice = self.graphicsTable.item(row, 1)
+        itemDevice = itemDevice.data(Qt.DisplayRole).toString()
+        return (itemID, itemDevice)
+      
+    def sendCommands(self, commands):
         if not commands.isEmpty():
             mime = QMimeData()
             mime.setText(commands)
@@ -1843,13 +2303,14 @@ class MainWindow(QMainWindow):
             splash.show()
             QApplication.processEvents()
             self.setAttribute(Qt.WA_DeleteOnClose)
-            splash.showMessage( "Loading R interpreter", \
-            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+            splash.showMessage("Loading R interpreter", \
+            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             QApplication.processEvents()
             self.editor = RConsole(self)
             MainWindow.Console = self
             self.editor.append(welcomeString(self.version))
             self.editor.setFocus(Qt.ActiveWindowFocusReason)
+            self.connect(self.editor, SIGNAL("commandComplete()"),self.updateWidgets)
         else:
             self.editor = REditor(self)
         self.setCentralWidget(self.editor)
@@ -1857,22 +2318,22 @@ class MainWindow(QMainWindow):
             self.completer = RCompleter(self.editor,
             delay=Config["delay"])
         if Config["enablehighlighting"]:
-            self.highlighter = RHighlighter( self.editor )
+            self.highlighter = RHighlighter(self.editor)
             palette = QPalette(QColor(Config["backgroundcolor"]))
             palette.setColor(QPalette.Active, QPalette.Base, QColor(Config["backgroundcolor"]))
             self.editor.setPalette(palette)
             #self.editor.setTextColor(QColor(Config["normalfontcolor"]))
-        self.finder = RFinder( self, self.editor )
+        self.finder = RFinder(self, self.editor)
         self.finderDockWidget = QDockWidget("Find and Replace Toolbar", self)          
         self.finderDockWidget.setObjectName("findReplace")
         self.finderDockWidget.setAllowedAreas(Qt.BottomDockWidgetArea)
-        self.finderDockWidget.setWidget( self.finder)
+        self.finderDockWidget.setWidget(self.finder)
         self.setCorner(Qt.BottomRightCorner, Qt.BottomDockWidgetArea)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.finderDockWidget)
 
         if isConsole:
-            splash.showMessage( "Creating menus and toolbars", \
-            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+            splash.showMessage("Creating menus and toolbars", \
+            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             QApplication.processEvents()
 
         fileNewAction = self.createAction("&New File", self.fileNew,
@@ -1916,7 +2377,8 @@ class MainWindow(QMainWindow):
         editSelectAllAction = self.createAction("Select &All",
                 self.editor.selectAll, QKeySequence.SelectAll,
                 "mActionEditSelectAll", "Select all text")
-        editCompleteAction = self.createAction("Com&plete",
+        if Config["enableautocomplete"]:
+            editCompleteAction = self.createAction("Com&plete",
                 self.forceSuggest, "Ctrl+Space", "mActionEditComplete",
                 "Initiate autocomplete suggestions")
         editFindNextAction = self.createAction("&Find",
@@ -1929,11 +2391,11 @@ class MainWindow(QMainWindow):
                     "mActionEditReplaceNext",
                     "Replace the next occurrence of the given text")
             editIndentRegionAction = self.createAction("&Indent Region",
-                    self.editor.indentRegion, "Ctrl+]", "mActionEditIndent",
+                    self.editor.indentRegion, "Tab", "mActionEditIndent",
                     "Indent the selected text or the current line")
             editUnindentRegionAction = self.createAction(
                     "Unin&dent Region", self.editor.unindentRegion,
-                    "Ctrl+[", "mActionEditUnindent",
+                    "Shift+Tab", "mActionEditUnindent",
                     "Unindent the selected text or the current line")
             editCommentRegionAction = self.createAction("C&omment Region",
                     self.editor.commentRegion, icon="mActionEditComment",
@@ -1955,10 +2417,23 @@ class MainWindow(QMainWindow):
                     "Show Next Command", self.editor.showPrevious,
                     "Down", "mActionNext",
                     ("Show next command"))
+            actionImportAttibutesAction = self.createAction(
+                    "Import layer attributes", self.importLayerAttributes,
+                    "Ctrl+T", "mActionActionTable",
+                    ("Import layer attributes"))
             actionImportLayerAction = self.createAction(
                     "Import layer from canvas", self.importRObjects,
-                    "Import", "mActionLayer",
+                    "Ctrl+L", "mActionActionImport",
                     ("Import layer from canvas"))
+            actionExportCanvasAction = self.createAction(
+                    "Export layer to canvas", self.exportRObjects,
+                    "Ctrl+M", "mActionActionExport",
+                    ("Export layer to canvas"))
+            actionExportFileAction = self.createAction(
+                    "Export layer to file", self.exportToFile,
+                    "Ctrl+D", "mActionActionFile",
+                    ("Export layer to file"))
+                    
         helpHelpAction = self.createAction("&Help", self.helpHelp,
                 QKeySequence.HelpContents, icon="mActionHelpHelp",
                 tip="Commands help")
@@ -1982,14 +2457,14 @@ class MainWindow(QMainWindow):
         if not isConsole:
             self.addActions(editMenu, (editUndoAction, editRedoAction, None,))
         self.addActions(editMenu, (editCopyAction, editCutAction, editPasteAction,
-                                   editSelectAllAction, None, editCompleteAction))
-        
-        self.addActions(editMenu, (editFindNextAction,))
+                                   editSelectAllAction, None,editFindNextAction,))
         if not isConsole:
             self.addActions(editMenu, (editReplaceNextAction, 
                 None, editIndentRegionAction,
                 editUnindentRegionAction, editCommentRegionAction,
                 editUncommentRegionAction))
+        if Config["enableautocomplete"]:
+            self.addActions(editMenu, (None, editCompleteAction,))
         self.gotoMenu = self.menuBar().addMenu("&Goto")
         self.addActions(self.gotoMenu, (self.createAction("&Matching",
                 self.editor.gotoMatching, "Ctrl+B", "mActionGotoMatching",
@@ -2003,8 +2478,9 @@ class MainWindow(QMainWindow):
         if not isConsole:
             self.addActions(actionMenu, (actionRunAction,))
         else:
-            self.addActions(actionMenu, (actionShowPrevAction, 
-                actionShowNextAction,actionImportLayerAction,))
+            self.addActions(actionMenu, (actionShowPrevAction, actionShowNextAction,
+            actionImportLayerAction, actionImportAttibutesAction,
+            actionExportCanvasAction, actionExportFileAction,))
         self.viewMenu = self.menuBar().addMenu("&View")
         self.windowMenu = self.menuBar().addMenu("&Window")
         self.connect(self.windowMenu, SIGNAL("aboutToShow()"),
@@ -2037,7 +2513,9 @@ class MainWindow(QMainWindow):
             self.addActions(self.actionToolbar, (actionRunAction,))
         else:
             self.addActions(self.actionToolbar, (None, actionShowPrevAction, 
-                actionShowNextAction))
+                actionShowNextAction, None, actionImportLayerAction, 
+                actionImportAttibutesAction, actionExportCanvasAction,
+                actionExportFileAction,))
         for toolbar in (self.fileToolbar, self.editToolbar,
                         self.actionToolbar):
             action = self.viewMenu.addAction("&%s" % toolbar.windowTitle())
@@ -2053,7 +2531,6 @@ class MainWindow(QMainWindow):
         if isConsole:
             self.finderDockWidget.setWindowTitle("Find Toolbar")
             self.finder.hideReplace()
-            self.createConsoleWidgets()
         self.connect(self, SIGNAL("destroyed(QObject*)"),
                      MainWindow.updateInstances)
 
@@ -2072,8 +2549,8 @@ class MainWindow(QMainWindow):
                          SIGNAL("blockCountChanged(int)"),
                          self.updateIndicators)
         else:
-            splash.showMessage( "Adjusting window size", \
-            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+            splash.showMessage("Adjusting window size", \
+            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             QApplication.processEvents()
         if Config["remembergeometry"]:
             if isConsole:
@@ -2111,8 +2588,8 @@ class MainWindow(QMainWindow):
             # If requested, set/change working directory
             if not QString(Config["setwd"]).isEmpty() or \
             not QString(Config["setwd"]) == ".":
-                splash.showMessage( "Setting default working directory", \
-                (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+                splash.showMessage("Setting default working directory", \
+                (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
                 QApplication.processEvents()
                 self.editor.execute(QString('setwd("%s")' % (Config["setwd"])))
                 cursor = self.editor.textCursor()
@@ -2120,8 +2597,8 @@ class MainWindow(QMainWindow):
                 QTextCursor.KeepAnchor)
                 cursor.removeSelectedText()
             # Process required R frontend tasks (load workspace and history)
-            splash.showMessage( "Checking for previously saved workspace", \
-            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+            splash.showMessage("Checking for previously saved workspace", \
+            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             QApplication.processEvents()
             workspace = QFileInfo()
             workspace.setFile(QDir(robjects.r['getwd']()[0]), ".RData")
@@ -2131,15 +2608,15 @@ class MainWindow(QMainWindow):
                 else:
                     self.editor.append("Error: Unable to load previously saved workspace:"
                                      "\nCreating new workspace...\n\n")
-            splash.showMessage( "Checking for history file", \
-            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+            splash.showMessage("Checking for history file", \
+            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             if self.editor.loadRHistory():
                 QApplication.processEvents()
             self.editor.displayPrompt()
             # If requested, execute startup commands
             if not QString(Config["consolestartup"]).isEmpty():
-                splash.showMessage( "Executing startup commands", \
-                (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+                splash.showMessage("Executing startup commands", \
+                (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
                 QApplication.processEvents()
                 mime = QMimeData()
                 mime.setText(Config["consolestartup"])
@@ -2147,32 +2624,57 @@ class MainWindow(QMainWindow):
                 self.editor.execute(QString(Config["consolestartup"]))
             # If requested, load all default library functions into CAT
             if Config["enableautocomplete"]:
-                splash.showMessage( "Loading default library commands", \
-                    (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
+                splash.showMessage("Loading default library commands", \
+                    (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
                 QApplication.processEvents()
                 for library in robjects.r('.packages()'):
                     addLibraryCommands(library)
-                
-            splash.showMessage( "manageR ready!", \
-            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white )
-            splash.finish( self )
+            self.createConsoleWidgets()
+            splash.showMessage("manageR ready!", \
+            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
+            splash.finish(self)
         QTimer.singleShot(0, self.updateToolbars)
         self.startTimer(50)
         
     def createConsoleWidgets(self):
-        # Working directory widget
+        graphicWidget = RGraphicsWidget(self)
+        graphicWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"),
+        graphicWidget.updateGraphics)
+        graphicDockWidget = QDockWidget("Graphic devices", self)          
+        graphicDockWidget.setObjectName("graphicDockWidget")
+        graphicDockWidget.setAllowedAreas(Qt.LeftDockWidgetArea|Qt.RightDockWidgetArea)
+        graphicDockWidget.setWidget(graphicWidget)
+        self.addDockWidget(Qt.RightDockWidgetArea, graphicDockWidget)
+        
+        variableWidget = RVariableWidget(self)
+        variableWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"),
+        variableWidget.updateVariables)
+        variableDockWidget = QDockWidget("Variable list", self)          
+        variableDockWidget.setObjectName("variableDockWidget")
+        variableDockWidget.setAllowedAreas(Qt.RightDockWidgetArea|Qt.LeftDockWidgetArea)
+        variableDockWidget.setWidget(variableWidget)
+        self.addDockWidget(Qt.RightDockWidgetArea, variableDockWidget)
+        
         cwdWidget = RWDWidget(self,robjects.r('getwd()')[0])
-        self.cwdDockWidget = QDockWidget("Working directory", self)          
-        self.cwdDockWidget.setObjectName("cwdDockWidget")
-        self.cwdDockWidget.setAllowedAreas(Qt.TopDockWidgetArea|Qt.BottomDockWidgetArea)
-        self.cwdDockWidget.setWidget(cwdWidget)
-        self.addDockWidget(Qt.TopDockWidgetArea, self.cwdDockWidget)
-        for widget in [self.cwdDockWidget]:
+        cwdWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"), cwdWidget.displayWorkingDir)
+        cwdDockWidget = QDockWidget("Working directory", self)
+        cwdDockWidget.setObjectName("cwdDockWidget")
+        cwdDockWidget.setAllowedAreas(Qt.TopDockWidgetArea|Qt.BottomDockWidgetArea)
+        cwdDockWidget.setWidget(cwdWidget)
+        self.addDockWidget(Qt.TopDockWidgetArea, cwdDockWidget)
+        
+        self.tabifyDockWidget(variableDockWidget,graphicDockWidget)
+
+        for widget in [cwdDockWidget, variableDockWidget, graphicDockWidget,]:
             action = widget.toggleViewAction()
             self.connect(action, SIGNAL("toggled(bool)"), self.toggleToolbars)
             action.setCheckable(True)
             self.viewMenu.addAction(action)
             MainWindow.Toolbars[widget] = action
+        self.updateWidgets()
+            
+    def updateWidgets(self):
+        self.emit(SIGNAL("updateDisplays(PyQt_PyObject)"),currentRObjects())
 
     def timerEvent(self, e):
         try:
@@ -2201,172 +2703,167 @@ class MainWindow(QMainWindow):
             return False
         return True
         
+    def importLayerAttributes(self):
+        self.importRObjects(True)
+        
     def importRObjects(self, dataOnly=False):
         mlayer = self.iface.mapCanvas().currentLayer()
         self.statusBar().showMessage(
         "Importing data from canvas...")
-        if mlayer is None:
-            MainWindow.Console.editor.commandError(
-            "Error: No layer selected in layer list")
-            MainWindow.Console.editor.commandComplete()
-            return
-        rbuf = QString()
-        def f(x):
-            rbuf.append(x)
-        robjects.rinterface.setWriteConsole(f)
-        if not dataOnly and not isLibraryLoaded("sp"):
-            MainWindow.Console.editor.commandError(
-            "Error: Unable to find R package 'sp'.\n"
-            "Please manually install the 'sp' package in R via "
-            "install.packages().")
-            MainWindow.Console.editor.commandComplete()
-            return
-        if mlayer.type() == QgsMapLayer.VectorLayer:
-            layerCreator = QVectorLayerConverter(mlayer, dataOnly)
-        if mlayer.type() == QgsMapLayer.RasterLayer:
-            if dataOnly:
-                MainWindow.Console.editor.commandError(
-                "Error: Cannot load raster layer attributes")
-                MainWindow.Console.editor.commandComplete()
-                return
-            if not isLibraryLoaded("rgdal"):
-                MainWindow.Console.editor.commandError(
-                "Error: Unable to find R package 'rgdal'.\n"
-                "Please manually install the 'rgdal' package in R via "
-                "install.packages().")
-                MainWindow.Console.editor.commandComplete()
-                return
-            layerCreator = QRasterLayerConverter(mlayer)
-        MainWindow.Console.editor.commandOutput(rbuf)
+        MainWindow.Console.editor.moveToEnd()
+        MainWindow.Console.editor.cursor.movePosition(
+        QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+        MainWindow.Console.editor.cursor.removeSelectedText()
+        MainWindow.Console.editor.cursor.insertText(
+        "%smanageR import function" % (MainWindow.Console.editor.currentPrompt))
+        QApplication.processEvents()
         try:
+            if mlayer is None:
+                MainWindow.Console.editor.commandError(
+                "Error: No layer selected in layer list")
+                MainWindow.Console.editor.commandComplete()
+                return
+            rbuf = QString()
+            def f(x):
+                rbuf.append(x)
+            robjects.rinterface.setWriteConsole(f)
+            if not dataOnly and not isLibraryLoaded("sp"):
+                raise RLibraryError("sp")
+            if mlayer.type() == QgsMapLayer.VectorLayer:
+                layerCreator = QVectorLayerConverter(mlayer, dataOnly)
+            if mlayer.type() == QgsMapLayer.RasterLayer:
+                if dataOnly:
+                    MainWindow.Console.editor.commandError(
+                    "Error: Cannot load raster layer attributes")
+                    MainWindow.Console.editor.commandComplete()
+                    return
+                if not isLibraryLoaded("rgdal"):
+                    raise RLibraryError("sp")
+                layerCreator = QRasterLayerConverter(mlayer)
+            MainWindow.Console.editor.commandOutput(rbuf)
             rLayer, layerName, message = layerCreator.start()
             robjects.globalEnv[str(layerName)] = rLayer
-            #self.emit( SIGNAL( "newObjectCreated( PyQt_PyObject )" ), \
-            #self.updateRObjects() )
+            if not str(layerName) in CAT:
+                CAT.append(str(layerName))
+            #self.emit(SIGNAL("newObjectCreated(PyQt_PyObject)"), \
+            #self.updateRObjects())
             MainWindow.Console.editor.commandOutput(message)
-            MainWindow.Console.editor.commandComplete()
         except Exception, e:
             MainWindow.Console.editor.commandError(e)
-            MainWindow.Console.editor.commandComplete()
-        self.statusBar().clearMessage()
+        MainWindow.Console.editor.commandComplete()
+        
+    def exportToFile(self):
+        self.exportRObjects(True)
       
-  #def exportRObjects(self, to_file, export_layer = None, 
-  #export_type = None, ask=True):
-    #self.label.setText("Running...")
-    #self.console.enableHighlighting( False )
-    #self.console.cursor.select( QTextCursor.LineUnderCursor )
-    #self.console.cursor.removeSelectedText()
-    #if to_file:
-      #put_text = "to file..."
-    #else:
-      #put_text = "to canvas..."
-    #self.console.cursor.insertText( self.console.defaultPrompt + "Exporting layer " + put_text )
-    #self.repaint()
-    #QApplication.processEvents()
-    #if ask:
-      #result, export_layer, export_type = self.exportRObjectsDialog( to_file )
-    #else:
-      #result = True
-    ## If there is no input layer, don't do anything
-    #if result is None: # this needs to be updated to reflect where we  get the R objects from...
-      #self.console.appendText( "No R spatial objects available", QConsole.ERR_TYPE )
-      #self.console.displayPrompt()
-      #return
-    #if not result:
-      #return
-    #if not to_file and not self.isPackageLoaded( "sp" ):
-      #self.console.appendText( "Unable to find R package 'sp'."
-      #+ "\nPlease manually install the 'sp' package in R via "
-      #+ "install.packages().", QConsole.ERR_TYPE )
-      #self.console.displayPrompt()
-      #return
-    #if to_file and not self.isPackageLoaded( "rgdal" ):
-      #self.console.appendText( "Unable to find R package 'rgdal'."
-      #+ "\nPlease manually install the 'rgdal' package in R via "
-      #+ "install.packages().", QConsole.ERR_TYPE )
-      #self.console.displayPrompt()
-      #return
-    #if not export_type in manageR.VECTORTYPES or export_type in manageR.RASTERTYPES:
-      #self.console.appendText( "Unrecognised sp object, unable to save to file.", QConsole.ERR_TYPE )
-      #self.console.displayPrompt()
-      #return
-    #if not to_file and export_type in manageR.RASTERTYPES:
-      #self.console.appendText( "Unable to export raster layers to map canvas at this time.", QConsole.ERR_TYPE )
-      #self.console.displayPrompt()
-      #return
-    #if not to_file:
-      #if export_type in manageR.VECTORTYPES:
-        #self.q_layer_creator = RVectorLayerConverter( robjects.r[ unicode( export_layer ) ], export_layer )
-    #else:
-      #if export_type in manageR.VECTORTYPES:
-         #drivers = "ESRI Shapefile (*.shp);;MapInfo File (*.mif);;GML (*.gml);;KML (*.kml)"
-      #else:
-        #drivers = "GeoTIFF (*.tif);;Erdas Imagine Images (*.img);;Arc/Info ASCII Grid " \
-        #+ "(*.asc);;ENVI Header Labelled (*.hdr);;JPEG-2000 part 1 (*.jp2);;Portable " \
-        #+ "Network Graphics (*.png);;USGS Optional ASCII DEM (*.dem)"
-      #fileDialog = QFileDialog()
-      #fileDialog.setConfirmOverwrite( True )
-      #driver = QString()
-      #layer_name = fileDialog.getSaveFileName( self, "Save OGR",".", drivers, driver )
-      #if not layer_name.isEmpty():
-          #fileCheck = QFile( layer_name )
-          #if fileCheck.exists():
-            #if not QgsVectorFileWriter.deleteShapeFile( layer_name ):
-              #self.console.appendText( "Unable to overwrite existing file", QConsole.ERR_TYPE )
-              #self.console.displayPrompt()
-              #return
-      #if export_type in manageR.VECTORTYPES:
-        #self.q_layer_creator = RVectorLayerWriter( unicode( export_layer ), layer_name, driver )
-      #else:
-        #self.q_layer_creator = RRasterLayerWriter( unicode( export_layer ), layer_name, driver )
-    #QObject.connect( self.q_layer_creator, SIGNAL( "threadError( PyQt_PyObject )" ),
-    #self._showErrors )
-    #QObject.connect( self.q_layer_creator, SIGNAL( "threadSuccess( PyQt_PyObject, PyQt_PyObject )" ),
-    #self._showExport )
-    #self.q_layer_creator.start()
-
-  #def _showExport( self, layer, to_file ):
-    #self.q_layer_creator.stop()
-    #add = False
-    #if to_file:
-      #message = "Created file:\n" + unicode( layer.source() )
-      #add = QMessageBox.question( self, "manageR", "Would you like to add the new layer to the map canvas?",
-      #QMessageBox.Yes, QMessageBox.No, QMessageBox.NoButton )
-    #else:
-      #message = unicode( layer.name() ) + " exported to canvas"
-    #if add == QMessageBox.Yes or not to_file:
-      #QgsMapLayerRegistry.instance().addMapLayer( layer )
-    #self.console.appendText( message, QConsole.OUT_TYPE )
-    #self.console.enableHighlighting( True )
-    #self.label.setText(" ")
-    #self.console.displayPrompt()
+    def exportRObjects(self, toFile=False, exportLayer=None, exportType=None, ask=True):
+        if toFile:
+            self.statusBar().showMessage("Exporting data to file...")
+        else:
+            self.statusBar().showMessage("Exporting data to canvas...")
+        MainWindow.Console.editor.moveToEnd()
+        MainWindow.Console.editor.cursor.movePosition(
+        QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+        MainWindow.Console.editor.cursor.removeSelectedText()
+        MainWindow.Console.editor.cursor.insertText(
+        "%smanageR export function" % (MainWindow.Console.editor.currentPrompt))
+        
+        QApplication.processEvents()
+        try:
+            if ask:
+                result = self.exportRObjectsDialog(toFile)
+                if not result is None and not result is False:
+                    result, exportLayer, exportType = result
+            else:
+                result = True
+            # If there is no input layer, don't do anything
+            if result is None: # this needs to be updated to reflect where we get the R objects from...
+                MainWindow.Console.editor.commandError(
+                "Error: No R spatial objects available")
+                MainWindow.Console.editor.commandComplete()
+                return
+            if not result:
+                return
+            if not toFile and not isLibraryLoaded("sp"):
+                raise RLibraryError("sp")
+            if toFile and not isLibraryLoaded("rgdal"):
+                raise RLibraryError("rgdal")
+            if not exportType in VECTORTYPES and not exportType in RASTERTYPES:
+                MainWindow.Console.editor.commandError(
+                "Error: Unrecognised sp object, unable to save to file.")
+                MainWindow.Console.editor.commandComplete()
+                return
+            if not toFile and exportType in RASTERTYPES:
+                MainWindow.Console.editor.commandError(
+                "Error: Unable to export raster layers to map canvas at this time.")
+                MainWindow.Console.editor.commandComplete()
+                return
+            if not toFile:
+                if exportType in VECTORTYPES:
+                    layerCreator = RVectorLayerConverter(robjects.r[unicode(exportLayer)], exportLayer)
+            else:
+                if exportType in VECTORTYPES:
+                    drivers = "ESRI Shapefile (*.shp);;MapInfo File (*.mif);;GML (*.gml);;KML (*.kml)"
+                else:
+                    drivers = "GeoTIFF (*.tif);;Erdas Imagine Images (*.img);;Arc/Info ASCII Grid " \
+                    + "(*.asc);;ENVI Header Labelled (*.hdr);;JPEG-2000 part 1 (*.jp2);;Portable " \
+                    + "Network Graphics (*.png);;USGS Optional ASCII DEM (*.dem)"
+                fileDialog = QFileDialog()
+                fileDialog.setConfirmOverwrite(True)
+                driver = QString()
+                layerName = fileDialog.getSaveFileName(self, "Save OGR",".", drivers, driver)
+                if not layerName.isEmpty():
+                    fileCheck = QFile(layerName)
+                    if fileCheck.exists():
+                        if not QgsVectorFileWriter.deleteShapeFile(layerName):
+                            MainWindow.Console.editor.commandError(
+                            "Error: Unable to overwrite existing file")
+                            MainWindow.Console.editor.commandComplete()
+                            return
+                if exportType in VECTORTYPES:
+                    layerCreator = RVectorLayerWriter(unicode(exportLayer), layerName, driver)
+                else:
+                    layerCreator = RRasterLayerWriter(unicode(exportLayer), layerName, driver)
+            layer = layerCreator.start()
+            if toFile:
+                add = False
+                message = "Created file:\n%s" % (layer.source())
+                add = QMessageBox.question(self, "manageR", "Would you like to add the new layer to the map canvas?",
+                QMessageBox.Yes, QMessageBox.No, QMessageBox.NoButton)
+            else:
+                add = True
+                message = layer.name()+" exported to canvas"
+            if add == QMessageBox.Yes or not toFile:
+                QgsMapLayerRegistry.instance().addMapLayer(layer)
+        except Exception, e:
+            MainWindow.Console.editor.commandError(e)
+        MainWindow.Console.editor.commandComplete()
   
-    #def exportRObjectsDialog(self, toFile):
-        #exportLayer = None
-        #exportType = None
-        #dialog = QDialog(self)
-        #layers = QComboBox(dialog)
-        #buttons = QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel, 
-        #Qt.Horizontal, dialog)
-        #dialog.connect(buttons, SIGNAL("rejected()"), dialog.reject)
-        #dialog.connect(buttons, SIGNAL("accepted()"), dialog.accept)
-        #r_layers, r_graphics = self.updateRObjects()
-        #if not len(r_layers) > 0:
-            #return None
-        #for layer in r_layers.keys():
-            #if r_layers[layer] in VECTORTYPES or \
-            #r_layers[layer] in RASTERTYPES:
-              #layers.addItem(unicode(layer))
-        #vbox = QVBoxLayout()
-        #vbox.addWidget(layers)
-        #vbox.addWidget(buttons)
-        #dialog.setLayout(vbox)
-        #dialog.setWindowTitle('Export R Layer')
-        #if not dialog.exec_() == QDialog.Accepted:
-            #return False
-        #exportLayer = layers.currentText()
-        #exportType = r_layers[unicode(export_layer)]
-        #return True, exportLayer, exportType
+    def exportRObjectsDialog(self, toFile):
+        exportLayer = None
+        exportType = None
+        dialog = QDialog(self)
+        layers = QComboBox(dialog)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel, 
+        Qt.Horizontal, dialog)
+        dialog.connect(buttons, SIGNAL("rejected()"), dialog.reject)
+        dialog.connect(buttons, SIGNAL("accepted()"), dialog.accept)
+        r_layers = currentRObjects()[0]
+        if not r_layers:
+            return None
+        for layer in r_layers.keys():
+            if r_layers[layer] in VECTORTYPES or \
+            r_layers[layer] in RASTERTYPES:
+              layers.addItem(unicode(layer))
+        vbox = QVBoxLayout()
+        vbox.addWidget(layers)
+        vbox.addWidget(buttons)
+        dialog.setLayout(vbox)
+        dialog.setWindowTitle('Export R Layer')
+        if not dialog.exec_() == QDialog.Accepted:
+            return False
+        exportLayer = layers.currentText()
+        exportType = r_layers[unicode(exportLayer)]
+        return True, exportLayer, exportType
 
     @staticmethod
     def updateInstances(qobj):
@@ -2376,7 +2873,8 @@ class MainWindow(QMainWindow):
             MainWindow.Console = None
 
     def createAction(self, text, slot=None, shortcut=None, icon=None,
-                     tip=None, checkable=False, signal="triggered()"):
+                     tip=None, checkable=False, signal="triggered()",
+                     param=None):
         action = QAction(text, self)
         if icon is not None:
             action.setIcon(QIcon(":%s.png" % icon))
@@ -2386,7 +2884,10 @@ class MainWindow(QMainWindow):
             action.setToolTip(tip)
             action.setStatusTip(tip)
         if slot is not None:
-            self.connect(action, SIGNAL(signal), slot)
+            if param is not None:
+                self.connect(action, SIGNAL(signal), slot, param)
+            else:
+                self.connect(action, SIGNAL(signal), slot)
         if checkable:
             action.setCheckable(True)
         return action
@@ -2426,6 +2927,25 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self == MainWindow.Console:
+            ask_save = QMessageBox.question(self, "manageR", "Save workspace image?", 
+            QMessageBox.Yes, QMessageBox.No, QMessageBox.Cancel)
+            if ask_save == QMessageBox.Cancel:
+                e.ignore()
+                return
+            elif ask_save == QMessageBox.Yes:
+                robjects.r('save.image()')
+                self.editor.saveRHistory()
+                robjects.r('rm(list=ls(all=T))')
+                robjects.r('gc()')
+                try:
+                    robjects.r('graphics.off()')
+                except:
+                    try:
+                      for i in list(robjects.r('dev.list()')):
+                        robjects.r('dev.next()')
+                        robjects.r('dev.off()')
+                    except:
+                      pass
             if Config["remembergeometry"]:
                 Config["consolewidth"] = self.width()
                 Config["consoleheight"] = self.height()
@@ -2493,7 +3013,7 @@ class MainWindow(QMainWindow):
                 window.close()
 
     def fileNew(self):
-        MainWindow(isConsole=False).show()
+        MainWindow(self.iface, self.version, isConsole=False).show()
 
     def fileOpen(self):
         if not self.filename.isEmpty():
@@ -2517,7 +3037,7 @@ class MainWindow(QMainWindow):
                 self.filename = filename
                 self.loadFile()
             else:
-                MainWindow(filename, isConsole=False).show()
+                MainWindow(self.iface, self.version, filename, isConsole=False).show()
 
 
     def loadFile(self):

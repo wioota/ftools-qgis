@@ -26,30 +26,7 @@ import rpy2.robjects as robjects
 import rpy2.rinterface as rinterface
 import rpy2.rlike as rlike
 
-class VectorLayerError(Exception):
-    def __init__(self, reason):
-        self.reason = reason
-    def __str__(self):
-        message = "Error: There was an Error"
-        "importing the QgsVectorLayer into R: "
-        return message+str(self.reason)
-
-class RasterLayerError(Exception):
-    def __init__(self, reason):
-        self.reason = reason
-    def __str__(self):
-        message = "Error: There was an Error"
-        "importing the QgsRasterLayer into R: "
-        return message+str(self.reason)
-
-
 class QVectorLayerConverter( QObject ):
-  '''
-  QVectorLayerConvert:
-  This class is used to convert a QGIS
-  vector layer to an R (sp) vector layer for use
-  in the manageR R environment.
-  '''
 
   def __init__( self, mlayer, data_only ):
     QObject.__init__( self )
@@ -104,7 +81,7 @@ class QVectorLayerConverter( QObject ):
     provider.select(attrIndex)
     fields = provider.fields()
     if len(fields.keys()) <= 0:
-      raise VectorLayerError("Attribute table must have at least one field")
+      raise Exception("Error: Attribute table must have at least one field")
     df = {}
     types = {}
     order = []
@@ -124,7 +101,7 @@ class QVectorLayerConverter( QObject ):
         fid["fid"].append(feat.id())
         if not self.data_only:
           if not self.getNextGeometry( Coords, feat):
-            raise VectorLayerError("Unable to convert layer geometry")
+            raise Exception("Error: Unable to convert layer geometry")
     else:
       feat = QgsFeature()
       while provider.nextFeature(feat):
@@ -134,7 +111,7 @@ class QVectorLayerConverter( QObject ):
         fid["fid"].append(feat.id())
         if not self.data_only:
           if not self.getNextGeometry( Coords, feat):
-            raise VectorLayerError("Unable to convert layer geometry")
+            raise Exception("Error: Unable to convert layer geometry")
     data_frame = rlike.container.ArgsDict()
     for key in order:
       if types[key] == 10:
@@ -149,7 +126,7 @@ class QVectorLayerConverter( QObject ):
     #data['row.names'] = fid[ "fid" ]
     if not self.data_only:
       message = QString( "QGIS Vector Layer\n" )
-      spds = self.createSpatialDataset( feat.geometry().type(), Coords, data_frame, projString)
+      spds = self.createSpatialDataset(feat.geometry().type(), Coords, data_frame, projString)
     else:
       message = QString("QGIS Attribute Table\n")
       spds = data_frame
@@ -237,26 +214,17 @@ class QVectorLayerConverter( QObject ):
       # Not sure if this will work for multipoint features?
       spatialData = self.SpatialPoints_(self.matrix_(self.unlist_(Coords), \
       nrow = len(Coords), byrow = True), proj4string = self.CRS_(projString))
-      try:
-        return self.SpatialPointsDataFrame_(spatialData, data)#, match_ID = True )
+      return self.SpatialPointsDataFrame_(spatialData, data)#, match_ID = True )
         #kwargs = {'match.ID':"FALSE"}
         #return SpatialPointsDataFrame( spatialData, data, **kwargs )
-      except Exception, e:
-        return str( e )
     elif vectType == 1:
-      try:
-        spatialData = self.SpatialLines_(Coords, proj4string = self.CRS_(projString))
-        kwargs = {'match.ID':"FALSE"}
-        return self.SpatialLinesDataFrame_(spatialData, data, **kwargs)
-      except Exception, e:
-        return str( e )
+      spatialData = self.SpatialLines_(Coords, proj4string = self.CRS_(projString))
+      kwargs = {'match.ID':"FALSE"}
+      return self.SpatialLinesDataFrame_(spatialData, data, **kwargs)
     elif vectType == 2:
-      try:
-        spatialData = self.SpatialPolygons_(Coords, proj4string = self.CRS_(projString))
-        kwargs = {'match.ID':"FALSE"}
-        return self.SpatialPolygonsDataFrame_(spatialData, data, **kwargs)
-      except Exception, e:
-        return str( e )
+      spatialData = self.SpatialPolygons_(Coords, proj4string = self.CRS_(projString))
+      kwargs = {'match.ID':"FALSE"}
+      return self.SpatialPolygonsDataFrame_(spatialData, data, **kwargs)
     else:
       return ""
 
@@ -277,35 +245,25 @@ class QVectorLayerConverter( QObject ):
       
       
 class QRasterLayerConverter(QObject):
-  '''
-  QRasterLayerConvert:
-  This class is used to convert a QGIS
-  raster layer to an R (sp) raster layer for use
-  in the manageR R environment.
-  '''
-  def __init__(self, mlayer):
-    QObject.__init__(self)
-    self.running = False
-    self.mlayer = mlayer
 
-  def start(self):
-    '''
-    Main working function
-    Emits threadSuccess when completed successfully
-    Emits threadError when errors occur
-    '''
-    dsn = unicode(self.mlayer.source())
-    layer = unicode(self.mlayer.name())
-    dsn.replace("\\", "/")
-    rcode = "readGDAL(fname = '" + dsn + "')"
-    try:
-      rlayer = robjects.r(rcode)
-    except robjects.rinterface.RRuntimeError, rre:
-      raise RasterLayerError(str(rre))
-    summary_ = robjects.conversion.ri2py(rinterface.globalEnv.get('summary',wantFun=True))
-    slot_ = robjects.conversion.ri2py(rinterface.globalEnv.get('@',wantFun=True))
-    message = QString("QGIS Raster Layer\n")
-    message.append("Name: " + str(self.mlayer.name()) + "\nSource: " + str(self.mlayer.source()) + "\n")
-    message.append(str(summary_(slot_(rlayer, 'grid'))))
-    return (rlayer, layer, message)
+    def __init__(self, mlayer):
+        QObject.__init__(self)
+        self.running = False
+        self.mlayer = mlayer
+
+    def start(self):
+        dsn = unicode(self.mlayer.source())
+        layer = unicode(self.mlayer.name())
+        dsn.replace("\\", "/")
+        rcode = "readGDAL(fname = '" + dsn + "')"
+        rlayer = robjects.r(rcode)
+        summary_ = robjects.conversion.ri2py(
+        rinterface.globalEnv.get('summary',wantFun=True))
+        slot_ = robjects.conversion.ri2py(
+        rinterface.globalEnv.get('@',wantFun=True))
+        message = QString("QGIS Raster Layer\n")
+        message.append("Name: " + str(self.mlayer.name()) 
+        + "\nSource: " + str(self.mlayer.source()) + "\n")
+        message.append(str(summary_(slot_(rlayer, 'grid'))))
+        return (rlayer, layer, message)
     

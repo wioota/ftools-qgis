@@ -194,7 +194,7 @@ def currentRObjects():
 
 class HelpForm(QDialog):
 
-    def __init__(self, parent=None):
+    def __init__(self, version, parent=None):
         super(HelpForm, self).__init__(parent)
         self.setAttribute(Qt.WA_GroupLeader)
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -237,10 +237,8 @@ where M signifies exporting to the map canvas, and D signifies exporting to disk
 Use <tt>Ctrl+R</tt> to send commands from the an <b>EditR</b> window to the <b>manageR</b> 
 console. If <b>EditR</b> window contains selected text, only this text will be sent 
 to the <b>manageR</b> console, otherwise, all text is sent. The <b>EditR</b> window 
-also contains tools for creating, loading, and saving R scripts, as well as 
-basic functionality such as undo, redo, cut, copy, and paste. These tools are also 
-available via standard keyboard shortcuts (e.g. <tt>Ctrl+C</tt> to copy text) and 
-are outlined in detail in the <b>Key bindings</b> section.
+also contains tools for creating, loading, editing, and saving R scripts. The suite of  
+available tools is outlined in detail in the <b>Key bindings</b> section.
 </p>
 <h4>Additional tools:</h4>
 <p>
@@ -326,7 +324,7 @@ changes if necessary
 Hold down <tt>Shift</tt> when pressing movement keys to select the text moved over.
 <br>
 Press <tt>Esc</tt> to close this window.
-""" % (__version__, Config["delay"], 
+""" % (version, Config["delay"], 
       Config["tabwidth"], Config["tabwidth"]))
         layout = QVBoxLayout()
         layout.setMargin(0)
@@ -3175,7 +3173,7 @@ class MainWindow(QMainWindow):
                 break
 
     def helpHelp(self):
-        HelpForm(self).show()
+        HelpForm(self.version, self).show()
 
     def helpAbout(self):
         iconLabel = QLabel()
@@ -3187,7 +3185,7 @@ class MainWindow(QMainWindow):
                 "%s on %s<br>"
                 "manageR %s</font>" % (
                 robjects.r.version[12][0], sys.platform,
-                __version__))
+                self.version))
         aboutLabel = QTextBrowser()
         aboutLabel.setOpenExternalLinks(True)
         aboutLabel.setHtml("""\

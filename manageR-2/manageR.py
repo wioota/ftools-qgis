@@ -1867,7 +1867,7 @@ class RVariableWidget(QWidget):
         self.rm.setText("rm")
         self.rm.setToolTip("Remove selected variable")
         self.rm.setWhatsThis("Removed selected variable")
-        self.rm.setIcon(QIcon(":mActionVariableRemove.png"))
+        self.rm.setIcon(QIcon(":mActionFileRemove.png"))
         self.rm.setEnabled(False)
         self.rm.setAutoRaise(True)
         
@@ -1875,31 +1875,31 @@ class RVariableWidget(QWidget):
         self.export.setText("export")
         self.export.setToolTip("Export data to file")
         self.export.setWhatsThis("Export data to file")
-        self.export.setIcon(QIcon(":mActionVariableExport.png"))
+        self.export.setIcon(QIcon(":mActionActionFile.png"))
         self.export.setEnabled(False)
         self.export.setAutoRaise(True)
         
         self.canvas = QToolButton(self)
         self.canvas.setText("canvas")
-        self.canvas.setToolTip("Export layer to map canvas")
-        self.canvas.setWhatsThis("Export layer to map canvas")
-        self.canvas.setIcon(QIcon(":mActionVariableCanvas.png"))
+        self.canvas.setToolTip("Export layer to canvas")
+        self.canvas.setWhatsThis("Export layer to canvas")
+        self.canvas.setIcon(QIcon(":mActionActionExport.png"))
         self.canvas.setEnabled(False)
         self.canvas.setAutoRaise(True)
 
-        self.layer = QToolButton(self)
-        self.layer.setText("layer")
-        self.layer.setToolTip("Import layer from map canvas")
-        self.layer.setWhatsThis("Import layer from map canvas")
-        self.layer.setIcon(QIcon(":mActionVariableLayer.png"))
-        self.layer.setEnabled(True)
-        self.layer.setAutoRaise(True)
+        #self.layer = QToolButton(self)
+        #self.layer.setText("layer")
+        #self.layer.setToolTip("Import layer from canvas")
+        #self.layer.setWhatsThis("Import layer from canvas")
+        #self.layer.setIcon(QIcon(":mActionActionImport.png"))
+        #self.layer.setEnabled(True)
+        #self.layer.setAutoRaise(True)
         
         self.save = QToolButton(self)
         self.save.setText("save")
         self.save.setToolTip("Save R variable to file")
         self.save.setWhatsThis("Save R variable to file")
-        self.save.setIcon(QIcon(":mActionVariableSave.png"))
+        self.save.setIcon(QIcon(":mActionFileSave.png"))
         self.save.setEnabled(False)
         self.save.setAutoRaise(True)
         
@@ -1907,7 +1907,7 @@ class RVariableWidget(QWidget):
         self.load.setText("load")
         self.load.setToolTip("Load R variable(s) from file")
         self.load.setWhatsThis("Load R variable(s) from file")
-        self.load.setIcon(QIcon(":mActionVariableLoad.png"))
+        self.load.setIcon(QIcon(":mActionFileOpen.png"))
         self.load.setEnabled(True)
         self.load.setAutoRaise(True)
         
@@ -1915,11 +1915,11 @@ class RVariableWidget(QWidget):
         horiz = QHBoxLayout()
         horiz.addWidget(self.rm)
         horiz.addWidget(self.export)
+        #horiz.addWidget(self.layer)
         horiz.addWidget(self.canvas)
-        horiz.addWidget(self.layer)
         horiz.addWidget(self.save)
         horiz.addWidget(self.load)
-        #grid.addWidget(self.label)
+        horiz.addStretch()
         grid.addLayout(horiz, 0, 0, 1, 1)
         grid.addWidget(self.variableTable, 1, 0, 1, 1)
         
@@ -1929,7 +1929,7 @@ class RVariableWidget(QWidget):
         self.connect(self.save, SIGNAL("clicked()"), self.saveVariable)
         self.connect(self.canvas, SIGNAL("clicked()"), self.exportToCanvas)
         self.connect(self.load, SIGNAL("clicked()"), self.loadRVariable)
-        self.connect(self.layer, SIGNAL("clicked()"), self.importFromCanvas)
+        #self.connect(self.layer, SIGNAL("clicked()"), self.importFromCanvas)
         self.connect(self.variableTable, \
         SIGNAL("itemSelectionChanged()"), self.selectionChanged)
 
@@ -2045,7 +2045,7 @@ class RVariableWidget(QWidget):
 
     def importFromCanvas(self):
         mlayer = self.parent.iface.mapCanvas().currentLayer()
-        self.parent.importRObjects(mlayer, False)
+        self.parent.importRObjects(mlayer = mlayer)
         return True
         
     def loadRVariable(self):
@@ -2102,7 +2102,7 @@ class RGraphicsWidget(QWidget):
         self.rm.setText("close")
         self.rm.setToolTip("Close selected graphic")
         self.rm.setWhatsThis("Close selected graphic")
-        self.rm.setIcon(QIcon(":mActionGraphicRemove.png"))
+        self.rm.setIcon(QIcon(":mActionFileRemove.png"))
         self.rm.setEnabled(False)
         self.rm.setAutoRaise(True)
         
@@ -2130,21 +2130,22 @@ class RGraphicsWidget(QWidget):
         self.new.setEnabled(True)
         self.new.setAutoRaise(True)
 
-        #self.refresh = QToolButton(self)
-        #self.refresh.setText("refresh")
-        #self.refresh.setToolTip("Refresh list of graphic devices")
-        #self.refresh.setWhatsThis("Refresh list of graphic devices")
-        #self.refresh.setIcon(QIcon(":mActionGraphicRefresh.png"))
-        #self.refresh.setEnabled(True)
-        #self.refresh.setAutoRaise(True)
+        self.refresh = QToolButton(self)
+        self.refresh.setText("refresh")
+        self.refresh.setToolTip("Refresh list of graphic devices")
+        self.refresh.setWhatsThis("Refresh list of graphic devices")
+        self.refresh.setIcon(QIcon(":mActionGraphicRefresh.png"))
+        self.refresh.setEnabled(True)
+        self.refresh.setAutoRaise(True)
       
         grid = QGridLayout(self)
         horiz = QHBoxLayout()
-        #horiz.addWidget(self.refresh)
+        horiz.addWidget(self.refresh)
         horiz.addWidget(self.rm)
         horiz.addWidget(self.export)
         horiz.addWidget(self.save)
         horiz.addWidget(self.new)
+        horiz.addStretch()
         grid.addLayout(horiz, 0, 0, 1, 1)
         grid.addWidget(self.graphicsTable, 1, 0, 1, 1)
         
@@ -2153,7 +2154,7 @@ class RGraphicsWidget(QWidget):
         self.connect(self.export, SIGNAL("clicked()"), self.exportGraphic)
         self.connect(self.save, SIGNAL("clicked()"), self.saveGraphic)
         self.connect(self.new, SIGNAL("clicked()"), self.newGraphic)
-        #self.connect(self.refresh, SIGNAL("clicked()"), self.refreshGraphics)
+        self.connect(self.refresh, SIGNAL("clicked()"), self.refreshGraphics)
         self.connect(self.graphicsTable, \
         SIGNAL("itemSelectionChanged()"), self.selectionChanged)
 
@@ -2295,6 +2296,7 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__(parent)
         MainWindow.Instances.add(self)
         self.setWindowTitle("manageR[*]")
+        self.setWindowIcon(QIcon(":mActionIcon"))
         self.version = version
         self.iface = iface
         if isConsole:
@@ -2303,9 +2305,6 @@ class MainWindow(QMainWindow):
             splash.show()
             QApplication.processEvents()
             self.setAttribute(Qt.WA_DeleteOnClose)
-            splash.showMessage("Loading R interpreter", \
-            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
-            QApplication.processEvents()
             self.editor = RConsole(self)
             MainWindow.Console = self
             self.editor.append(welcomeString(self.version))
@@ -2330,11 +2329,6 @@ class MainWindow(QMainWindow):
         self.finderDockWidget.setWidget(self.finder)
         self.setCorner(Qt.BottomRightCorner, Qt.BottomDockWidgetArea)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.finderDockWidget)
-
-        if isConsole:
-            splash.showMessage("Creating menus and toolbars", \
-            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
-            QApplication.processEvents()
 
         fileNewAction = self.createAction("&New File", self.fileNew,
                 QKeySequence.New, "mActionFileNew", "Create a R script")
@@ -2704,10 +2698,11 @@ class MainWindow(QMainWindow):
         return True
         
     def importLayerAttributes(self):
-        self.importRObjects(True)
+        self.importRObjects(dataOnly=True)
         
-    def importRObjects(self, dataOnly=False):
-        mlayer = self.iface.mapCanvas().currentLayer()
+    def importRObjects(self, mlayer=None, dataOnly=False):
+        if mlayer is None:
+            mlayer = self.iface.mapCanvas().currentLayer()
         self.statusBar().showMessage(
         "Importing data from canvas...")
         MainWindow.Console.editor.moveToEnd()
@@ -2764,9 +2759,9 @@ class MainWindow(QMainWindow):
         MainWindow.Console.editor.cursor.movePosition(
         QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
         MainWindow.Console.editor.cursor.removeSelectedText()
+        MainWindow.Console.editor.switchPrompt()
         MainWindow.Console.editor.cursor.insertText(
         "%smanageR export function" % (MainWindow.Console.editor.currentPrompt))
-        
         QApplication.processEvents()
         try:
             if ask:
@@ -2782,6 +2777,7 @@ class MainWindow(QMainWindow):
                 MainWindow.Console.editor.commandComplete()
                 return
             if not result:
+                MainWindow.Console.editor.commandComplete()
                 return
             if not toFile and not isLibraryLoaded("sp"):
                 raise RLibraryError("sp")
@@ -2850,10 +2846,14 @@ class MainWindow(QMainWindow):
         r_layers = currentRObjects()[0]
         if not r_layers:
             return None
+        found = False
         for layer in r_layers.keys():
             if r_layers[layer] in VECTORTYPES or \
             r_layers[layer] in RASTERTYPES:
-              layers.addItem(unicode(layer))
+                found = True
+                layers.addItem(unicode(layer))
+        if not found:
+            return None
         vbox = QVBoxLayout()
         vbox.addWidget(layers)
         vbox.addWidget(buttons)
@@ -2927,7 +2927,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self == MainWindow.Console:
-            ask_save = QMessageBox.question(self, "manageR", "Save workspace image?", 
+            ask_save = QMessageBox.question(self, "manageR - Quit", "Save workspace image?", 
             QMessageBox.Yes, QMessageBox.No, QMessageBox.Cancel)
             if ask_save == QMessageBox.Cancel:
                 e.ignore()

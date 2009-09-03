@@ -2303,6 +2303,8 @@ class MainWindow(QMainWindow):
             pixmap = QPixmap(":splash.png")
             splash = QSplashScreen(pixmap)
             splash.show()
+            splash.showMessage("Starting manageR!", \
+            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             QApplication.processEvents()
             self.setAttribute(Qt.WA_DeleteOnClose)
             self.editor = RConsole(self)
@@ -2542,10 +2544,6 @@ class MainWindow(QMainWindow):
             self.connect(self.editor.document(),
                          SIGNAL("blockCountChanged(int)"),
                          self.updateIndicators)
-        else:
-            splash.showMessage("Adjusting window size", \
-            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
-            QApplication.processEvents()
         if Config["remembergeometry"]:
             if isConsole:
                 self.resize(Config["consolewidth"], Config["consoleheight"])

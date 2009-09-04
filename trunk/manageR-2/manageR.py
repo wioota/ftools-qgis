@@ -1189,8 +1189,7 @@ class RConsole(QTextEdit):
             pasteList = source.text().split("\n")
             if len(pasteList) > 1:
                 self.runningCommand.append(source.text())
-            for line in pasteList:
-                self.updateHistory(line)
+            self.updateHistory(pastList)
         newSource = QMimeData()
         newSource.setText(source.text().replace("\n",
         "\n"+self.alternatePrompt))
@@ -1239,9 +1238,13 @@ class RConsole(QTextEdit):
         return pos >= last
 
     def updateHistory(self, command):
-        if not command == "":
+        if isinstance(command, QStringList):
+            for line in command:
+                self.history.append(command)
+        elif not command == "":
             self.history.append(command)
             self.historyIndex = len(self.history)
+        self.emit(SIGNAL("updateHistory(PyQt_PyObject)"), command)
 
     def insertPlainText(self, text):
         if self.isCursorInEditionZone():
@@ -1842,6 +1845,58 @@ class RWDWidget(QWidget):
             MainWindow.Console.editor.currentPrompt)
             MainWindow.Console.editor.insertFromMimeData(mime)
             MainWindow.Console.editor.entered()
+            
+class RHistoryWidget(QWidget):
+
+    def __init__(self, parent, console):
+        QWidget.__init__(self, parent)
+        # initialise standard settings
+        self.setMinimumSize(30,30)
+        self.parent = parent
+        self.console = console
+        self.commandList = QListWidget(self)
+        self.commandList.setAlternatingRowColors(True)
+        self.commandList.setEditTriggers(
+        QAbstractItemView.NoEditTriggers)
+        font = QFont(Config["fontfamily"], Config["fontsize"])
+        self.commandList.setFont(font)
+        self.commandList.setToolTip("Single-click to insert command\nDouble-click to execute command")
+        self.commandList.setWhatsThis("Single-click to insert command\nDouble-click to execute command")
+        grid = QGridLayout(self)
+        grid.addWidget(self.commandList)
+        self.state = 0
+        self.updateCommands(self.console.history)
+        
+        self.connect(self.commandList, SIGNAL("itemClicked(QListWidgetItem*)"), self.clicked)
+        self.connect(self.commandList, SIGNAL("itemDoubleClicked(QListWidgetItem*)"), self.doubleClicked)
+
+    def updateCommands(self, commands):
+        if commands:
+            if not isinstance(commands, QStringList):
+                commands = QStringList(commands)
+            self.commandList.addItems(commands)
+        
+    def clicked(self, item):
+        if not self.state == 1:
+            self.console.cursor.insertText(item.text())
+        self.state = 0
+        self.console.setFocus()
+        self.commandList.clearSelection()      
+        
+    def insertCommand(self, item):
+        self.console.moveToEnd()
+        self.console.cursor.movePosition(
+        QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+        self.console.cursor.removeSelectedText()
+        self.console.cursor.insertText(
+        MainWindow.Console.editor.currentPrompt)
+        self.console.cursor.insertText(item.text())
+
+    def doubleClicked(self, item):
+        self.insertCommand(item)
+        self.console.entered()
+        self.commandList.clearSelection()
+        self.state = 1
             
 class RVariableWidget(QWidget):
 
@@ -2645,6 +2700,15 @@ class MainWindow(QMainWindow):
         variableDockWidget.setWidget(variableWidget)
         self.addDockWidget(Qt.RightDockWidgetArea, variableDockWidget)
         
+        historyWidget = RHistoryWidget(self, self.editor)
+        historyWidget.connect(self.editor, SIGNAL("updateHistory(PyQt_PyObject)"),
+        historyWidget.updateCommands)
+        historyDockWidget = QDockWidget("Command history", self)          
+        historyDockWidget.setObjectName("historyDockWidget")
+        historyDockWidget.setAllowedAreas(Qt.LeftDockWidgetArea|Qt.RightDockWidgetArea)
+        historyDockWidget.setWidget(historyWidget)
+        self.addDockWidget(Qt.RightDockWidgetArea, historyDockWidget)
+        
         cwdWidget = RWDWidget(self,robjects.r('getwd()')[0])
         cwdWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"), cwdWidget.displayWorkingDir)
         cwdDockWidget = QDockWidget("Working directory", self)
@@ -2653,9 +2717,11 @@ class MainWindow(QMainWindow):
         cwdDockWidget.setWidget(cwdWidget)
         self.addDockWidget(Qt.TopDockWidgetArea, cwdDockWidget)
         
-        self.tabifyDockWidget(variableDockWidget,graphicDockWidget)
+        self.tabifyDockWidget(variableDockWidget, graphicDockWidget)
+        self.tabifyDockWidget(graphicDockWidget, historyDockWidget)
 
-        for widget in [cwdDockWidget, variableDockWidget, graphicDockWidget,]:
+        for widget in [cwdDockWidget, variableDockWidget, 
+                       graphicDockWidget, historyDockWidget,]:
             action = widget.toggleViewAction()
             self.connect(action, SIGNAL("toggled(bool)"), self.toggleToolbars)
             action.setCheckable(True)

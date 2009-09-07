@@ -483,8 +483,12 @@ class RFinder(QWidget):
 
     def replaceAll(self):
         while self.findNext():
-            self.replaceText()
-        self.replaceText()
+            self.replaceNext()
+        self.replaceNext()
+        
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key_Escape:
+            self.document.setFocus()
 
 
 class RHighlighter(QSyntaxHighlighter):
@@ -2744,8 +2748,14 @@ class MainWindow(QMainWindow):
     def toggleFind(self):
         title = self.sender().text()
         toolbar = MainWindow.Toolbars[self.finderDockWidget]
+        text = self.editor.textCursor().selectedText()
+        if not text.isEmpty():
+            self.finder.edit.setText(text)
         if not toolbar.isChecked():
             toolbar.setChecked(True)
+            self.finder.setFocus()
+        elif not self.finder.hasFocus():
+            self.finder.setFocus()
         if title == "&Replace":
             self.finder.showReplace()
         else:

@@ -25,7 +25,8 @@ from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QTextCursor, QTextDocument, QTextEdit, QToolTip, QVBoxLayout,
         QWidget, QDockWidget, QToolButton, QSpacerItem, QSizePolicy,
         QPalette, QSplashScreen, QTreeWidget, QTreeWidgetItem, QFrame,
-        QListView, QTableWidget, QTableWidgetItem,QHeaderView,QAbstractItemView)
+        QListView, QTableWidget, QTableWidgetItem, QHeaderView, 
+        QAbstractItemView, QTextBlockUserData,)
 
 try:
   import rpy2.robjects as robjects
@@ -231,17 +232,25 @@ Use <tt>Ctrl+L</tt> to import the currently selected layer in the <b>QGIS</b>
 layer list into the <b>manageR</b> environment. To import only the attribute 
 table of the selected layer, use <tt>Ctrl+T</tt>. Exporting R layers 
 from the <b>manageR</b> environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-D</tt>, 
-where M signifies exporting to the map canvas, and D signifies exporting to disk. 
+where M signifies exporting to the map canvas, and D signifies exporting to disk. Each 
+of these commands are also avaiable via the <b>Actions</b> toolbar in the <b>manageR</b> 
+console.
+</p>
+<p>
+The <b>manageR</b> console is also equipped with several additional widgets to help manage the R 
+environment. These widgets include a <b>Variables</b> table, a <b>Graphic devices</b> table, and 
+a <b>Command history</b>.
 </p>
 <p>
 Use <tt>Ctrl+R</tt> to send commands from the an <b>EditR</b> window to the <b>manageR</b> 
-console. If <b>EditR</b> window contains selected text, only this text will be sent 
+console. If an <b>EditR</b> window contains selected text, only this text will be sent 
 to the <b>manageR</b> console, otherwise, all text is sent. The <b>EditR</b> window 
 also contains tools for creating, loading, editing, and saving R scripts. The suite of  
 available tools is outlined in detail in the <b>Key bindings</b> section.
 </p>
 <h4>Additional tools:</h4>
 <p>
+<i>Autocompletion</i><br>
 If enabled, command completion suggestions are automatically shown after %d seconds 
 based on the current work. This can also be manually activated using <b>Ctrl+Space</b>. 
 In addition, a tooltip will appear if one is available for the selected command.
@@ -254,13 +263,41 @@ by unchecking File\N{RIGHTWARDS ARROW}Configure\N{RIGHTWARDS ARROW}
 General tab\N{RIGHTWARDS ARROW}Enable autocompletion.
 </p>
 <p>
+<i>Find and replace</i><br>
 A Find and Replace toolbar is available for both the <b>manageR</b> console and <b>EditR</b> 
-window (the replace functionality is only available in <b>EditR</b>). To search for 
-the next occurrence of the text or phrase in the 'Find toolbar', type <tt>Enter</tt> 
+window (the replace functionality is only available in <b>EditR</b>). When activated (see 
+<b>Key Bindings</b> section below), if any text is selected in the parent dialog, this text 
+will be placed in the 'Find toolbar' for searching. To search for 
+the next occurrence of the text or phrase in the toolbar, type <tt>Enter</tt> 
 or click the 'Next' button. Conversely, click the 'Previous' button to search backwards. To 
-replace text as it is found, simply type the replacement text in the 'Replace' line edit, 
+replace text as it is found, simply type the replacement text in the 'Replace' line edit and  
 click 'Replace'. To replace all occurances of the found text, click 'Replace all'. All 
 searches can be refined by using the 'Case sensitive' and 'Whole words' check boxes.
+</p>
+<p>
+<i>Variables</i></i><br>
+The variables table stores the name and type of all currently loaded variables in your global 
+R environment (globalEnv). From here, it is possible to remove, save, and load R variables, as 
+well as export R variables to file, or the <b>QGIS</b> map canvas (when a Spatial*DataFrames is selected).
+</p>
+<p>
+<i>Graphic devices</i><br>
+The graphic devices table stores the ID and device type of all current R graphic devices. From here, 
+it is possible to refresh the list of graphic devices, create a new empty graphic window, and remove 
+existing devices. In addition, it is possible to export the selected graphic device to file in both raster 
+and vector formats.
+</p>
+<p>
+<i>Command history</i><br>
+The command history stores a list of all previously executed commands (including commands loaded from a 
+.RHistory file). From here it is possible to insert a command into the <b>manageR</b> console by 
+clicking on it once. Additionally, by double clicking a command in the command list, it will automatically 
+be run (replacing the current command) in the <b>manageR</b> console.
+</p>
+<p>
+<i>Working directory</i><br>
+The working directory widget is a simple toolbar to help browse to different working directories, making it 
+relatively simple to change the current R working directory.
 </p>
 <p>
 Additional tools include the ability to specify startup commands to be run whenever <b>manageR</b> 
@@ -320,6 +357,12 @@ changes if necessary
 <li><tt>Ctrl+X</tt> : Cut the selected text to the clipboard
 <li><tt>Ctrl+Z</tt> : Undo the last editing action
 <li><tt>Ctrl+Shift+Z</tt> : Redo the last editing action
+<li><tt>Ctrl+L</tt> : Import selected <b>l</b>ayer</li>
+<li><tt>Ctrl+T</tt> : Import attribute <b>t</b>able of selected layer</li>
+<li><tt>Ctrl+M</tt> : Export R layer to <b>m</b>ap canvas</li>
+<li><tt>Ctrl+D</tt> : Export R layer to <b>d</b>isk</li>
+<li><tt>Ctrl+Return</tt> : Send (selected) commands from <b>EditR</b> window to 
+<b>manageR</b> console</li>
 </ul>
 Hold down <tt>Shift</tt> when pressing movement keys to select the text moved over.
 <br>
@@ -570,8 +613,21 @@ class RHighlighter(QSyntaxHighlighter):
                 self.setFormat(i, length,
                                RHighlighter.Formats[format])
                 i = regex.indexIn(text, i + length)
-
+                
+        brackets = BracketStorage()
+        regex = QRegExp(r"[\)\(]+|[\{\}]+|[][]+")
+        i = regex.indexIn(text)
+        btype = regex.cap(0)
+        while i >= 0:
+            if btype in ["(","[","{"]:
+                brackets.addOpeningBracket(i)
+            elif btype in [")","]","}"]:
+                brackets.addClosingBracket(i)
+            i = regex.indexIn(text, i + 1)
+            
         self.setCurrentBlockState(NORMAL)
+        block = self.parent.textCursor().block()
+        block.setUserData(brackets)
 
         if text.indexOf(self.stringRe) != -1:
             return
@@ -593,7 +649,33 @@ class RHighlighter(QSyntaxHighlighter):
         QSyntaxHighlighter.rehighlight(self)
         QApplication.restoreOverrideCursor()
         
+class BracketStorage(QTextBlockUserData):
+  
+    def __init__(self):
+        QObject.__init__(self)
+        self.mBrackets = {}
         
+    def addOpeningBracket(self, pos):
+        self.mBrackets[pos] = None
+        return True
+        
+    def addClosingBracket(self, pos):
+        found = False
+        for i in sorted(self.mBrackets.keys(), reverse=True):
+            if i < pos:
+                self.mBrackets[i] = pos
+                found = True
+                break
+        return found
+        
+    def getMatchingBracket(pos, btype):
+        if btype == "opening":
+            return self.mBrackets[pos]
+        else:
+            return dict(map(lambda item: \
+            (item[1],item[0]), self.mBrackets.items()))[pos]
+        
+
 class RCompleter(QObject):
 
     def __init__(self, parent, delay=500):
@@ -726,10 +808,12 @@ class RCompleter(QObject):
 class REditor(QTextEdit):
     def __init__(self, parent, tabwidth=4):
         super(REditor, self).__init__(parent)
-        self.setLineWrapMode(QTextEdit.NoWrap)
+        #self.setLineWrapMode(QTextEdit.NoWrap)
         self.indent = 0
         self.tabwidth = tabwidth
         self.parent = parent
+        self.oldfrmt = QTextCharFormat()
+        self.oldpos = None
 
     def event(self, event):
         indent = " " * self.tabwidth
@@ -742,6 +826,11 @@ class REditor(QTextEdit):
                         #userCursor.deletePreviousChar()
                     #self.indent = max(0, self.indent - 1)
                     #return True
+            #if event.key() == Qt.Key_Up or \
+            #event.key() == Qt.Key_Down or \
+            #event.key() == Qt.Key_Right or \
+            #event.key() == Qt.Key_Left:
+                #self.gotoMatching()
             if event.key() == Qt.Key_Tab:
                 if not self.tabChangesFocus():
                     cursor = self.textCursor()
@@ -777,8 +866,10 @@ class REditor(QTextEdit):
                             break
                 userCursor.insertText(insert)
                 return True
+        #else:
+            #if event.type() == QEvent.MouseButtonPress:
+                #self.gotoMatching()
                 # Fall through to let the base class handle the movement
-            self.gotoMatching()
         return QTextEdit.event(self, event)
 
     def gotoLine(self):
@@ -801,6 +892,15 @@ class REditor(QTextEdit):
         newfrmt.setFontWeight(QFont.Bold)
         OPEN = "([<{"
         CLOSE = ")]>}"
+        #if not self.oldpos is None:
+            #cursor = self.textCursor()
+            #cursor.setPosition(self.oldpos)
+            #cursor.movePosition(QTextCursor.NextCharacter,
+                                #QTextCursor.KeepAnchor)
+            #cursor.setCharFormat(self.oldfrmt)
+            #self.oldpos = None
+            #self.oldfrmt = QTextCharFormat()
+            
         cursor = self.textCursor()
         cursor.movePosition(QTextCursor.PreviousCharacter,
                             QTextCursor.KeepAnchor)
@@ -811,8 +911,10 @@ class REditor(QTextEdit):
                                 QTextCursor.KeepAnchor)
             c = unicode(cursor.selectedText())
             if c in OPEN + CLOSE:
-                #self.setTextCursor(cursor)
-                cursor.mergeCharFormat(newfrmt)
+                self.setTextCursor(cursor)
+                #self.oldfrmt = cursor.charFormat()
+                #self.oldpos = cursor.position()
+                #cursor.mergeCharFormat(newfrmt)
             else:
                 return
         i = OPEN.find(c)
@@ -841,13 +943,14 @@ class REditor(QTextEdit):
                 stack += 1
             elif x == target:
                 if stack == 0:
-                    cursor.mergeCharFormat(newfrmt)
+                    #self.oldfrmt = cursor.charFormat()
+                    #self.oldpos = cursor.position()
+                    #cursor.mergeCharFormat(newfrmt)
                     cursor.clearSelection()
                     if movement == QTextCursor.PreviousCharacter:
                         cursor.movePosition(
                                 QTextCursor.NextCharacter)
-                    #self.setTextCursor(cursor)
-                    
+                    self.setTextCursor(cursor)
                     break
                 else:
                     stack -= 1
@@ -908,10 +1011,6 @@ class REditor(QTextEdit):
             if block.position() > end:
                 break
         userCursor.endEditBlock()
-
-    def complete(self):
-        pass
-
 
 class RConsole(QTextEdit):
     def __init__(self, parent):
@@ -2346,11 +2445,11 @@ class MainWindow(QMainWindow):
     NextId = 1
     Instances = set()
     Console = None
-    Toolbars = {}
 
     def __init__(self, iface, version, filename=QString(),
                 isConsole=True, parent=None):
         super(MainWindow, self).__init__(parent)
+        self.Toolbars = {}
         MainWindow.Instances.add(self)
         self.setWindowTitle("manageR[*]")
         self.setWindowIcon(QIcon(":mActionIcon"))
@@ -2370,6 +2469,7 @@ class MainWindow(QMainWindow):
             self.editor.setFocus(Qt.ActiveWindowFocusReason)
             self.connect(self.editor, SIGNAL("commandComplete()"),self.updateWidgets)
         else:
+            self.setAttribute(Qt.WA_DeleteOnClose)
             self.editor = REditor(self)
         self.setCentralWidget(self.editor)
         if Config["enableautocomplete"]:
@@ -2543,13 +2643,13 @@ class MainWindow(QMainWindow):
 
         self.fileToolbar = self.addToolBar("File Toolbar")
         self.fileToolbar.setObjectName("FileToolbar")
-        MainWindow.Toolbars[self.fileToolbar] = None
+        self.Toolbars[self.fileToolbar] = None
         self.addActions(self.fileToolbar, (fileNewAction, fileOpenAction))
         if not isConsole:
             self.addActions(self.fileToolbar, (fileSaveAction,))
         self.editToolbar = self.addToolBar("Edit Toolbar")
         self.editToolbar.setObjectName("EditToolbar")
-        MainWindow.Toolbars[self.editToolbar] = None
+        self.Toolbars[self.editToolbar] = None
         if not isConsole:
             self.addActions(self.editToolbar, (editUndoAction, editRedoAction,
                                                None,))
@@ -2561,7 +2661,7 @@ class MainWindow(QMainWindow):
                     editCommentRegionAction, editUncommentRegionAction))
         self.actionToolbar = self.addToolBar("Action Toolbar")
         self.actionToolbar.setObjectName("ActionToolbar")
-        MainWindow.Toolbars[self.actionToolbar] = None
+        self.Toolbars[self.actionToolbar] = None
         if not isConsole:
             self.addActions(self.actionToolbar, (actionRunAction,))
         else:
@@ -2575,12 +2675,12 @@ class MainWindow(QMainWindow):
             self.connect(action, SIGNAL("toggled(bool)"),
                          self.toggleToolbars)
             action.setCheckable(True)
-            MainWindow.Toolbars[toolbar] = action
+            self.Toolbars[toolbar] = action
         action = self.finderDockWidget.toggleViewAction()
         self.connect(action, SIGNAL("toggled(bool)"), self.toggleToolbars)
         action.setCheckable(True)
         self.viewMenu.addAction(action)
-        MainWindow.Toolbars[self.finderDockWidget] = action
+        self.Toolbars[self.finderDockWidget] = action
         if isConsole:
             self.finderDockWidget.setWindowTitle("Find Toolbar")
             self.finder.hideReplace()
@@ -2698,7 +2798,7 @@ class MainWindow(QMainWindow):
         variableWidget = RVariableWidget(self)
         variableWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"),
         variableWidget.updateVariables)
-        variableDockWidget = QDockWidget("Variable list", self)          
+        variableDockWidget = QDockWidget("Variables", self)          
         variableDockWidget.setObjectName("variableDockWidget")
         variableDockWidget.setAllowedAreas(Qt.RightDockWidgetArea|Qt.LeftDockWidgetArea)
         variableDockWidget.setWidget(variableWidget)
@@ -2730,7 +2830,7 @@ class MainWindow(QMainWindow):
             self.connect(action, SIGNAL("toggled(bool)"), self.toggleToolbars)
             action.setCheckable(True)
             self.viewMenu.addAction(action)
-            MainWindow.Toolbars[widget] = action
+            self.Toolbars[widget] = action
         self.updateWidgets()
             
     def updateWidgets(self):
@@ -2747,7 +2847,7 @@ class MainWindow(QMainWindow):
 
     def toggleFind(self):
         title = self.sender().text()
-        toolbar = MainWindow.Toolbars[self.finderDockWidget]
+        toolbar = self.Toolbars[self.finderDockWidget]
         text = self.editor.textCursor().selectedText()
         if not text.isEmpty():
             self.finder.edit.setText(text)
@@ -2941,8 +3041,6 @@ class MainWindow(QMainWindow):
     def updateInstances(qobj):
         MainWindow.Instances = set([window for window
                 in MainWindow.Instances if isAlive(window)])
-        if MainWindow.Console is not None and not isAlive(MainWindow.Console):
-            MainWindow.Console = None
 
     def createAction(self, text, slot=None, shortcut=None, icon=None,
                      tip=None, checkable=False, signal="triggered()",
@@ -2987,12 +3085,12 @@ class MainWindow(QMainWindow):
         self.lineCountLabel.setText(text)
 
     def updateToolbars(self):
-        for toolbar, action in MainWindow.Toolbars.items():
+        for toolbar, action in self.Toolbars.items():
             action.setChecked(toolbar.isVisible())
 
     def toggleToolbars(self, on):
         title = self.sender().text()
-        for toolbar, action in MainWindow.Toolbars.items():
+        for toolbar, action in self.Toolbars.items():
             if action.text() == title:
                 toolbar.setVisible(on)
                 action.setChecked(on)
@@ -3002,7 +3100,7 @@ class MainWindow(QMainWindow):
             ask_save = QMessageBox.question(self, "manageR - Quit", "Save workspace image?", 
             QMessageBox.Yes, QMessageBox.No, QMessageBox.Cancel)
             if ask_save == QMessageBox.Cancel:
-                e.ignore()
+                event.ignore()
                 return
             elif ask_save == QMessageBox.Yes:
                 robjects.r('save.image()')
@@ -3051,7 +3149,7 @@ class MainWindow(QMainWindow):
                         .whole_words.isChecked())
         Config["toolbars"] = self.saveState()
         saveConfig()
-        event.accept()
+        event.accept()      
 
     def fileConfigure(self):
         form = ConfigForm(self)
@@ -3081,11 +3179,13 @@ class MainWindow(QMainWindow):
 
     def fileQuit(self):
         for window in MainWindow.Instances:
-            if isAlive(window):
+            if isAlive(window) and window == MainWindow.Console:
                 window.close()
+                del window
 
     def fileNew(self):
-        MainWindow(self.iface, self.version, isConsole=False).show()
+        window = MainWindow(self.iface, self.version, isConsole=False)
+        window.show()
 
     def fileOpen(self):
         if not self.filename.isEmpty():
@@ -3210,12 +3310,6 @@ class MainWindow(QMainWindow):
             action = self.windowMenu.addAction("&Console", self.raiseWindow)
             action.setData(QVariant(long(id(console))))
             action.setIcon(QIcon(":mActionConsole.png"))
-        if (hasattr(self.editor, "results") and
-            self.editor.results is not None and
-            self.editor.results.isVisible()):
-            action = self.windowMenu.addAction("&Results",
-                    self.editor.raiseResultsWindow)
-            action.setIcon(QIcon(":mActionWindow.png"))
         i = 1
         menu = self.windowMenu
         for window in MainWindow.Instances:

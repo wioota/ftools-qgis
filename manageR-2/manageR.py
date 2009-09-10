@@ -9,6 +9,7 @@ from qgis.core import *
 import resources
 from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
 from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter, RVectorLayerConverter
+from pluginManager import PluginManager
 
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
@@ -2565,6 +2566,8 @@ class MainWindow(QMainWindow):
             workspaceMenu = self.menuBar().addMenu("&Workspace")
             self.addActions(workspaceMenu, (workspaceLoadAction, 
             workspaceSaveAction))
+        pluginCreator = PluginManager(self)
+        pluginCreator.createActions()
         self.viewMenu = self.menuBar().addMenu("&View")
         self.windowMenu = self.menuBar().addMenu("&Window")
         self.connect(self.windowMenu, SIGNAL("aboutToShow()"),

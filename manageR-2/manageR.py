@@ -2470,6 +2470,9 @@ class MainWindow(QMainWindow):
                     self.toggleFind, QKeySequence.Replace,
                     "mActionEditReplaceNext",
                     "Replace the next occurrence of the given text")
+            editGotoLineAction =  self.createAction("&Go to line",
+                    self.editor.gotoLine, "Ctrl+H", "mActionEditGotoLine",
+                    "Move the cursor to the given line")
             editIndentRegionAction = self.createAction("&Indent Region",
                     self.editor.indentRegion, "Tab", "mActionEditIndent",
                     "Indent the selected text or the current line")
@@ -2478,13 +2481,12 @@ class MainWindow(QMainWindow):
                     "Shift+Tab", "mActionEditUnindent",
                     "Unindent the selected text or the current line")
             editCommentRegionAction = self.createAction("C&omment Region",
-                    self.editor.commentRegion, icon="mActionEditComment",
-                    tip=("Comment out the selected text or the "
-                         "current line"))
+                    self.editor.commentRegion, "Ctrl+D", "mActionEditComment",
+                    "Comment out the selected text or the current line")
             editUncommentRegionAction = self.createAction(
                     "Uncomment Re&gion", self.editor.uncommentRegion,
-                    icon="mActionEditUncomment",
-                    tip="Uncomment the selected text or the current line")
+                    "Ctrl+Shift+D", "mActionEditUncomment",
+                    "Uncomment the selected text or the current line")
             actionRunAction = self.createAction("E&xecute",
                     self.editor.execute, "Ctrl+Return", "mActionRun",
                     "Execute the (selected) text in the manageR console")
@@ -2513,6 +2515,14 @@ class MainWindow(QMainWindow):
                     "Export layer to file", self.exportToFile,
                     "Ctrl+D", "mActionActionFile",
                     ("Export layer to file"))
+            workspaceLoadAction = self.createAction(
+                    "Load R workspace", self.loadRWorkspace,
+                    "Ctrl+Shift+W", "mActionWorkspaceLoad",
+                    ("Load R workspace"))
+            workspaceSaveAction = self.createAction(
+                    "Save R workspace", self.saveRWorkspace,
+                    "Ctrl+W", "mActionWorkspaceSave",
+                    ("Save R workspace"))
                     
         helpHelpAction = self.createAction("&Help", self.helpHelp,
                 QKeySequence.HelpContents, icon="mActionHelpHelp",
@@ -2537,20 +2547,14 @@ class MainWindow(QMainWindow):
         if not isConsole:
             self.addActions(editMenu, (editUndoAction, editRedoAction, None,))
         self.addActions(editMenu, (editCopyAction, editCutAction, editPasteAction,
-                                   editSelectAllAction, None,editFindNextAction,))
+                                   editSelectAllAction, None, editFindNextAction,))
         if not isConsole:
-            self.addActions(editMenu, (editReplaceNextAction, 
+            self.addActions(editMenu, (editReplaceNextAction, editGotoLineAction, 
                 None, editIndentRegionAction,
                 editUnindentRegionAction, editCommentRegionAction,
                 editUncommentRegionAction))
         if Config["enableautocomplete"]:
             self.addActions(editMenu, (None, editCompleteAction,))
-        if not isConsole:
-            self.gotoMenu = self.menuBar().addMenu("&Goto")
-            self.addActions(self.gotoMenu, (self.createAction("&Line...",
-                    self.editor.gotoLine, "Ctrl+H", "mActionGotoLine",
-                    "Move the cursor to the given line"),))
-
         actionMenu = self.menuBar().addMenu("&Action")
         if not isConsole:
             self.addActions(actionMenu, (actionRunAction,))
@@ -2558,6 +2562,9 @@ class MainWindow(QMainWindow):
             self.addActions(actionMenu, (actionShowPrevAction, actionShowNextAction,
             actionImportLayerAction, actionImportAttibutesAction,
             actionExportCanvasAction, actionExportFileAction,))
+            workspaceMenu = self.menuBar().addMenu("&Workspace")
+            self.addActions(workspaceMenu, (workspaceLoadAction, 
+            workspaceSaveAction))
         self.viewMenu = self.menuBar().addMenu("&View")
         self.windowMenu = self.menuBar().addMenu("&Window")
         self.connect(self.windowMenu, SIGNAL("aboutToShow()"),
@@ -2593,6 +2600,17 @@ class MainWindow(QMainWindow):
                 actionShowNextAction, None, actionImportLayerAction, 
                 actionImportAttibutesAction, actionExportCanvasAction,
                 actionExportFileAction,))
+        if isConsole:
+            workspaceToolbar = self.addToolBar("Workspace Toolbar")
+            workspaceToolbar.setObjectName("WorkspaceToolbar")
+            self.Toolbars[workspaceToolbar] = None
+            self.addActions(workspaceToolbar, (workspaceLoadAction, 
+            workspaceSaveAction,))
+            action = self.viewMenu.addAction("&%s" % workspaceToolbar.windowTitle())
+            self.connect(action, SIGNAL("toggled(bool)"),
+                         self.toggleToolbars)
+            action.setCheckable(True)
+            self.Toolbars[workspaceToolbar] = action
         for toolbar in (self.fileToolbar, self.editToolbar,
                         self.actionToolbar):
             action = self.viewMenu.addAction("&%s" % toolbar.windowTitle())
@@ -2676,7 +2694,7 @@ class MainWindow(QMainWindow):
             workspace = QFileInfo()
             workspace.setFile(QDir(robjects.r['getwd']()[0]), ".RData")
             if workspace.exists():
-                if self.loadRWorkspace(workspace):
+                if self.loadRWorkspace(workspace.absoluteFilePath()):
                     self.editor.append("[Previously saved workspace restored]\n\n")
                 else:
                     self.editor.append("Error: Unable to load previously saved workspace:"
@@ -2785,10 +2803,43 @@ class MainWindow(QMainWindow):
         else:
             self.finder.hideReplace()
 
-    def loadRWorkspace(self, fileInfo):
+    def loadRWorkspace(self, workspace=None):
+        if workspace is None:
+            fd = QFileDialog(self, "Open R workspace", 
+            robjects.r['getwd']()[0],
+            "R workspace (*.RData);;All files (*)")
+            fd.setAcceptMode(QFileDialog.AcceptOpen)
+            fd.setFilter(QDir.Hidden|QDir.Dirs|QDir.Files)
+            if not fd.exec_() == QDialog.Accepted:
+                return False
+            files = fd.selectedFiles()
+            workspace = files.first()
+            if workspace.length() == 0:
+                return False
         try:
-            workspace = fileInfo.absoluteFilePath()
-            robjects.r['load'](unicode(workspace))
+            if not workspace.isEmpty():
+                robjects.r['load'](unicode(workspace))
+                self.updateWidgets()
+        except Exception, e: 
+            return False
+        return True
+        
+    def saveRWorkspace(self, workspace=None):
+        if workspace is None:
+            fd = QFileDialog(self, "Save R workspace", 
+            robjects.r['getwd']()[0],
+            "R workspace (*.RData);;All files (*)")
+            fd.setAcceptMode(QFileDialog.AcceptSave)
+            fd.setFilter(QDir.Hidden|QDir.Dirs|QDir.Files)
+            if not fd.exec_() == QDialog.Accepted:
+                return False
+            files = fd.selectedFiles()
+            workspace = files.first()
+            if workspace.length() == 0:
+                return False
+        try:
+            if not workspace.isEmpty():
+                robjects.r['save.image'](unicode(workspace))
         except Exception, e: 
             return False
         return True
@@ -3027,7 +3078,7 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
             elif ask_save == QMessageBox.Yes:
-                robjects.r('save.image()')
+                self.saveRWorkspace(".RData")
                 self.editor.saveRHistory()
                 robjects.r('rm(list=ls(all=T))')
                 robjects.r('gc()')

@@ -1,7 +1,7 @@
 <RCC>
     <qresource>
         <file alias="mActionFileQuit.png">icons/mActionFileQuit.png</file>
-        <file alias="mActionGotoLine.png">icons/mActionGotoLine.png</file>
+        <file alias="mActionEditGotoLine.png">icons/mActionEditGotoLine.png</file>
         <file alias="mActionGraphicRefresh.png">icons/mActionGraphicRefresh.png</file>
         <file alias="mActionFileConfigure.png">icons/mActionFileConfigure.png</file>
         <file alias="mActionActionFile.png">icons/mActionActionFile.png</file>
@@ -21,6 +21,7 @@
         <file alias="mActionNext.png">icons/mActionNext.png</file>
         <file alias="mActionFileNew.png">icons/mActionFileNew.png</file>
         <file alias="mActionFileClose.png">icons/mActionFileClose.png</file>
+        <file alias="mActionWorkspaceSave.png">icons/mActionWorkspaceSave.png</file>
         <file alias="mActionGraphicNew.png">icons/mActionGraphicNew.png</file>
         <file alias="mActionPrevious.png">icons/mActionPrevious.png</file>
         <file alias="mActionEditFindNext.png">icons/mActionEditFindNext.png</file>
@@ -34,6 +35,7 @@
         <file alias="mActionHelpHelp.png">icons/mActionHelpHelp.png</file>
         <file alias="mActionFileSaveAs.png">icons/mActionFileSaveAs.png</file>
         <file alias="mActionEditSelectAll.png">icons/mActionEditSelectAll.png</file>
+        <file alias="mActionWorkspaceLoad.png">icons/mActionWorkspaceLoad.png</file>
         <file alias="mActionEditCopy.png">icons/mActionEditCopy.png</file>
         <file alias="mActionEditComment.png">icons/mActionEditComment.png</file>
         <file alias="mActionEditRedo.png">icons/mActionEditRedo.png</file>

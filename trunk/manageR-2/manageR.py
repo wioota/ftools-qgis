@@ -26,7 +26,7 @@ from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QWidget, QDockWidget, QToolButton, QSpacerItem, QSizePolicy,
         QPalette, QSplashScreen, QTreeWidget, QTreeWidgetItem, QFrame,
         QListView, QTableWidget, QTableWidgetItem, QHeaderView, 
-        QAbstractItemView, QTextBlockUserData,)
+        QAbstractItemView, QTextBlockUserData, QTextFormat)
 
 try:
   import rpy2.robjects as robjects
@@ -332,13 +332,6 @@ windows.
 <li><tt>Ctrl+Home</tt> : Move the cursor to the beginning of the file
 <li><tt>Ctrl+K</tt> : Delete to the end of the line
 <li><tt>Ctrl+H</tt> : Pop up the 'Goto line' dialog
-<li><tt>Ctrl+B</tt> : Go to the matching ([{&lt; or &gt;}]). The matcher looks
-at the character preceding the cursor, and if it is a match character the
-cursor moves so that the matched character precedes the cursor. If no
-suitable character is preceding the cursor, but there is a suitable
-character following the cursor, the cursor will advance one character (so
-that the match character now precedes it), and works as just described.
-(In other words the matching is after\N{LEFT RIGHT ARROW}after.)
 <li><tt>Ctrl+N</tt> : Open a new editor window
 <li><tt>Ctrl+O</tt> : Open a file open dialog to open an R script
 <li><tt>Ctrl+Space</tt> : Pop up a list of possible completions for
@@ -613,21 +606,8 @@ class RHighlighter(QSyntaxHighlighter):
                 self.setFormat(i, length,
                                RHighlighter.Formats[format])
                 i = regex.indexIn(text, i + length)
-                
-        brackets = BracketStorage()
-        regex = QRegExp(r"[\)\(]+|[\{\}]+|[][]+")
-        i = regex.indexIn(text)
-        btype = regex.cap(0)
-        while i >= 0:
-            if btype in ["(","[","{"]:
-                brackets.addOpeningBracket(i)
-            elif btype in [")","]","}"]:
-                brackets.addClosingBracket(i)
-            i = regex.indexIn(text, i + 1)
             
         self.setCurrentBlockState(NORMAL)
-        block = self.parent.textCursor().block()
-        block.setUserData(brackets)
 
         if text.indexOf(self.stringRe) != -1:
             return
@@ -647,34 +627,7 @@ class RHighlighter(QSyntaxHighlighter):
     def rehighlight(self):
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         QSyntaxHighlighter.rehighlight(self)
-        QApplication.restoreOverrideCursor()
-        
-class BracketStorage(QTextBlockUserData):
-  
-    def __init__(self):
-        QObject.__init__(self)
-        self.mBrackets = {}
-        
-    def addOpeningBracket(self, pos):
-        self.mBrackets[pos] = None
-        return True
-        
-    def addClosingBracket(self, pos):
-        found = False
-        for i in sorted(self.mBrackets.keys(), reverse=True):
-            if i < pos:
-                self.mBrackets[i] = pos
-                found = True
-                break
-        return found
-        
-    def getMatchingBracket(pos, btype):
-        if btype == "opening":
-            return self.mBrackets[pos]
-        else:
-            return dict(map(lambda item: \
-            (item[1],item[0]), self.mBrackets.items()))[pos]
-        
+        QApplication.restoreOverrideCursor()       
 
 class RCompleter(QObject):
 
@@ -808,43 +761,25 @@ class RCompleter(QObject):
 class REditor(QTextEdit):
     def __init__(self, parent, tabwidth=4):
         super(REditor, self).__init__(parent)
-        #self.setLineWrapMode(QTextEdit.NoWrap)
+        self.setLineWrapMode(QTextEdit.NoWrap)
         self.indent = 0
         self.tabwidth = tabwidth
         self.parent = parent
         self.oldfrmt = QTextCharFormat()
         self.oldpos = None
+        self.connect(self, SIGNAL("cursorPositionChanged()"),
+        self.positionChanged)
 
     def event(self, event):
         indent = " " * self.tabwidth
         if event.type() == QEvent.KeyPress:
-            #if event.key() == Qt.Key_Backspace:
-                #line = self.currentLine()
-                #if len(line) >= tabwidth and line.endsWith(indent):
-                    #userCursor = self.textCursor()
-                    #for _ in range(tabwidth):
-                        #userCursor.deletePreviousChar()
-                    #self.indent = max(0, self.indent - 1)
-                    #return True
-            #if event.key() == Qt.Key_Up or \
-            #event.key() == Qt.Key_Down or \
-            #event.key() == Qt.Key_Right or \
-            #event.key() == Qt.Key_Left:
-                #self.gotoMatching()
             if event.key() == Qt.Key_Tab:
                 if not self.tabChangesFocus():
                     cursor = self.textCursor()
-                    #cursor.movePosition(
-                            #QTextCursor.PreviousCharacter,
-                            #QTextCursor.KeepAnchor)
-                    #if cursor.selectedText().trimmed().isEmpty():
-                        #cursor = self.textCursor()
                     if not cursor.hasSelection():
                         cursor.insertText(indent)
                     else:
                         self.indentRegion()
-                    #else:
-                        #self.complete()
                     return True
                 # else leave for base class to handle
             elif event.key() in (Qt.Key_Enter,
@@ -866,11 +801,11 @@ class REditor(QTextEdit):
                             break
                 userCursor.insertText(insert)
                 return True
-        #else:
-            #if event.type() == QEvent.MouseButtonPress:
-                #self.gotoMatching()
                 # Fall through to let the base class handle the movement
         return QTextEdit.event(self, event)
+        
+    def positionChanged(self):
+        self.highlight()
 
     def gotoLine(self):
         cursor = self.textCursor()
@@ -886,74 +821,120 @@ class REditor(QTextEdit):
             self.ensureCursorVisible()
 
 
-    def gotoMatching(self):
-        # move the cursor to the matching ()[]<>{} or do nothing
-        newfrmt = QTextCharFormat()
-        newfrmt.setFontWeight(QFont.Bold)
-        OPEN = "([<{"
-        CLOSE = ")]>}"
-        #if not self.oldpos is None:
-            #cursor = self.textCursor()
-            #cursor.setPosition(self.oldpos)
-            #cursor.movePosition(QTextCursor.NextCharacter,
-                                #QTextCursor.KeepAnchor)
-            #cursor.setCharFormat(self.oldfrmt)
-            #self.oldpos = None
-            #self.oldfrmt = QTextCharFormat()
-            
+    def highlight(self):
+        extraSelections = []
+        self.setExtraSelections(extraSelections)
+        format = QTextCharFormat()
+        format.setBackground(QColor(Config["backgroundcolor"]).darker(110))
+        format.setProperty(QTextFormat.FullWidthSelection, QVariant(True))
+        selection = QTextEdit.ExtraSelection()
+        selection.format = format
         cursor = self.textCursor()
-        cursor.movePosition(QTextCursor.PreviousCharacter,
-                            QTextCursor.KeepAnchor)
-        c = unicode(cursor.selectedText())
-        if c not in OPEN + CLOSE:
-            cursor = self.textCursor()
-            cursor.movePosition(QTextCursor.NextCharacter,
-                                QTextCursor.KeepAnchor)
-            c = unicode(cursor.selectedText())
-            if c in OPEN + CLOSE:
-                self.setTextCursor(cursor)
-                #self.oldfrmt = cursor.charFormat()
-                #self.oldpos = cursor.position()
-                #cursor.mergeCharFormat(newfrmt)
+        selection.cursor = cursor
+        selection.cursor.clearSelection()
+        extraSelections.append(selection)
+        self.setExtraSelections(extraSelections)
+        
+        format = QTextCharFormat()
+        format.setForeground(QColor(Config["delimiterfontcolor"]))
+        format.setBackground(QColor(Qt.yellow).lighter(160)) #QColor(Config["bracketcolor"])?
+        selection = QTextEdit.ExtraSelection()
+        selection.format = format
+
+        doc = self.document()
+        cursor = self.textCursor()
+        beforeCursor = QTextCursor(cursor)
+
+        cursor.movePosition(QTextCursor.NextCharacter, QTextCursor.KeepAnchor)
+        brace = cursor.selectedText()
+
+        beforeCursor.movePosition(QTextCursor.PreviousCharacter, QTextCursor.KeepAnchor)
+        beforeBrace = beforeCursor.selectedText()
+
+        if ((brace != "{") and \
+            (brace != "}") and \
+            (brace != "[") and \
+            (brace != "]") and \
+            (brace != "(") and \
+            (brace != ")")):
+            if ((beforeBrace == "{") or \
+                (beforeBrace == "}") or \
+                (beforeBrace == "[") or \
+                (beforeBrace == "]") or \
+                (beforeBrace == "(") or \
+                (beforeBrace == ")")):
+                cursor = beforeCursor
+                brace = cursor.selectedText();
             else:
                 return
-        i = OPEN.find(c)
-        if i > -1:
-            movement = QTextCursor.NextCharacter
-            stack = 0
-            target = CLOSE[i]
+
+        #format = QTextCharFormat()
+        #format.setForeground(Qt.red)
+        #format.setFontWeight(QFont.Bold)
+
+        if ((brace == "{") or (brace == "}")):
+            openBrace = "{"
+            closeBrace = "}"
+        elif ((brace == "[") or (brace == "]")):
+            openBrace = "["
+            closeBrace = "]"
+        elif ((brace == "(") or (brace == ")")):
+            openBrace = "("
+            closeBrace = ")"
+            
+        if (brace == openBrace):
+            cursor1 = doc.find(closeBrace, cursor)
+            cursor2 = doc.find(openBrace, cursor)
+            if (cursor2.isNull()):
+                selection.cursor = cursor
+                selection.cursor.clearSelection()
+                extraSelections.append(selection)
+                self.setExtraSelections(extraSelections)
+                selection.cursor = cursor1
+                selection.cursor.clearSelection()
+                extraSelections.append(selection)
+                self.setExtraSelections(extraSelections)
+            else:
+                while (cursor1.position() > cursor2.position()):
+                    cursor1 = doc.find(closeBrace, cursor1)
+                    cursor2 = doc.find(openBrace, cursor2)
+                    if (cursor2.isNull()):
+                        break
+                selection.cursor = cursor
+                selection.cursor.clearSelection()
+                extraSelections.append(selection)
+                self.setExtraSelections(extraSelections)
+                selection.cursor = cursor1
+                selection.cursor.clearSelection()
+                extraSelections.append(selection)
+                self.setExtraSelections(extraSelections)
         else:
-            i = CLOSE.find(c)
-            if i == -1:
-                return
-            movement = QTextCursor.PreviousCharacter
-            stack = -1
-            target = OPEN[i]
-        cursor = self.textCursor()
-        while (not (movement == QTextCursor.NextCharacter and
-                    cursor.atEnd()) and
-               not (movement == QTextCursor.PreviousCharacter and
-                    cursor.atStart())):
-            cursor.clearSelection()
-            cursor.movePosition(movement, QTextCursor.KeepAnchor)
-            x = unicode(cursor.selectedText())
-            if not x:
-                break
-            if x == c:
-                stack += 1
-            elif x == target:
-                if stack == 0:
-                    #self.oldfrmt = cursor.charFormat()
-                    #self.oldpos = cursor.position()
-                    #cursor.mergeCharFormat(newfrmt)
-                    cursor.clearSelection()
-                    if movement == QTextCursor.PreviousCharacter:
-                        cursor.movePosition(
-                                QTextCursor.NextCharacter)
-                    self.setTextCursor(cursor)
-                    break
+            if (brace == closeBrace):
+                cursor1 = doc.find(openBrace, cursor, QTextDocument.FindBackward)
+                cursor2 = doc.find(closeBrace, cursor, QTextDocument.FindBackward)
+                if (cursor2.isNull()):
+                    selection.cursor = cursor
+                    selection.cursor.clearSelection()
+                    extraSelections.append(selection)
+                    self.setExtraSelections(extraSelections)
+                    selection.cursor = cursor1
+                    selection.cursor.clearSelection()
+                    extraSelections.append(selection)
+                    self.setExtraSelections(extraSelections)
                 else:
-                    stack -= 1
+                    while (cursor1.position() < cursor2.position()):
+                        cursor1 = doc.find(openBrace, cursor1, QTextDocument.FindBackward)
+                        cursor2 = doc.find(closeBrace, cursor2, QTextDocument.FindBackward)
+                        if (cursor2.isNull()):
+                            break
+                    selection.cursor = cursor
+                    selection.cursor.clearSelection()
+                    extraSelections.append(selection)
+                    self.setExtraSelections(extraSelections)
+                    selection.cursor = cursor1
+                    selection.cursor.clearSelection()
+                    extraSelections.append(selection)
+                    self.setExtraSelections(extraSelections)
 
     def execute(self):
         cursor = self.textCursor()
@@ -1444,60 +1425,6 @@ class RConsole(QTextEdit):
         self.displayPrompt()
         MainWindow.Console.statusBar().showMessage("Complete!", 5000)
         self.emit(SIGNAL("commandComplete()"))
-
-    def gotoMatching(self):
-        # move the cursor to the matching ()[]<>{} or do nothing
-        newfrmt = QTextCharFormat()
-        newfrmt.setFontWeight(QFont.Bold)
-        OPEN = "([<{"
-        CLOSE = ")]>}"
-        cursor = self.textCursor()
-        cursor.movePosition(QTextCursor.PreviousCharacter,
-                            QTextCursor.KeepAnchor)
-        c = unicode(cursor.selectedText())
-        if c not in OPEN + CLOSE:
-            cursor = self.textCursor()
-            cursor.movePosition(QTextCursor.NextCharacter,
-                                QTextCursor.KeepAnchor)
-            c = unicode(cursor.selectedText())
-            if c in OPEN + CLOSE:
-                self.setTextCursor(cursor)
-            else:
-                return
-        i = OPEN.find(c)
-        if i > -1:
-            movement = QTextCursor.NextCharacter
-            stack = 0
-            target = CLOSE[i]
-        else:
-            i = CLOSE.find(c)
-            if i == -1:
-                return
-            movement = QTextCursor.PreviousCharacter
-            stack = -1
-            target = OPEN[i]
-        cursor = self.textCursor()
-        while (not (movement == QTextCursor.NextCharacter and
-                    cursor.atEnd()) and
-               not (movement == QTextCursor.PreviousCharacter and
-                    cursor.atStart())):
-            cursor.clearSelection()
-            cursor.movePosition(movement, QTextCursor.KeepAnchor)
-            x = unicode(cursor.selectedText())
-            if not x:
-                break
-            if x == c:
-                stack += 1
-            elif x == target:
-                if stack == 0:
-                    cursor.clearSelection()
-                    if movement == QTextCursor.PreviousCharacter:
-                        cursor.movePosition(
-                                QTextCursor.NextCharacter)
-                    self.setTextCursor(cursor)
-                    break
-                else:
-                    stack -= 1
 
 
 class ConfigForm(QDialog):
@@ -2618,11 +2545,8 @@ class MainWindow(QMainWindow):
                 editUncommentRegionAction))
         if Config["enableautocomplete"]:
             self.addActions(editMenu, (None, editCompleteAction,))
-        self.gotoMenu = self.menuBar().addMenu("&Goto")
-        self.addActions(self.gotoMenu, (self.createAction("&Matching",
-                self.editor.gotoMatching, "Ctrl+B", "mActionGotoMatching",
-                "Move the cursor to the matching parenthesis"),))
         if not isConsole:
+            self.gotoMenu = self.menuBar().addMenu("&Goto")
             self.addActions(self.gotoMenu, (self.createAction("&Line...",
                     self.editor.gotoLine, "Ctrl+H", "mActionGotoLine",
                     "Move the cursor to the given line"),))

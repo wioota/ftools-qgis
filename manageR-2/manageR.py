@@ -9,7 +9,7 @@ from qgis.core import *
 import resources
 from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
 from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter, RVectorLayerConverter
-from pluginManager import PluginManager
+#from pluginManager import PluginManager
 
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
@@ -111,8 +111,10 @@ def loadConfig():
     setDefaultString("consolestartup", "")
     Config["backupsuffix"] = settings.value("manageR/backupsuffix",
             QVariant(".bak")).toString()
-    setDefaultString("beforeinput", ">")
-    setDefaultString("afteroutput", "+")
+    Config["beforeinput"] = settings.value("manageR/beforeinput",
+            QVariant(">")).toString()
+    Config["afteroutput"] = settings.value("manageR/afteroutput",
+            QVariant("+")).toString()
     Config["setwd"] = settings.value("manageR/setwd", QVariant(".")).toString()
     Config["findcasesensitive"] = settings.value("manageR/findcasesensitive",
             QVariant(False)).toBool()
@@ -533,11 +535,11 @@ class RHighlighter(QSyntaxHighlighter):
     Rules = []
     Formats = {}
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, isConsole=False):
         super(RHighlighter, self).__init__(parent)
         self.parent = parent
         self.initializeFormats()
-
+        self.isConsole = isConsole
         RHighlighter.Rules.append((QRegExp(
                 "|".join([r"\b%s\b" % keyword for keyword in KEYWORDS])),
                 "keyword"))
@@ -588,15 +590,15 @@ class RHighlighter(QSyntaxHighlighter):
         self.setFormat(0, textLength,
                        RHighlighter.Formats["normal"])
 
-        if text.startsWith("Error"):
+        if text.startsWith("Error") and self.isConsole:
             self.setCurrentBlockState(ERROR)
-            self.setFormat(0, textLength,
+            self.setFormat(self.parent.currentPromptLength, textLength,
                            RHighlighter.Formats["error"])
             return
-        if (prevState == ERROR and
+        if (prevState == ERROR and self.isConsole and \
             not (text.startsWith(Config["beforeinput"]) or text.startsWith("#"))):
             self.setCurrentBlockState(ERROR)
-            self.setFormat(0, textLength,
+            self.setFormat(self.currentPromptLength, textLength,
                            RHighlighter.Formats["error"])
             return
 
@@ -620,7 +622,11 @@ class RHighlighter(QSyntaxHighlighter):
                 if i == -1:
                     i = text.length()
                     self.setCurrentBlockState(state)
-                self.setFormat(0, i + 1, RHighlighter.Formats["string"])
+                if text.startsWith(Config["afteroutput"]) and self.isConsole:
+                    self.setFormat(self.parent.currentPromptLength, i + 1,
+                    RHighlighter.Formats["string"])
+                else:
+                    self.setFormat(0, i + 1, RHighlighter.Formats["string"])
             elif i > -1:
                 self.setCurrentBlockState(state)
                 self.setFormat(i, text.length(), RHighlighter.Formats["string"])
@@ -1703,8 +1709,14 @@ class ConfigForm(QDialog):
     def accept(self):
         Config["remembergeometry"] = (self.rememberGeometryCheckBox.isChecked())
         Config["backupsuffix"] = self.backupLineEdit.text()
-        Config["beforeinput"] = self.inputLineEdit.text()
-        Config["afteroutput"] = self.outputLineEdit.text()
+        inputPrompt = self.inputLineEdit.text()
+        if Config["beforeinput"] != inputPrompt:
+            self.highlightingChanged = True
+            Config["beforeinput"] = inputPrompt
+        afterOutput = self.outputLineEdit.text()
+        if Config["afteroutput"] != afterOutput:
+            self.highlightingChanged = True
+            Config["afteroutput"] = afterOutput
         Config["setwd"] = self.cwdLineEdit.text()
         for name in ("consolestartup", "newfile"):
             Config[name] = unicode(self.editors[name].toPlainText())
@@ -2123,7 +2135,6 @@ class RVariableWidget(QWidget):
         itemName, itemType = self.getVariableInfo(row)
         if itemType in VECTORTYPES:
             self.parent.exportRObjects(False, itemName, itemType, False)
-            self.parent.label.setText("Exported to canvas")
         else:
             return False
 
@@ -2403,8 +2414,8 @@ class MainWindow(QMainWindow):
         if Config["enableautocomplete"]:
             self.completer = RCompleter(self.editor,
             delay=Config["delay"])
-        if Config["enablehighlighting"]:
-            self.highlighter = RHighlighter(self.editor)
+        if Config["enablehighlighting"]:                
+            self.highlighter = RHighlighter(self.editor, isConsole)
             palette = QPalette(QColor(Config["backgroundcolor"]))
             palette.setColor(QPalette.Active, QPalette.Base, QColor(Config["backgroundcolor"]))
             self.editor.setPalette(palette)
@@ -2566,8 +2577,8 @@ class MainWindow(QMainWindow):
             workspaceMenu = self.menuBar().addMenu("&Workspace")
             self.addActions(workspaceMenu, (workspaceLoadAction, 
             workspaceSaveAction))
-        pluginCreator = PluginManager(self)
-        pluginCreator.createActions()
+        #pluginCreator = PluginManager(self)
+        #pluginCreator.createActions()
         self.viewMenu = self.menuBar().addMenu("&View")
         self.windowMenu = self.menuBar().addMenu("&Window")
         self.connect(self.windowMenu, SIGNAL("aboutToShow()"),
@@ -3147,6 +3158,9 @@ class MainWindow(QMainWindow):
                         window.editor.textcharformat = (textcharformat)
                         if window.highlighter:
                             window.highlighter.rehighlight()
+                        if window == MainWindow.Console:
+                            window.editor.setPrompt(Config["beforeinput"]+" ",
+                            Config["afteroutput"]+" ", True)
                         palette = QPalette(QColor(Config["backgroundcolor"]))
                         palette.setColor(QPalette.Active, 
                         QPalette.Base, QColor(Config["backgroundcolor"]))

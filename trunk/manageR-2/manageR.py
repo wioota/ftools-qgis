@@ -19,15 +19,15 @@ from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QColor, QColorDialog, QComboBox, QCursor, QDesktopServices,
         QDialog, QDialogButtonBox, QFileDialog, QFont, QFontComboBox,
         QFontMetrics, QGridLayout, QHBoxLayout, QIcon, QInputDialog,
-        QKeySequence, QLabel, QLineEdit, QListWidget, QMainWindow,
+        QKeySequence, QLabel, QLineEdit, QListWidget, QMainWindow,QMouseEvent,
         QMessageBox, QPixmap, QPushButton, QRadioButton, QGroupBox,
         QRegExpValidator, QShortcut, QSpinBox, QSplitter, QDirModel,
         QSyntaxHighlighter, QTabWidget, QTextBrowser, QTextCharFormat,
         QTextCursor, QTextDocument, QTextEdit, QToolTip, QVBoxLayout,
         QWidget, QDockWidget, QToolButton, QSpacerItem, QSizePolicy,
         QPalette, QSplashScreen, QTreeWidget, QTreeWidgetItem, QFrame,
-        QListView, QTableWidget, QTableWidgetItem, QHeaderView, 
-        QAbstractItemView, QTextBlockUserData, QTextFormat)
+        QListView, QTableWidget, QTableWidgetItem, QHeaderView, QMenu, 
+        QAbstractItemView, QTextBlockUserData, QTextFormat, QClipboard)
 
 try:
   import rpy2.robjects as robjects
@@ -1091,7 +1091,10 @@ class RConsole(QTextEdit):
                 self.runningCommand.clear()
                 self.switchPrompt(True)
                 self.displayPrompt()
-                MainWindow.Console.statusBar().clearMessage() # this is not very generic, better way to do this?
+                MainWindow.Console.statusBar().clearMessage()
+            elif e.key() == Qt.Key_Tab:
+                indent = " " * int(Config["tabwidth"])
+                self.cursor.insertText(indent)
               # if Return is pressed, then perform the commands
             elif e.key() == Qt.Key_Return:
                 self.entered()
@@ -1325,10 +1328,12 @@ class RConsole(QTextEdit):
     def updateHistory(self, command):
         if isinstance(command, QStringList):
             for line in command:
-                self.history.append(command)
+                self.history.append(line)
         elif not command == "":
-            self.history.append(command)
-            self.historyIndex = len(self.history)
+            if len(self.history) <= 0 or \
+            not command == self.history[-1]:
+                self.history.append(command)
+        self.historyIndex = len(self.history)
         self.emit(SIGNAL("updateHistory(PyQt_PyObject)"), command)
 
     def insertPlainText(self, text):
@@ -1663,7 +1668,7 @@ class ConfigForm(QDialog):
                  "libraries or additional tools.<br/>"
                  "Changes made here only take "
                  "effect when manageR is next run.</p></font>")):
-            editor = REditor(self)
+            editor = REditor(self, int(Config["tabwidth"]))
             editor.setPlainText(Config[name])
             editor.setTabChangesFocus(True)
             RHighlighter(editor.document())
@@ -1883,6 +1888,16 @@ class RWDWidget(QWidget):
             MainWindow.Console.editor.insertFromMimeData(mime)
             MainWindow.Console.editor.entered()
             
+class RCommandList(QListWidget):
+    def __init__(self, parent):
+        QListWidget.__init__(self, parent)
+ 
+    def mousePressEvent(self, event):
+        item = self.itemAt(event.pos())
+        if not item and event.button() == Qt.LeftButton:
+            self.clearSelection()
+        QListWidget.mousePressEvent(self, event)
+            
 class RHistoryWidget(QWidget):
 
     def __init__(self, parent, console):
@@ -1891,49 +1906,113 @@ class RHistoryWidget(QWidget):
         self.setMinimumSize(30,30)
         self.parent = parent
         self.console = console
-        self.commandList = QListWidget(self)
+        self.commandList = RCommandList(self)
         self.commandList.setAlternatingRowColors(True)
-        self.commandList.setEditTriggers(
-        QAbstractItemView.NoEditTriggers)
+        self.commandList.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.commandList.setSortingEnabled(False)
+        self.commandList.setSelectionMode(QAbstractItemView.MultiSelection)
         font = QFont(Config["fontfamily"], Config["fontsize"])
         self.commandList.setFont(font)
-        self.commandList.setToolTip("Single-click to insert command\nDouble-click to execute command")
-        self.commandList.setWhatsThis("Single-click to insert command\nDouble-click to execute command")
+        self.commandList.setToolTip("Double-click to run single command")
+        self.commandList.setWhatsThis("Double-click to run single command")
         grid = QGridLayout(self)
         grid.addWidget(self.commandList)
-        self.state = 0
-        self.updateCommands(self.console.history)
+        self.updateCommands(MainWindow.Console.editor.history)
         
-        self.connect(self.commandList, SIGNAL("itemClicked(QListWidgetItem*)"), self.clicked)
-        self.connect(self.commandList, SIGNAL("itemDoubleClicked(QListWidgetItem*)"), self.doubleClicked)
+        self.copyAct = QAction("&Copy", self)
+        self.copyAct.setStatusTip("Copy the selected command(s) to the clipboard")
+        self.selectAct = QAction("Select &all", self)
+        self.selectAct.setStatusTip("Select all previous commands")
+        self.insertAct = QAction("&Insert", self)
+        self.insertAct.setStatusTip("Insert the selected command(s) into the console")
+        self.runAct = QAction("&Run", self)
+        self.runAct.setStatusTip("Run the selected command(s) in the console")
+        self.clearAct = QAction("C&lear selection", self)
+        self.clearAct.setStatusTip("Clear selection(s)")
+        
+        self.connect(self.copyAct, SIGNAL("triggered()"), self.copy)
+        self.connect(self.insertAct, SIGNAL("triggered()"), self.insert)
+        self.connect(self.runAct, SIGNAL("triggered()"), self.run)
+        self.connect(self.clearAct, SIGNAL("triggered()"), self.clear)
+        self.connect(self.selectAct, SIGNAL("triggered()"), self.selectAll)
+        self.connect(self.commandList, SIGNAL("itemDoubleClicked(QListWidgetItem*)"),
+        self.doubleClicked)
+       
+    def contextMenuEvent(self, event):
+        item = self.commandList.itemAt(event.pos())
+        if item:
+            start = item.isSelected()
+            if not start:
+                item.setSelected(True)
+        menu = QMenu(self)
+        if len(self.commandList.selectedItems()) >= 1:
+            menu.addAction(self.runAct)
+            if len(self.commandList.selectedItems()) == 1:
+                menu.addAction(self.insertAct)
+            menu.addSeparator()
+            menu.addAction(self.copyAct)
+            menu.addAction(self.clearAct)
+        menu.addSeparator()
+        menu.addAction(self.selectAct)
+        menu.exec_(event.globalPos())
+        if item and not start:
+            item.setSelected(False)
+        
+    def copy(self):
+        commands = QString()
+        for item in self.commandList.selectedItems():
+            commands.append(item.text()+"\n")
+        clipboard = QApplication.clipboard()
+        clipboard.setText(commands, QClipboard.Clipboard)
 
+    def insert(self):
+        commands = self.commandList.selectedItems()
+        if len(commands) == 1:
+            command = commands[0]
+        self.insertCommand(command)
+        
+    def run(self):
+        commands = QString()
+        for item in self.commandList.selectedItems():
+            commands.append(item.text()+"\n")
+        self.runCommands(commands)
+        
+    def selectAll(self):
+        self.commandList.selectAll()    
+        
+    def clear(self):
+        self.commandList.clearSelection()
+        
     def updateCommands(self, commands):
         if commands:
             if not isinstance(commands, QStringList):
                 commands = QStringList(commands)
             self.commandList.addItems(commands)
         
-    def clicked(self, item):
-        if not self.state == 1:
-            self.console.cursor.insertText(item.text())
-        self.state = 0
-        self.console.setFocus()
-        self.commandList.clearSelection()      
-        
     def insertCommand(self, item):
-        self.console.moveToEnd()
-        self.console.cursor.movePosition(
-        QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
-        self.console.cursor.removeSelectedText()
-        self.console.cursor.insertText(
-        MainWindow.Console.editor.currentPrompt)
-        self.console.cursor.insertText(item.text())
-
+        #self.console.moveToEnd()
+        #self.console.cursor.movePosition(
+        #QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+        #self.console.cursor.removeSelectedText()
+        #self.console.cursor.insertText(
+        #MainWindow.Console.editor.currentPrompt)
+        MainWindow.Console.editor.cursor.insertText(item.text())
+        
+    def runCommands(self, commands):
+        if not commands.isEmpty():
+            mime = QMimeData()
+            mime.setText(commands)
+            MainWindow.Console.editor.moveToEnd()
+            MainWindow.Console.editor.cursor.movePosition(
+            QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+            MainWindow.Console.editor.cursor.removeSelectedText()
+            MainWindow.Console.editor.cursor.insertText(
+            MainWindow.Console.editor.currentPrompt)
+            MainWindow.Console.editor.insertFromMimeData(mime)
+            MainWindow.Console.editor.entered()  
+           
     def doubleClicked(self, item):
-        self.insertCommand(item)
-        self.console.entered()
-        self.commandList.clearSelection()
-        self.state = 1
+        self.runCommands(item.text())
             
 class RVariableWidget(QWidget):
 
@@ -2403,7 +2482,7 @@ class MainWindow(QMainWindow):
             self.connect(self.editor, SIGNAL("commandComplete()"),self.updateWidgets)
         else:
             self.setAttribute(Qt.WA_DeleteOnClose)
-            self.editor = REditor(self)
+            self.editor = REditor(self, int(Config["tabwidth"]))
         self.setCentralWidget(self.editor)
         if Config["enableautocomplete"]:
             self.completer = RCompleter(self.editor,

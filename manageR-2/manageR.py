@@ -373,14 +373,11 @@ Press <tt>Esc</tt> to close this window.
         QShortcut(QKeySequence("Escape"), self, self.close)
         self.setWindowTitle("manageR - Help")
 
-class RLibraryError(Exception):
-    def __init__(self, library):
-        self.library = library
-    def __str__(self):
-        message = "Error: Unable to find R package '%s'.\n"
-        + "Please manually install the '%s' package in R via "
-        + "install.packages()." % (self.library, self.library)
-        return message
+def RLibraryError(library):
+    message = QString("Error: Unable to find R package '%s'.\n" % (library))
+    message.append("Please manually install the '%s' package in R via " % (library))
+    message.append("install.packages()")
+    return message
 
 class RFinder(QWidget):
 
@@ -592,22 +589,19 @@ class RHighlighter(QSyntaxHighlighter):
 
         if text.startsWith("Error") and self.isConsole:
             self.setCurrentBlockState(ERROR)
-            self.setFormat(self.parent.currentPromptLength, textLength,
-                           RHighlighter.Formats["error"])
+            self.setFormat(0, textLength, RHighlighter.Formats["error"])
             return
         if (prevState == ERROR and self.isConsole and \
             not (text.startsWith(Config["beforeinput"]) or text.startsWith("#"))):
             self.setCurrentBlockState(ERROR)
-            self.setFormat(self.currentPromptLength, textLength,
-                           RHighlighter.Formats["error"])
+            self.setFormat(0, textLength, RHighlighter.Formats["error"])
             return
 
         for regex, format in RHighlighter.Rules:
             i = regex.indexIn(text)
             while i >= 0:
                 length = regex.matchedLength()
-                self.setFormat(i, length,
-                               RHighlighter.Formats[format])
+                self.setFormat(i, length, RHighlighter.Formats[format])
                 i = regex.indexIn(text, i + length)
             
         self.setCurrentBlockState(NORMAL)
@@ -2884,7 +2878,7 @@ class MainWindow(QMainWindow):
                 rbuf.append(x)
             robjects.rinterface.setWriteConsole(f)
             if not dataOnly and not isLibraryLoaded("sp"):
-                raise RLibraryError("sp")
+                raise Exception(RLibraryError("sp"))
             if mlayer.type() == QgsMapLayer.VectorLayer:
                 layerCreator = QVectorLayerConverter(mlayer, dataOnly)
             if mlayer.type() == QgsMapLayer.RasterLayer:
@@ -2894,7 +2888,7 @@ class MainWindow(QMainWindow):
                     MainWindow.Console.editor.commandComplete()
                     return
                 if not isLibraryLoaded("rgdal"):
-                    raise RLibraryError("sp")
+                    raise Exception(RLibraryError("sp"))
                 layerCreator = QRasterLayerConverter(mlayer)
             MainWindow.Console.editor.commandOutput(rbuf)
             rLayer, layerName, message = layerCreator.start()
@@ -2941,9 +2935,9 @@ class MainWindow(QMainWindow):
                 MainWindow.Console.editor.commandComplete()
                 return
             if not toFile and not isLibraryLoaded("sp"):
-                raise RLibraryError("sp")
+                raise Exception(RLibraryError("sp"))
             if toFile and not isLibraryLoaded("rgdal"):
-                raise RLibraryError("rgdal")
+                raise Exception(RLibraryError("rgdal"))
             if not exportType in VECTORTYPES and not exportType in RASTERTYPES:
                 MainWindow.Console.editor.commandError(
                 "Error: Unrecognised sp object, unable to save to file.")

@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
 from PyQt4 import QtCore, QtGui
+import rpy2.robjects as robjects
+
+VECTORTYPES = ["SpatialPointsDataFrame",
+               "SpatialPolygonsDataFrame", 
+               "SpatialLinesDataFrame"]
+RASTERTYPES = ["SpatialGridDataFrame",
+               "SpatialPixelsDataFrame"]
+
 """Usage:
 from PyQt4 import QtCore, QtGui 
 from GenericVerticalUI import GenericVerticalUI
@@ -29,6 +37,16 @@ class GenericVerticalUI(object):
         if widgetType=="comboBox":
             self.widgets.append(QtGui.QComboBox(ParentClass))
             self.widgets[-1].addItems(default.split(';'))
+        elif widgetType=="spComboBox":
+            self.widgets.append(QtGui.QComboBox(ParentClass))
+            splist = []
+            sptypes = default.split(';')
+            splayers = currentRObjects()
+            for sptype in sptypes:
+                for layer in splayers.keys():
+                    if splayers[layer] == sptype:
+                        splist.append(layer)
+            self.widgets[-1].addItems(splist)
         elif widgetType=="doubleSpinBox":
             self.widgets.append(QtGui.QDoubleSpinBox(ParentClass))
             self.widgets[-1].valueFromText(default)
@@ -50,7 +68,8 @@ class GenericVerticalUI(object):
         self.labels.append(QtGui.QLabel(ParentClass))
         self.labels[-1].setGeometry(QtCore.QRect(10, top+10, labelwidth, 17))
         self.labels[-1].setObjectName(name)
-        self.labels[-1].setText(QtGui.QApplication.translate(ParentClass.objectName(), parameters[0], None, QtGui.QApplication.UnicodeUTF8))
+        self.labels[-1].setText(QtGui.QApplication.translate(ParentClass.objectName(), 
+        parameters[0], None, QtGui.QApplication.UnicodeUTF8))
 
     def setupUi(self, ParentClass,itemlist):
         """Sets up all the UI. itemlist must have at least a list of lists containing: 
@@ -60,13 +79,14 @@ class GenericVerticalUI(object):
         labelwidth=3
         textedits=0
         #sets widget counters to 0
-        self.exists={"comboBox":0, "textEdit":0, "doubleSpinBox":0, "lineEdit":0,  "label":0}
+        self.exists={"spComboBox":0, "comboBox":0, "textEdit":0, 
+                     "doubleSpinBox":0, "lineEdit":0,  "label":0}
         for item in itemlist:
             if labelwidth<len(item[0]):
                 if item[1]=="textEdit":
                     textedits+=1
                 labelwidth=len(item[0])
-        labelwidth*=7 #convert to units
+        labelwidth*=8 #convert to units
         self.widgets=[] #Every widget is going to be stored here.
         self.labels=[] #Every label is going to be stored here.
         self.top=10
@@ -89,3 +109,19 @@ class GenericVerticalUI(object):
         ParentClass.setWindowTitle(QtGui.QApplication.translate(ParentClass.objectName(), "Generic Vertical User Interface", None, QtGui.QApplication.UnicodeUTF8))
         #self.label.setText(QtGui.QApplication.translate("ParentClass", "TextLabel", None, QtGui.QApplication.UnicodeUTF8))
 
+# This is used whenever we check for sp objects in manageR
+def currentRObjects():
+    ls_ = robjects.conversion.ri2py(
+    robjects.rinterface.globalEnv.get('ls',wantFun=True))
+    class_ = robjects.conversion.ri2py(
+    robjects.rinterface.globalEnv.get('class',wantFun=True))
+    dev_list_ = robjects.conversion.ri2py(
+    robjects.rinterface.globalEnv.get('dev.list',wantFun=True))
+    getwd_ = robjects.conversion.ri2py(
+    robjects.rinterface.globalEnv.get('getwd',wantFun=True))
+    layers = {}
+    graphics = {}
+    for item in ls_():
+        check = class_(robjects.r[item])[0]
+        layers[unicode(item)] = check
+    return layers

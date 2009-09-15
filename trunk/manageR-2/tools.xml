@@ -1,2 +1,28 @@
 <?xml version="1.0"?>
-<PostGisTools><QueryTool name="Insert R commands" query="[1]"><Parameter label="R commands" type="textEdit" default="ls()" notnull="true"/></QueryTool></PostGisTools>
+<manageRTools>
+<RTool name="Insert random R commands" query="[1]">
+<Parameter label="R commands:" type="textEdit" default="ls()" notnull="true"/>
+</RTool>
+<RTool name="Voronoi polygons" query="
+voronoipolygons &lt;- function(layer){&#xA;
+  require(deldir)&#xA;
+  crds &lt;- layer@coords&#xA;
+  z &lt;- deldir(crds[,1], crds[,2])&#xA;
+  w &lt;- tile.list(z)&#xA;
+  polys &lt;- vector(mode='list', length=length(w))&#xA;
+  require(sp)&#xA;
+  for (i in seq(along=polys)) {&#xA;
+    pcrds &lt;- cbind(w[[i]]$x, w[[i]]$y)&#xA;
+    pcrds &lt;- rbind(pcrds, pcrds[1,])&#xA;
+    polys[[i]] &lt;- Polygons(list(Polygon(pcrds)), ID=as.character(i))&#xA;
+  }&#xA;
+  SP &lt;- SpatialPolygons(polys)&#xA;
+  voronoi &lt;- SpatialPolygonsDataFrame(SP, data=data.frame(x=crds[,1], &#xA;
+  y=crds[,2], row.names=sapply(slot(SP, 'polygons'), function(x) slot(x, 'ID'))))&#xA;
+}&#xA;
+|1|.voronoi &lt;- voronoipolygons(|1|)">
+<Parameter label="Point layer:" type="spComboBox" default="SpatialPointsDataFrame" notnull="true"/>
+</RTool>
+</manageRTools>
+
+

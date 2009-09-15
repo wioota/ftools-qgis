@@ -31,16 +31,19 @@ class PluginManager:
             tool=dom.firstChild.firstChild
             
             #loads every tool in the file
-            while tool: 
-                name= tool.getAttribute("name")
-                # Create action that will start plugin configuration
-                self.actionlist.append(QAction(QIcon("mActionPluginAction"), name, self.parent))
-                #create a new funcion that calls run() with the id parameter
-                self.callerlist.append(self.makeCaller(len(self.actionlist)-1)) 
-                # connect the action to the run method
-                QObject.connect(self.actionlist[-1], SIGNAL("activated()"), self.callerlist[-1]) 
-                # Add toolbar button and menu item
-                self.parent.addActions(pluginsMenu, (self.actionlist[-1],))
+            while tool:
+                if isinstance(tool, minidom.Element):
+                    name= tool.getAttribute("name")
+                    # Create action that will start plugin configuration
+                    self.actionlist.append(QAction(
+                    QIcon("mActionPluginAction"), name, self.parent))
+                    #create a new funcion that calls run() with the id parameter
+                    self.callerlist.append(self.makeCaller(len(self.actionlist)-1)) 
+                    # connect the action to the run method
+                    QObject.connect(self.actionlist[-1], 
+                    SIGNAL("activated()"), self.callerlist[-1]) 
+                    # Add toolbar button and menu item
+                    self.parent.addActions(pluginsMenu, (self.actionlist[-1],))
                 tool=tool.nextSibling
             xmlfile.close()
 
@@ -70,7 +73,7 @@ class PluginManager:
                 text=str(item.currentText())
             else:
                 text="Error loading widget."
-            command = command.replace("["+str(i+1)+"]",text)
+            command = command.replace("|"+str(i+1)+"|",text)
         self.runCommand(command)
 
     def getTool(self,toolid):
@@ -78,19 +81,24 @@ class PluginManager:
         and returns it's commands and the parameters double list."""
         xmlfile=open(self.tools)
         dom=minidom.parse(xmlfile)
-        tool=dom.firstChild.firstChild
-        for i in range(0, toolid):
-            tool=tool.nextSibling
+        tools=dom.firstChild
+        count = 0
+        for tool in tools.childNodes:
+            if isinstance(tool, minidom.Element):
+                if count == toolid:
+                    break
+                count += 1
         query=tool.getAttribute("query")
         name= tool.getAttribute("name")
         lines=[]
         parm=tool.firstChild
         while parm:
-            lines.append(
-            [parm.attributes.getNamedItem("label").value,
-            parm.attributes.getNamedItem("type").value,
-            parm.attributes.getNamedItem("default").value,
-            parm.attributes.getNamedItem("notnull").value])
+            if isinstance(parm, minidom.Element):
+                lines.append(
+                [parm.attributes.getNamedItem("label").value,
+                parm.attributes.getNamedItem("type").value,
+                parm.attributes.getNamedItem("default").value,
+                parm.attributes.getNamedItem("notnull").value])
             parm=parm.nextSibling
         xmlfile.close()
         return name, query, lines
@@ -98,7 +106,7 @@ class PluginManager:
     # run method that performs all the real work
     def run(self, actionid): 
         #reads the xml file
-        name, self.command, parameters= self.getTool(actionid)
+        name, self.command, parameters = self.getTool(actionid)
         # create and show the dialog 
         self.dlg = PluginsDialog(parameters) 
         self.dlg.setWindowTitle(name)

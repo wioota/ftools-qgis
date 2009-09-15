@@ -9,7 +9,7 @@ from qgis.core import *
 import resources
 from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
 from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter, RVectorLayerConverter
-#from pluginManager import PluginManager
+from pluginManager import PluginManager
 
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
@@ -1273,11 +1273,11 @@ class RConsole(QTextEdit):
         QTextCursor.MoveAnchor, 1)
         self.setTextCursor(self.cursor)
         if source.hasText():
-            pastList = QStringList()
+            pasteList = QStringList()
             pasteList = source.text().split("\n")
             if len(pasteList) > 1:
                 self.runningCommand.append(source.text())
-            self.updateHistory(pastList)
+            self.updateHistory(pasteList)
         newSource = QMimeData()
         newSource.setText(source.text().replace("\n",
         "\n"+self.alternatePrompt))
@@ -2650,8 +2650,8 @@ class MainWindow(QMainWindow):
             workspaceMenu = self.menuBar().addMenu("&Workspace")
             self.addActions(workspaceMenu, (workspaceLoadAction, 
             workspaceSaveAction))
-        #pluginCreator = PluginManager(self)
-        #pluginCreator.createActions()
+        pluginCreator = PluginManager(self)
+        pluginCreator.createActions()
         self.viewMenu = self.menuBar().addMenu("&View")
         self.windowMenu = self.menuBar().addMenu("&Window")
         self.connect(self.windowMenu, SIGNAL("aboutToShow()"),

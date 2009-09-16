@@ -1,6 +1,37 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+'''
+This file is part of manageR
+
+Copyright (C) 2008-9 Carson J. Q. Farmer
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public Licence as published by the Free Software
+Foundation; either version 2 of the Licence, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more 
+details.
+
+You should have received a copy of the GNU General Public Licence along with
+this program (see LICENSE file in install directory); if not, write to the Free 
+Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+
+Portions of the console and EditR window, as well as several background 
+funtions are based on the Sandbox python gui of Mark Summerfield.
+  Copyright (C) 2007-9 Mark Summerfield. All rights reserved.
+  Released under the terms of the GNU General Public License.
+The plugins functinality is based largely on the PostGisTools plugin of Mauricio de Paulo.
+  Copyright (C) 2009 Mauricio de Paulo. All rights reserved.
+  Released under the terms of the GNU General Public License.
+manageR makes extensive use of rpy2 (Laurent Gautier) to communicate with R.
+  Copyright (C) 2008-9 Laurent Gautier.
+  Rpy2 may be used under the terms of the GNU General Public License.
+'''
+
 import base64
 import os, re, sys
 
@@ -399,6 +430,7 @@ changes if necessary
 </ul>
 Hold down <tt>Shift</tt> when pressing movement keys to select the text moved over.
 <br>
+Thanks to Agustin Lobo for extensive testing and bug reporting.
 Press <tt>Esc</tt> to close this window.
 """ % (version, Config["delay"], str(os.path.dirname( __file__ )),
       Config["tabwidth"], Config["tabwidth"]))
@@ -2375,65 +2407,80 @@ class RGraphicsWidget(QWidget):
         self.graphicsTable.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.graphicsTable.setSelectionMode(QAbstractItemView.SingleSelection)
         
-        self.rm = QToolButton(self)
-        self.rm.setText("close")
-        self.rm.setToolTip("Close selected graphic")
-        self.rm.setWhatsThis("Close selected graphic")
-        self.rm.setIcon(QIcon(":mActionFileRemove.png"))
-        self.rm.setEnabled(False)
-        self.rm.setAutoRaise(True)
+        self.rmButton = QToolButton(self)
+        self.rmAction = QAction("&Close device", self)
+        self.rmAction.setToolTip("Close selected graphic")
+        self.rmAction.setWhatsThis("Close selected graphic")
+        self.rmAction.setIcon(QIcon(":mActionFileRemove.png"))
+        self.rmButton.setDefaultAction(self.rmAction)
+        self.rmAction.setEnabled(False)
+        self.rmButton.setAutoRaise(True)
         
-        self.export = QToolButton(self)
-        self.export.setText("export")
-        self.export.setToolTip("Export graphic as bitmap")
-        self.export.setWhatsThis("Export graphic as bitmap")
-        self.export.setIcon(QIcon(":mActionGraphicExport.png"))
-        self.export.setEnabled(False)
-        self.export.setAutoRaise(True)
+        self.exportButton = QToolButton(self)
+        self.exportAction = QAction("Export as &bitmap", self)
+        self.exportAction.setToolTip("Export graphic as bitmap")
+        self.exportAction.setWhatsThis("Export graphic as bitmap")
+        self.exportAction.setIcon(QIcon(":mActionGraphicExport.png"))
+        self.exportAction.setEnabled(False)
+        self.exportButton.setDefaultAction(self.exportAction)
+        self.exportButton.setAutoRaise(True)
         
-        self.save = QToolButton(self)
-        self.save.setText("save")
-        self.save.setToolTip("Export graphic to vector file")
-        self.save.setWhatsThis("Export graphic to vector file")
-        self.save.setIcon(QIcon(":mActionGraphicSave.png"))
-        self.save.setEnabled(False)
-        self.save.setAutoRaise(True)
+        self.saveButton = QToolButton(self)
+        self.saveAction = QAction("Export to &vector", self)
+        self.saveAction.setToolTip("Export graphic to vector file")
+        self.saveAction.setWhatsThis("Export graphic to vector file")
+        self.saveAction.setIcon(QIcon(":mActionGraphicSave.png"))
+        self.saveAction.setEnabled(False)
+        self.saveButton.setDefaultAction(self.saveAction)
+        self.saveButton.setAutoRaise(True)
 
-        self.new = QToolButton(self)
-        self.new.setText("new")
-        self.new.setToolTip("Create new graphics device")
-        self.new.setWhatsThis("Create new graphics device")
-        self.new.setIcon(QIcon(":mActionGraphicNew.png"))
-        self.new.setEnabled(True)
-        self.new.setAutoRaise(True)
+        self.newButton = QToolButton(self)
+        self.newAction = QAction("&New device", self)
+        self.newAction.setToolTip("Open new graphics device")
+        self.newAction.setWhatsThis("Open new graphics device")
+        self.newAction.setIcon(QIcon(":mActionGraphicNew.png"))
+        self.newAction.setEnabled(True)
+        self.newButton.setDefaultAction(self.newAction)
+        self.newButton.setAutoRaise(True)
 
-        self.refresh = QToolButton(self)
-        self.refresh.setText("refresh")
-        self.refresh.setToolTip("Refresh list of graphic devices")
-        self.refresh.setWhatsThis("Refresh list of graphic devices")
-        self.refresh.setIcon(QIcon(":mActionGraphicRefresh.png"))
-        self.refresh.setEnabled(True)
-        self.refresh.setAutoRaise(True)
+        self.refreshButton = QToolButton(self)
+        self.refreshAction = QAction("&Refresh list", self)
+        self.refreshAction.setToolTip("Refresh list of graphic devices")
+        self.refreshAction.setWhatsThis("Refresh list of graphic devices")
+        self.refreshAction.setIcon(QIcon(":mActionGraphicRefresh.png"))
+        self.refreshAction.setEnabled(True)
+        self.refreshButton.setDefaultAction(self.refreshAction)
+        self.refreshButton.setAutoRaise(True)
       
         grid = QGridLayout(self)
         horiz = QHBoxLayout()
-        horiz.addWidget(self.refresh)
-        horiz.addWidget(self.rm)
-        horiz.addWidget(self.export)
-        horiz.addWidget(self.save)
-        horiz.addWidget(self.new)
+        horiz.addWidget(self.refreshButton)
+        horiz.addWidget(self.rmButton)
+        horiz.addWidget(self.exportButton)
+        horiz.addWidget(self.saveButton)
+        horiz.addWidget(self.newButton)
         horiz.addStretch()
         grid.addLayout(horiz, 0, 0, 1, 1)
         grid.addWidget(self.graphicsTable, 1, 0, 1, 1)
         
         self.graphics = dict()
-        self.connect(self.rm, SIGNAL("clicked()"), self.removeGraphic)
-        self.connect(self.export, SIGNAL("clicked()"), self.exportGraphic)
-        self.connect(self.save, SIGNAL("clicked()"), self.saveGraphic)
-        self.connect(self.new, SIGNAL("clicked()"), self.newGraphic)
-        self.connect(self.refresh, SIGNAL("clicked()"), self.refreshGraphics)
+        self.connect(self.rmAction, SIGNAL("triggered()"), self.removeGraphic)
+        self.connect(self.exportAction, SIGNAL("triggered()"), self.exportGraphic)
+        self.connect(self.saveAction, SIGNAL("triggered()"), self.saveGraphic)
+        self.connect(self.newAction, SIGNAL("triggered()"), self.newGraphic)
+        self.connect(self.refreshAction, SIGNAL("triggered()"), self.refreshGraphics)
         self.connect(self.graphicsTable, \
         SIGNAL("itemSelectionChanged()"), self.selectionChanged)
+        
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        menu.addAction(self.refreshAction)
+        menu.addSeparator()
+        menu.addAction(self.rmAction)
+        menu.addAction(self.exportAction)
+        menu.addAction(self.saveAction)
+        menu.addAction(self.newAction)
+        menu.exec_(event.globalPos())
 
     def updateGraphics(self, graphics):
         self.graphics = {}
@@ -2464,14 +2511,14 @@ class RGraphicsWidget(QWidget):
         row = self.graphicsTable.currentRow()
         if row < 0 or row >= self.graphicsTable.rowCount() or \
         self.graphicsTable.rowCount() < 1:
-            self.save.setEnabled(False)
-            self.rm.setEnabled(False)
-            self.export.setEnabled(False)
+            self.saveAction.setEnabled(False)
+            self.rmAction.setEnabled(False)
+            self.exportAction.setEnabled(False)
         else:
             itemName, itemType = self.getGraphicInfo(row)
-            self.save.setEnabled(True)
-            self.rm.setEnabled(True)
-            self.export.setEnabled(True)
+            self.saveAction.setEnabled(True)
+            self.rmAction.setEnabled(True)
+            self.exportAction.setEnabled(True)
 
     def removeGraphic(self):
         row = self.graphicsTable.currentRow()
@@ -2534,9 +2581,11 @@ class RGraphicsWidget(QWidget):
         suffix = suffix.mid(index1, index2-index1)
         if not selectedFile.endsWith(suffix):
             selectedFile.append(suffix)
+        suffix = suffix.remove(".")
+        if suffix == "eps": suffix = "postscript"
         command = QString('dev.set(%s)' % (itemID))
         self.sendCommands(command)
-        command = QString('dev.copy(%s, file = "%s")'% (suffix.remove("."), selectedFile))
+        command = QString('dev.copy(%s, file = "%s")'% (suffix, selectedFile))
         self.sendCommands(command)
         command = QString('dev.off()')
         self.sendCommands(command)
@@ -3532,20 +3581,14 @@ class MainWindow(QMainWindow):
                 self.version))
         aboutLabel = QTextBrowser()
         aboutLabel.setOpenExternalLinks(True)
-        aboutLabel.setHtml("""\
+        aboutLabel.setHtml("""
 <h3>Interface to the R statistical programming environment</h3>
-<h4>Copyright &copy; 2009 Carson J. Q. Farmer
+Copyright &copy; 2009 Carson J. Q. Farmer
 <br/>Carson.Farmer@gmail.com
 <br/><a href='http://www.ftools.ca/manageR'>http://www.ftools.ca/manageR</a>
 <br/>manageR adds comprehensive statistical capabilities to Quantum 
 GIS by loosely coupling QGIS with the R statistical programming environment.
 """)
-        thanksLabel = QTextBrowser()
-        thanksLabel.setOpenExternalLinks(True)
-        thanksLabel.setHtml("""<ul>
-<li>Agustin Lobo (Bug fixing)
-<li>Mark Summerfield (Sandbox editor example)
-</ul>""")
         licenseLabel = QTextBrowser()
         licenseLabel.setOpenExternalLinks(True)
         licenseLabel.setHtml((__license__.replace("\n\n", "<p>")
@@ -3553,7 +3596,6 @@ GIS by loosely coupling QGIS with the R statistical programming environment.
 
         tabWidget = QTabWidget()
         tabWidget.addTab(aboutLabel, "&About")
-        tabWidget.addTab(thanksLabel, "&Thanks to")
         tabWidget.addTab(licenseLabel, "&License")
         okButton = QPushButton("OK")
 

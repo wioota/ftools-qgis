@@ -30,6 +30,7 @@
         <file alias="mActionEditUndo.png">icons/mActionEditUndo.png</file>
         <file alias="mActionGraphicSave.png">icons/mActionGraphicSave.png</file>
         <file alias="mActionWindow.png">icons/mActionWindow.png</file>
+        <file alias="mActionPluginsPlugin.png">icons/mActionPluginsPlugin.png</file>
         <file alias="mActionFileSaveAll.png">icons/mActionFileSaveAll.png</file>
         <file alias="mActionActionExport.png">icons/mActionActionExport.png</file>
         <file alias="mActionHelpHelp.png">icons/mActionHelpHelp.png</file>

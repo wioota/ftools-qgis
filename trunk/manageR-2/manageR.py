@@ -294,8 +294,11 @@ and vector formats.
 <i>Command history</i><br>
 The command history stores a list of all previously executed commands (including commands loaded from a 
 .RHistory file). From here it is possible to insert a command into the <b>manageR</b> console by 
-clicking on it once. Additionally, by double clicking a command in the command list, it will automatically 
-be run (replacing the current command) in the <b>manageR</b> console.
+right clicking and selecting 'insert' in the popup menu. Similarly, multiple commands can be selected, 
+copied, or cleared using the popup menu. Individual commands can be selected or unselected simply by 
+clicking on them using the left mouse button. To run all selected commands, right click anywhere within 
+the command history widget, and select run from the popup menu. Each of these actions are also available 
+via the icons at the top of the command history widget.
 </p>
 <p>
 <i>Working directory</i><br>
@@ -303,10 +306,44 @@ The working directory widget is a simple toolbar to help browse to different wor
 relatively simple to change the current R working directory.
 </p>
 <p>
+<i>Startup and new script commands</i><br>
 Additional tools include the ability to specify startup commands to be run whenever <b>manageR</b> 
 is started (see File\N{RIGHTWARDS ARROW}Configure\N{RIGHTWARDS ARROW}At Startup), 
 as well as a tab to specify the text/commands to be included at the top of all new R scripts (see 
 File\N{RIGHTWARDS ARROW}Configure\N{RIGHTWARDS ARROW}On New File).
+</p>
+<p>
+<i>Plugins</i><br>
+<b>manageR</b> supports simple plugins which help to streamline tedious R functions by providing a 
+plugin framework for creating simple graphical user interfaces (GUI) to commonly used R functions. 
+These functions can be specified using an XML ('tools.xml') file stored in the <b>manageR</b> 
+installation folder (%s). The format of the XML file should be as follows:
+<font color=green><i>
+<pre>&lt;?xml version="1.0"?&gt;
+&lt;manageRTools&gt;
+  &lt;RTool name="Insert random R commands" query="|1|"&gt;
+    &lt;Parameter label="R commands:" type="textEdit" default="ls()" notnull="true"/&gt;
+  &lt;/RTool&gt;
+&lt;manageRTools&gt;</i></font>
+</pre>
+where each RTool specifies a unique R function. In the above example, the GUI will consist of a simple 
+dialog with a text editing region to input user-defined R commands, and an OK and CANCEL button. When 
+OK is clicked, the R commands in the text editing region will be run, and when CANCEL is clicked, 
+the dialog will be closed. In the example above, query is set to <tt>|1|</tt>, which means take the 
+output from the first parameter, and place here. In other words, in this case the entire query is 
+equal to whatver is input into the text editing region (default here is <tt>ls()</tt>). Other GUI 
+parameters that may be entered include:
+<ul>
+<li>comboBox: Drop-down list box</li>
+<li>doubleSpinBox: Widget for entering numerical values</li>
+<li>textEdit: Text editing region</li>
+<li>spComboBox: comboBox containing only the specified Spatial*DataFrame types</li>
+</ul>
+Default values for all of the above GUI parameters can be specified in the XML file, using semi-colons 
+to separate mutliple options. For the spComboBox, the default string should specify the type(s) of 
+Spatial*DataFrame to display (e.g. SpatialPointsDataFrame;SpatialLinesDataFrame).
+<b>manageR</b> comes with several default R GUI functions which can be used as examples for creating
+custom R GUI functions.
 </p>
 <h4>Key bindings:</h4>
 <ul>
@@ -363,7 +400,7 @@ changes if necessary
 Hold down <tt>Shift</tt> when pressing movement keys to select the text moved over.
 <br>
 Press <tt>Esc</tt> to close this window.
-""" % (version, Config["delay"], 
+""" % (version, Config["delay"], str(os.path.dirname( __file__ )),
       Config["tabwidth"], Config["tabwidth"]))
         layout = QVBoxLayout()
         layout.setMargin(0)
@@ -1277,7 +1314,7 @@ class RConsole(QTextEdit):
             pasteList = source.text().split("\n")
             if len(pasteList) > 1:
                 self.runningCommand.append(source.text())
-            self.updateHistory(pasteList)
+                self.updateHistory(pasteList)
         newSource = QMimeData()
         newSource.setText(source.text().replace("\n",
         "\n"+self.alternatePrompt))
@@ -1346,7 +1383,7 @@ class RConsole(QTextEdit):
             try:
                 if (text.startsWith('quit(') or text.startsWith('q(')) \
                 and text.count(")") == 1:
-                    self.commandError("System exit from manageR not allowed, close dialog manually")
+                    self.commandError("Error: System exit from manageR not allowed, close dialog manually")
                 else:
                     output_text = QString()
                     def write(output):
@@ -1893,10 +1930,13 @@ class RCommandList(QListWidget):
         QListWidget.__init__(self, parent)
  
     def mousePressEvent(self, event):
-        item = self.itemAt(event.pos())
+        item = self.itemAt(event.globalPos())
         if not item and event.button() == Qt.LeftButton:
             self.clearSelection()
         QListWidget.mousePressEvent(self, event)
+        
+    def selectionChanged(self, sela, selb):
+        self.emit(SIGNAL("selectionChanged()"))
             
 class RHistoryWidget(QWidget):
 
@@ -1915,53 +1955,105 @@ class RHistoryWidget(QWidget):
         self.commandList.setFont(font)
         self.commandList.setToolTip("Double-click to run single command")
         self.commandList.setWhatsThis("Double-click to run single command")
-        grid = QGridLayout(self)
-        grid.addWidget(self.commandList)
         self.updateCommands(MainWindow.Console.editor.history)
         
-        self.copyAct = QAction("&Copy", self)
-        self.copyAct.setStatusTip("Copy the selected command(s) to the clipboard")
-        self.selectAct = QAction("Select &all", self)
-        self.selectAct.setStatusTip("Select all previous commands")
-        self.insertAct = QAction("&Insert", self)
-        self.insertAct.setStatusTip("Insert the selected command(s) into the console")
-        self.runAct = QAction("&Run", self)
-        self.runAct.setStatusTip("Run the selected command(s) in the console")
-        self.clearAct = QAction("C&lear selection", self)
-        self.clearAct.setStatusTip("Clear selection(s)")
+        self.copyButton = QToolButton(self)
+        self.copyAction = QAction("&Copy command(s)", self)
+        self.copyAction.setStatusTip("Copy the selected command(s) to the clipboard")
+        self.copyAction.setToolTip("Copy the selected command(s) to the clipboard")
+        self.copyAction.setIcon(QIcon(":mActionEditCopy.png"))
+        self.copyAction.setEnabled(False)
+        self.copyButton.setDefaultAction(self.copyAction)
+        self.copyButton.setAutoRaise(True)
         
-        self.connect(self.copyAct, SIGNAL("triggered()"), self.copy)
-        self.connect(self.insertAct, SIGNAL("triggered()"), self.insert)
-        self.connect(self.runAct, SIGNAL("triggered()"), self.run)
-        self.connect(self.clearAct, SIGNAL("triggered()"), self.clear)
-        self.connect(self.selectAct, SIGNAL("triggered()"), self.selectAll)
+        self.selectButton = QToolButton(self)
+        self.selectAction = QAction("Select &all", self)
+        self.selectAction.setStatusTip("Select all commands")
+        self.selectAction.setToolTip("Select all commands")
+        self.selectAction.setIcon(QIcon(":mActionEditSelectAll.png"))
+        self.selectButton.setDefaultAction(self.selectAction)
+        self.selectButton.setAutoRaise(True)
+        
+        self.insertButton = QToolButton(self)
+        self.insertAction = QAction("&Paste to console", self)
+        self.insertAction.setStatusTip("Paste the selected command(s) into the console")
+        self.insertAction.setToolTip("Paste the selected command(s) into the console")
+        self.insertAction.setIcon(QIcon(":mActionEditPaste.png"))
+        self.insertAction.setEnabled(False)
+        self.insertButton.setDefaultAction(self.insertAction)
+        self.insertButton.setAutoRaise(True)
+        
+        self.runButton = QToolButton(self)
+        self.runAction = QAction("&Run command(s)", self)
+        self.runAction.setStatusTip("Run the selected command(s) in the console")
+        self.runAction.setToolTip("Run the selected command(s) in the console")
+        self.runAction.setIcon(QIcon(":mActionRun.png"))
+        self.runAction.setEnabled(False)
+        self.runButton.setDefaultAction(self.runAction)
+        self.runButton.setAutoRaise(True)
+        
+        self.clearButton = QToolButton(self)
+        self.clearAction = QAction("C&lear selection", self)
+        self.clearAction.setStatusTip("Clear selection(s)")
+        self.clearAction.setToolTip("Clear selection(s)")
+        self.clearAction.setIcon(QIcon(":mActionFileClose.png"))
+        self.clearAction.setEnabled(False)
+        self.clearButton.setDefaultAction(self.clearAction)
+        self.clearButton.setAutoRaise(True)
+        
+        grid = QGridLayout(self)
+        horiz = QHBoxLayout()
+        horiz.addWidget(self.copyButton)
+        horiz.addWidget(self.selectButton)
+        horiz.addWidget(self.insertButton)
+        horiz.addWidget(self.runButton)
+        horiz.addWidget(self.clearButton)
+        horiz.addStretch()
+        grid.addLayout(horiz, 0, 0, 1, 1)
+        grid.addWidget(self.commandList, 1, 0, 1, 1)
+        
+        self.connect(self.copyAction, SIGNAL("triggered()"), self.copy)
+        self.connect(self.insertAction, SIGNAL("triggered()"), self.insert)
+        self.connect(self.runAction, SIGNAL("triggered()"), self.run)
+        self.connect(self.clearAction, SIGNAL("triggered()"), self.clear)
+        self.connect(self.selectAction, SIGNAL("triggered()"), self.selectAll)
         self.connect(self.commandList, SIGNAL("itemDoubleClicked(QListWidgetItem*)"),
         self.doubleClicked)
+        self.connect(self.commandList, SIGNAL("selectionChanged()"), self.selectionChanged)
        
     def contextMenuEvent(self, event):
-        item = self.commandList.itemAt(event.pos())
-        if item:
-            start = item.isSelected()
-            if not start:
-                item.setSelected(True)
         menu = QMenu(self)
-        if len(self.commandList.selectedItems()) >= 1:
-            menu.addAction(self.runAct)
-            if len(self.commandList.selectedItems()) == 1:
-                menu.addAction(self.insertAct)
-            menu.addSeparator()
-            menu.addAction(self.copyAct)
-            menu.addAction(self.clearAct)
+        menu.addAction(self.runAction)
         menu.addSeparator()
-        menu.addAction(self.selectAct)
+        menu.addAction(self.insertAction)
+        menu.addAction(self.copyAction)
+        menu.addAction(self.clearAction)
+        menu.addAction(self.selectAction)
         menu.exec_(event.globalPos())
-        if item and not start:
-            item.setSelected(False)
-        
+
+    def selectionChanged(self):
+        if len(self.commandList.selectedItems()) >= 1:
+            self.runAction.setEnabled(True)
+            self.copyAction.setEnabled(True)
+            self.clearAction.setEnabled(True)
+            if len(self.commandList.selectedItems()) == 1:
+                self.insertAction.setEnabled(True)
+        else:
+            self.insertAction.setEnabled(False)
+            self.runAction.setEnabled(False)
+            self.copyAction.setEnabled(False)
+            self.clearAction.setEnabled(False)
+
     def copy(self):
         commands = QString()
-        for item in self.commandList.selectedItems():
-            commands.append(item.text()+"\n")
+        selected = self.commandList.selectedItems()
+        count = 1
+        for item in selected:
+            if count == len(selected):
+                commands.append(item.text())
+            else:
+                commands.append(item.text()+"\n")
+            count += 1
         clipboard = QApplication.clipboard()
         clipboard.setText(commands, QClipboard.Clipboard)
 
@@ -1973,8 +2065,14 @@ class RHistoryWidget(QWidget):
         
     def run(self):
         commands = QString()
-        for item in self.commandList.selectedItems():
-            commands.append(item.text()+"\n")
+        selected = self.commandList.selectedItems()
+        count = 1
+        for item in selected:
+            if count == len(selected):
+                commands.append(item.text())
+            else:
+                commands.append(item.text()+"\n")
+            count += 1
         self.runCommands(commands)
         
     def selectAll(self):
@@ -1990,12 +2088,6 @@ class RHistoryWidget(QWidget):
             self.commandList.addItems(commands)
         
     def insertCommand(self, item):
-        #self.console.moveToEnd()
-        #self.console.cursor.movePosition(
-        #QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
-        #self.console.cursor.removeSelectedText()
-        #self.console.cursor.insertText(
-        #MainWindow.Console.editor.currentPrompt)
         MainWindow.Console.editor.cursor.insertText(item.text())
         
     def runCommands(self, commands):
@@ -2033,27 +2125,30 @@ class RVariableWidget(QWidget):
         self.variableTable.setSelectionMode(QAbstractItemView.SingleSelection)
 
         self.rm = QToolButton(self)
-        self.rm.setText("rm")
-        self.rm.setToolTip("Remove selected variable")
-        self.rm.setWhatsThis("Removed selected variable")
-        self.rm.setIcon(QIcon(":mActionFileRemove.png"))
-        self.rm.setEnabled(False)
+        self.rmAction = QAction("&Remove", self)
+        self.rmAction.setToolTip("Remove selected variable")
+        self.rmAction.setWhatsThis("Removed selected variable")
+        self.rmAction.setIcon(QIcon(":mActionFileRemove.png"))
+        self.rm.setDefaultAction(self.rmAction)
+        self.rmAction.setEnabled(False)
         self.rm.setAutoRaise(True)
         
         self.export = QToolButton(self)
-        self.export.setText("export")
-        self.export.setToolTip("Export data to file")
-        self.export.setWhatsThis("Export data to file")
-        self.export.setIcon(QIcon(":mActionActionFile.png"))
-        self.export.setEnabled(False)
+        self.exportAction = QAction("Export to &file", self)
+        self.exportAction.setToolTip("Export data to file")
+        self.exportAction.setWhatsThis("Export data to file")
+        self.exportAction.setIcon(QIcon(":mActionActionFile.png"))
+        self.export.setDefaultAction(self.exportAction)
+        self.exportAction.setEnabled(False)
         self.export.setAutoRaise(True)
         
         self.canvas = QToolButton(self)
-        self.canvas.setText("canvas")
-        self.canvas.setToolTip("Export layer to canvas")
-        self.canvas.setWhatsThis("Export layer to canvas")
-        self.canvas.setIcon(QIcon(":mActionActionExport.png"))
-        self.canvas.setEnabled(False)
+        self.canvasAction = QAction("Export to &canvas", self)
+        self.canvasAction.setToolTip("Export layer to canvas")
+        self.canvasAction.setWhatsThis("Export layer to canvas")
+        self.canvasAction.setIcon(QIcon(":mActionActionExport.png"))
+        self.canvas.setDefaultAction(self.canvasAction)
+        self.canvasAction.setEnabled(False)
         self.canvas.setAutoRaise(True)
 
         #self.layer = QToolButton(self)
@@ -2065,19 +2160,21 @@ class RVariableWidget(QWidget):
         #self.layer.setAutoRaise(True)
         
         self.save = QToolButton(self)
-        self.save.setText("save")
-        self.save.setToolTip("Save R variable to file")
-        self.save.setWhatsThis("Save R variable to file")
-        self.save.setIcon(QIcon(":mActionFileSave.png"))
-        self.save.setEnabled(False)
+        self.saveAction = QAction("&Save variable", self)
+        self.saveAction.setToolTip("Save R variable to file")
+        self.saveAction.setWhatsThis("Save R variable to file")
+        self.saveAction.setIcon(QIcon(":mActionFileSave.png"))
+        self.save.setDefaultAction(self.saveAction)
+        self.saveAction.setEnabled(False)
         self.save.setAutoRaise(True)
         
         self.load = QToolButton(self)
-        self.load.setText("load")
-        self.load.setToolTip("Load R variable(s) from file")
-        self.load.setWhatsThis("Load R variable(s) from file")
-        self.load.setIcon(QIcon(":mActionFileOpen.png"))
-        self.load.setEnabled(True)
+        self.loadAction = QAction("&Load variable", self)
+        self.loadAction.setToolTip("Load R variable(s) from file")
+        self.loadAction.setWhatsThis("Load R variable(s) from file")
+        self.loadAction.setIcon(QIcon(":mActionFileOpen.png"))
+        self.load.setDefaultAction(self.loadAction)
+        self.loadAction.setEnabled(True)
         self.load.setAutoRaise(True)
         
         grid = QGridLayout(self)
@@ -2093,14 +2190,24 @@ class RVariableWidget(QWidget):
         grid.addWidget(self.variableTable, 1, 0, 1, 1)
         
         self.variables = dict()
-        self.connect(self.rm, SIGNAL("clicked()"), self.removeVariable)
-        self.connect(self.export, SIGNAL("clicked()"), self.exportVariable)
-        self.connect(self.save, SIGNAL("clicked()"), self.saveVariable)
-        self.connect(self.canvas, SIGNAL("clicked()"), self.exportToCanvas)
-        self.connect(self.load, SIGNAL("clicked()"), self.loadRVariable)
+        self.connect(self.rmAction, SIGNAL("triggered()"), self.removeVariable)
+        self.connect(self.exportAction, SIGNAL("triggered()"), self.exportVariable)
+        self.connect(self.saveAction, SIGNAL("triggered()"), self.saveVariable)
+        self.connect(self.canvasAction, SIGNAL("triggered()"), self.exportToCanvas)
+        self.connect(self.loadAction, SIGNAL("triggered()"), self.loadRVariable)
         #self.connect(self.layer, SIGNAL("clicked()"), self.importFromCanvas)
         self.connect(self.variableTable, \
         SIGNAL("itemSelectionChanged()"), self.selectionChanged)
+        
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        menu.addAction(self.rmAction)
+        menu.addSeparator()
+        menu.addAction(self.exportAction)
+        menu.addAction(self.canvasAction)
+        menu.addAction(self.saveAction)
+        menu.addAction(self.loadAction)
+        menu.exec_(event.globalPos())
 
     def updateVariables(self, variables):
         self.variables = {}
@@ -2128,19 +2235,21 @@ class RVariableWidget(QWidget):
         row = self.variableTable.currentRow()
         if row < 0 or row >= self.variableTable.rowCount() or \
         self.variableTable.rowCount() < 1:
-            self.save.setEnabled(False)
-            self.rm.setEnabled(False)
-            self.canvas.setEnabled(False)
-            self.export.setEnabled(False)
+            self.saveAction.setEnabled(False)
+            self.rmAction.setEnabled(False)
+            self.canvasAction.setEnabled(False)
+            self.exportAction.setEnabled(False)
         else:
             itemName, itemType = self.getVariableInfo(row)
-            self.save.setEnabled(True)
-            self.rm.setEnabled(True)
-            self.export.setEnabled(True)
+            self.saveAction.setEnabled(True)
+            self.rmAction.setEnabled(True)
+            self.exportAction.setEnabled(True)
             if itemType in VECTORTYPES:
-                self.canvas.setEnabled(True)
+                #self.canvas.setEnabled(True)
+                self.canvasAction.setEnabled(True)
             else:
-                self.canvas.setEnabled(False)
+                #self.canvas.setEnabled(False)
+                self.canvasAction.setEnabled(False)
 
     def removeVariable(self):
         row = self.variableTable.currentRow()

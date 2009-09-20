@@ -105,7 +105,10 @@ class PluginManager:
             elif type(item)==type(QComboBox()):
                 text=str(item.currentText())
             else:
-                text="Error loading widget."
+                try:
+                    text=str(item.currentText())
+                except:
+                    text="Error loading widget."
             command = command.replace("|"+str(i+1)+"|",text)
         self.runCommand(command)
 
@@ -127,11 +130,12 @@ class PluginManager:
         parm=tool.firstChild
         while parm:
             if isinstance(parm, minidom.Element):
-                lines.append(
-                [parm.attributes.getNamedItem("label").value,
+                line = [
+                parm.attributes.getNamedItem("label").value,
                 parm.attributes.getNamedItem("type").value,
                 parm.attributes.getNamedItem("default").value,
-                parm.attributes.getNamedItem("notnull").value])
+                parm.attributes.getNamedItem("notnull").value]
+                lines.append(line)
             parm=parm.nextSibling
         xmlfile.close()
         return name, query, lines
@@ -141,10 +145,13 @@ class PluginManager:
         #reads the xml file
         name, self.command, parameters = self.getTool(actionid)
         # create and show the dialog 
-        self.dlg = PluginsDialog(parameters) 
+        self.dlg = PluginsDialog(parameters)
         self.dlg.setWindowTitle(name)
+        if self.dlg.ui.isSpatial():
+            self.dlg.ui.updateSpatialObjects()
         #connect the slots
         QObject.connect(self.dlg.ui.buttonBox, SIGNAL("accepted()"), self.start)
+        #self.helpString = QString(parameters[actionid][-1])
         # show the dialog
         self.dlg.show()
         result = self.dlg.exec_() 

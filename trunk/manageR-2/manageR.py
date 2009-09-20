@@ -83,7 +83,8 @@ License</a> for more details."""
 
 KEYWORDS = ["break", "else", "for", "if", "in", "next", "repeat", 
             "return", "switch", "try", "while", "print", "return",
-            "not", "library", "attach", "detach", "ls", "as"]
+            "not", "library", "attach", "detach", "ls", "as", "summary",
+            "plot", "hist", "lines", "points"]
 
 BUILTINS = ["array", "character", "complex", "data.frame", "double", 
             "factor", "function", "integer", "list", "logical", 
@@ -890,7 +891,6 @@ class REditor(QTextEdit):
             self.setTextCursor(cursor)
             self.ensureCursorVisible()
 
-
     def highlight(self):
         extraSelections = []
         self.setExtraSelections(extraSelections)
@@ -1336,6 +1336,124 @@ class RConsole(QTextEdit):
         self.setTextCursor(cursor)
         self.emit(SIGNAL("textChanged()"))
 
+    def positionChanged(self):
+        self.highlight()
+
+    def highlight(self):
+        extraSelections = []
+        self.setExtraSelections(extraSelections)
+        format = QTextCharFormat()
+        format.setBackground(QColor(Config["backgroundcolor"]).darker(110))
+        format.setProperty(QTextFormat.FullWidthSelection, QVariant(True))
+        selection = QTextEdit.ExtraSelection()
+        selection.format = format
+        cursor = self.textCursor()
+        selection.cursor = cursor
+        selection.cursor.clearSelection()
+        extraSelections.append(selection)
+        self.setExtraSelections(extraSelections)
+        
+        format = QTextCharFormat()
+        format.setForeground(QColor(Config["delimiterfontcolor"]))
+        format.setBackground(QColor(Qt.yellow).lighter(160)) #QColor(Config["bracketcolor"])?
+        selection = QTextEdit.ExtraSelection()
+        selection.format = format
+
+        doc = self.document()
+        cursor = self.textCursor()
+        beforeCursor = QTextCursor(cursor)
+
+        cursor.movePosition(QTextCursor.NextCharacter, QTextCursor.KeepAnchor)
+        brace = cursor.selectedText()
+
+        beforeCursor.movePosition(QTextCursor.PreviousCharacter, QTextCursor.KeepAnchor)
+        beforeBrace = beforeCursor.selectedText()
+
+        if ((brace != "{") and \
+            (brace != "}") and \
+            (brace != "[") and \
+            (brace != "]") and \
+            (brace != "(") and \
+            (brace != ")")):
+            if ((beforeBrace == "{") or \
+                (beforeBrace == "}") or \
+                (beforeBrace == "[") or \
+                (beforeBrace == "]") or \
+                (beforeBrace == "(") or \
+                (beforeBrace == ")")):
+                cursor = beforeCursor
+                brace = cursor.selectedText();
+            else:
+                return
+
+        #format = QTextCharFormat()
+        #format.setForeground(Qt.red)
+        #format.setFontWeight(QFont.Bold)
+
+        if ((brace == "{") or (brace == "}")):
+            openBrace = "{"
+            closeBrace = "}"
+        elif ((brace == "[") or (brace == "]")):
+            openBrace = "["
+            closeBrace = "]"
+        elif ((brace == "(") or (brace == ")")):
+            openBrace = "("
+            closeBrace = ")"
+            
+        if (brace == openBrace):
+            cursor1 = doc.find(closeBrace, cursor)
+            cursor2 = doc.find(openBrace, cursor)
+            if (cursor2.isNull()):
+                selection.cursor = cursor
+                selection.cursor.clearSelection()
+                extraSelections.append(selection)
+                self.setExtraSelections(extraSelections)
+                selection.cursor = cursor1
+                selection.cursor.clearSelection()
+                extraSelections.append(selection)
+                self.setExtraSelections(extraSelections)
+            else:
+                while (cursor1.position() > cursor2.position()):
+                    cursor1 = doc.find(closeBrace, cursor1)
+                    cursor2 = doc.find(openBrace, cursor2)
+                    if (cursor2.isNull()):
+                        break
+                selection.cursor = cursor
+                selection.cursor.clearSelection()
+                extraSelections.append(selection)
+                self.setExtraSelections(extraSelections)
+                selection.cursor = cursor1
+                selection.cursor.clearSelection()
+                extraSelections.append(selection)
+                self.setExtraSelections(extraSelections)
+        else:
+            if (brace == closeBrace):
+                cursor1 = doc.find(openBrace, cursor, QTextDocument.FindBackward)
+                cursor2 = doc.find(closeBrace, cursor, QTextDocument.FindBackward)
+                if (cursor2.isNull()):
+                    selection.cursor = cursor
+                    selection.cursor.clearSelection()
+                    extraSelections.append(selection)
+                    self.setExtraSelections(extraSelections)
+                    selection.cursor = cursor1
+                    selection.cursor.clearSelection()
+                    extraSelections.append(selection)
+                    self.setExtraSelections(extraSelections)
+                else:
+                    while (cursor1.position() < cursor2.position()):
+                        cursor1 = doc.find(openBrace, cursor1, QTextDocument.FindBackward)
+                        cursor2 = doc.find(closeBrace, cursor2, QTextDocument.FindBackward)
+                        if (cursor2.isNull()):
+                            break
+                    selection.cursor = cursor
+                    selection.cursor.clearSelection()
+                    extraSelections.append(selection)
+                    self.setExtraSelections(extraSelections)
+                    selection.cursor = cursor1
+                    selection.cursor.clearSelection()
+                    extraSelections.append(selection)
+                    self.setExtraSelections(extraSelections)
+
     def insertFromMimeData(self, source):
         self.cursor = self.textCursor()
         self.cursor.movePosition(QTextCursor.End, 
@@ -1411,6 +1529,7 @@ class RConsole(QTextEdit):
 
     def execute(self, text):
         MainWindow.Console.statusBar().showMessage("Running...")
+        QApplication.processEvents()
         if not text.trimmed() == "":
             try:
                 if (text.startsWith('quit(') or text.startsWith('q(')) \
@@ -1424,9 +1543,10 @@ class RConsole(QTextEdit):
                         if output_text.length() >= 50000 and output_text[-1] == "\n":
                             self.commandOutput(output_text)
                             output_text.clear()
+                        QApplication.processEvents()
                     robjects.rinterface.setWriteConsole(write)
-                    def read(prompt):
-                        input = "\n"
+                    def read(prompt): # TODO: This is a terrible workaround
+                        input = "\n"  # and needs to be futher investigated...
                         return input
                     robjects.rinterface.setReadConsole(read)
                     try:
@@ -1982,7 +2102,7 @@ class RHistoryWidget(QWidget):
         self.commandList.setAlternatingRowColors(True)
         self.commandList.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.commandList.setSortingEnabled(False)
-        self.commandList.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.commandList.setSelectionMode(QAbstractItemView.ExtendedSelection)
         font = QFont(Config["fontfamily"], Config["fontsize"])
         self.commandList.setFont(font)
         self.commandList.setToolTip("Double-click to run single command")
@@ -2025,9 +2145,9 @@ class RHistoryWidget(QWidget):
         self.runButton.setAutoRaise(True)
         
         self.clearButton = QToolButton(self)
-        self.clearAction = QAction("C&lear selection", self)
-        self.clearAction.setStatusTip("Clear selection(s)")
-        self.clearAction.setToolTip("Clear selection(s)")
+        self.clearAction = QAction("C&lear command list", self)
+        self.clearAction.setStatusTip("Clear command list")
+        self.clearAction.setToolTip("Clear command list")
         self.clearAction.setIcon(QIcon(":mActionFileClose.png"))
         self.clearAction.setEnabled(False)
         self.clearButton.setDefaultAction(self.clearAction)
@@ -2111,7 +2231,7 @@ class RHistoryWidget(QWidget):
         self.commandList.selectAll()    
         
     def clear(self):
-        self.commandList.clearSelection()
+        self.commandList.clear()
         
     def updateCommands(self, commands):
         if commands:

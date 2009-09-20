@@ -35,45 +35,36 @@ polygoncentroids &lt;- function(layer){&#xA;
 <Parameter label="Polygon layer:" type="spComboBox" default="SpatialPolygonsDataFrame" notnull="true"/>
 </RTool>
 <RTool name="Spatial weights" query="
-computeweights &lt;- function(layer, decay, style, type, value) {&#xA;
-    require(rgdal)&#xA;
-    require(Matrix)&#xA;
+computeweights &lt;- function(layer, decay, style, type, value){&#xA;
+    #require(rgdal)&#xA;
+    #require(Matrix)&#xA;
     require(spdep)&#xA;
     if (type == 'CONTIG') {&#xA;
-        dist.temp = poly2nb(pl=layer, snap=0.0005, queen=useTrue) #Better parameter for snap?&#xA;
-        if (value >= 2) {&#xA;
-            nblags = nblag(neighbours=dist.temp, maxlag=value)&#xA;
-            weights = nblag_cumul(nblags=nblags)&#xA;
-            # use the following line to write to file&#xA;
-            # write.nb.gal(nb=dist, file=outpath, oldstyle=F, &#xA;
-            # shpfile=filepath, ind=fieldname)&#xA;
-          # } else {&#xA;
-            #      write.nb.gal(nb=dist.temp, file=outpath, &#xA;
-            # oldstyle=F, shpfile=filepath, ind=fieldname)&#xA;
-        }&#xA;
+        weights = poly2nb(pl=layer, snap=0.0005, queen=T) #Better parameter for snap?&#xA;
+        if (value >= 2)&#xA;
+            weights &lt;- nblag_cumul(nblags=nblag(neighbours=weights, maxlag=value))&#xA;
     } else {&#xA;
-        ids = layer[fieldname]&#xA;
-        proj = proj4string(layer)&#xA;
-        coords = coordinates(obj=layer)&#xA;
-        output = SpatialPoints(coords=coords, proj4string=CRS(proj))&#xA;
-        if (type == 'DIST') {&#xA;
-            dist = dnearneigh(x=output, d1=0, d2=value, row.names=ids)&#xA;
-        } else { # 'KNEAR'&#xA;
-            knear = knearneigh(x=output, k=value)&#xA;
-            dist = knn2nb(knn=knear, row.names=ids, sym=F)&#xA;
-        }&#xA;
-        dlist = nbdists(nb=dist, coords=output)&#xA;
-        idlist = lapply(X=dlist, FUN=function(x) 1/(x**decay))&#xA;
-        weights = nb2listw(neighbours=dist, glist=idlist, style=style, zero_policy=T)&#xA;
-        # sn = listw2sn(weights)&#xA;
-        # write.sn2gwt(sn=sn, file=outpath, shpfile=filepath, ind=fieldname)&#xA;
+        ids &lt;- seq(dim(layer)[1])-1&#xA;
+        proj &lt;- proj4string(layer)&#xA;
+        coords &lt;- coordinates(obj=layer)&#xA;
+        output &lt;- SpatialPoints(coords=coords, proj4string=CRS(proj))&#xA;
+        if (type == 'DIST')&#xA;
+            dist &lt;- dnearneigh(x=output, d1=0, d2=value, row.names=ids)&#xA;
+        else # 'KNEAR'&#xA;
+            dist &lt;- knn2nb(knn=knearneigh(x=output, k=value), row.names=ids, sym=F)&#xA;
+        dlist &lt;- nbdists(nb=dist, coords=output)&#xA;
+        idlist &lt;- lapply(X=dlist, FUN=function(x) 1/(x**decay))&#xA;
+        weights &lt;- nb2listw(neighbours=dist, glist=idlist, style=style, zero.policy=T)&#xA;
     }&#xA;
 }&#xA;
-#weights = computeweights(|1|, |2|, |3|, |4|, |5|)">
-<Parameter label="Layer:" type="spComboBox" default="SpatialPolygonsDataFrame;SpatialPointsDataFrame;SpatialLinesDataFrame" notnull="true"/>
+|1|.weights &lt;- computeweights(|1|, |2|, |3|, |4|, |5|)">
+<Parameter label="Layer:" type="spComboBox" default="
+SpatialPolygonsDataFrame;SpatialPointsDataFrame;SpatialLinesDataFrame" notnull="true"/>
 <Parameter label="Decay:" type="doubleSpinBox" default="2.00" notnull="true"/>
 <Parameter label="Style:" type="comboBox" default="'W';'B';'C';'U';'S'" notnull="true"/>
 <Parameter label="Type:" type="comboBox" default="'CONTIG';'DIST';'KNEAR'" notnull="true"/>
-<Parameter label="Value:" type="doubleSpinBox" default="50.00" notnull="true"/>
+<Parameter label="Value:" type="doubleSpinBox" default="5.00" notnull="true"/>
+<Parameter label="help" type="helpString" default="
+This is a help string for an R plugin" notnull="true"/>
 </RTool>
 </manageRTools>

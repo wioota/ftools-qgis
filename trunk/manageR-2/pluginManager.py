@@ -52,10 +52,9 @@ class PluginManager:
     def makeCaller(self, n):
         return lambda: self.run(n)
     
-    def createActions(self):  
+    def createActions(self, pluginsMenu):  
         self.actionlist=[] #list of actions
         self.callerlist=[] #list of funcions to call run() with id parameter
-        pluginsMenu = self.parent.menuBar().addMenu("&Plugins")
         
         #starting xml file reading
         if not self.tools is None:

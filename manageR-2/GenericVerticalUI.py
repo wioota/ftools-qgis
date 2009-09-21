@@ -173,7 +173,7 @@ class HelpForm(QtGui.QDialog):
         layout.setMargin(0)
         layout.addWidget(browser)
         self.setLayout(layout)
-        self.resize(500, 500)
+        self.resize(400, 200)
         QtGui.QShortcut(QtGui.QKeySequence("Escape"), self, self.close)
         self.setWindowTitle("R plugin - Help")
 

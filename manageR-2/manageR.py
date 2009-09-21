@@ -33,7 +33,7 @@ manageR makes extensive use of rpy2 (Laurent Gautier) to communicate with R.
 '''
 
 import base64
-import os, re, sys
+import os, re, sys, platform
 
 from qgis.core import *
 
@@ -268,16 +268,16 @@ layer list into the <b>manageR</b> environment. To import only the attribute
 table of the selected layer, use <tt>Ctrl+T</tt>. Exporting R layers 
 from the <b>manageR</b> environment is done via <tt>Ctrl-M</tt> and <tt>Ctrl-D</tt>, 
 where M signifies exporting to the map canvas, and D signifies exporting to disk. Each 
-of these commands are also avaiable via the <b>Actions</b> toolbar in the <b>manageR</b> 
+of these commands are also available via the <b>Actions</b> toolbar in the <b>manageR</b> 
 console.
 </p>
 <p>
-The <b>manageR</b> console is also equipped with several additional widgets to help manage the R 
-environment. These widgets include a <b>Variables</b> table, a <b>Graphic devices</b> table, and 
-a <b>Command history</b>.
+The <b>manageR</b> console is also equipped with several additional tools to help manage the R 
+environment. These tools include a <b>Workspace</b> manager, a <b>Graphic Devices</b> manager, 
+a <b>Command History</b> manager, and a <b>Working Directory</b> manager.
 </p>
 <p>
-Use <tt>Ctrl+R</tt> to send commands from the an <b>EditR</b> window to the <b>manageR</b> 
+Use <tt>Ctrl+R</tt> to send commands from an <b>EditR</b> window to the <b>manageR</b> 
 console. If an <b>EditR</b> window contains selected text, only this text will be sent 
 to the <b>manageR</b> console, otherwise, all text is sent. The <b>EditR</b> window 
 also contains tools for creating, loading, editing, and saving R scripts. The suite of  
@@ -292,13 +292,13 @@ In addition, a tooltip will appear if one is available for the selected command.
 Autocompletion and tooltips are available for R functions and commands within 
 libraries that are automatically loaded by R, or <b>manageR</b>, 
 as well as any additional libraries loaded after the <b>manageR</b> session has started.
-(This makes loading libraries with many builtin functions or additional libraries slightly 
+(This makes loading libraries with many built-in functions or additional libraries slightly 
 longer than in a normal R session). It is possible to turn off autocompletion (and tooltips) 
 by unchecking File\N{RIGHTWARDS ARROW}Configure\N{RIGHTWARDS ARROW}
 General tab\N{RIGHTWARDS ARROW}Enable autocompletion.
 </p>
 <p>
-<i>Find and replace</i><br>
+<i>Find and Replace</i><br>
 A Find and Replace toolbar is available for both the <b>manageR</b> console and <b>EditR</b> 
 window (the replace functionality is only available in <b>EditR</b>). When activated (see 
 <b>Key Bindings</b> section below), if any text is selected in the parent dialog, this text 
@@ -306,24 +306,24 @@ will be placed in the 'Find toolbar' for searching. To search for
 the next occurrence of the text or phrase in the toolbar, type <tt>Enter</tt> 
 or click the 'Next' button. Conversely, click the 'Previous' button to search backwards. To 
 replace text as it is found, simply type the replacement text in the 'Replace' line edit and  
-click 'Replace'. To replace all occurances of the found text, click 'Replace all'. All 
+click 'Replace'. To replace all occurrences of the found text, click 'Replace all'. All 
 searches can be refined by using the 'Case sensitive' and 'Whole words' check boxes.
 </p>
 <p>
-<i>Variables</i></i><br>
+<i>Workspace Manager</i></i><br>
 The variables table stores the name and type of all currently loaded variables in your global 
 R environment (globalEnv). From here, it is possible to remove, save, and load R variables, as 
-well as export R variables to file, or the <b>QGIS</b> map canvas (when a Spatial*DataFrames is selected).
+well as export R variables to file, or the <b>QGIS</b> map canvas (when a Spatial*Data Frames is selected).
 </p>
 <p>
-<i>Graphic devices</i><br>
+<i>Graphic Device Manager</i><br>
 The graphic devices table stores the ID and device type of all current R graphic devices. From here, 
 it is possible to refresh the list of graphic devices, create a new empty graphic window, and remove 
 existing devices. In addition, it is possible to export the selected graphic device to file in both raster 
 and vector formats.
 </p>
 <p>
-<i>Command history</i><br>
+<i>Command History Manager</i><br>
 The command history stores a list of all previously executed commands (including commands loaded from a 
 .RHistory file). From here it is possible to insert a command into the <b>manageR</b> console by 
 right clicking and selecting 'insert' in the popup menu. Similarly, multiple commands can be selected, 
@@ -333,12 +333,12 @@ the command history widget, and select run from the popup menu. Each of these ac
 via the icons at the top of the command history widget.
 </p>
 <p>
-<i>Working directory</i><br>
+<i>Working Directory Manager</i><br>
 The working directory widget is a simple toolbar to help browse to different working directories, making it 
 relatively simple to change the current R working directory.
 </p>
 <p>
-<i>Startup and new script commands</i><br>
+<i>Startup and New Script Commands</i><br>
 Additional tools include the ability to specify startup commands to be run whenever <b>manageR</b> 
 is started (see File\N{RIGHTWARDS ARROW}Configure\N{RIGHTWARDS ARROW}At Startup), 
 as well as a tab to specify the text/commands to be included at the top of all new R scripts (see 
@@ -363,16 +363,17 @@ dialog with a text editing region to input user-defined R commands, and an OK an
 OK is clicked, the R commands in the text editing region will be run, and when CANCEL is clicked, 
 the dialog will be closed. In the example above, query is set to <tt>|1|</tt>, which means take the 
 output from the first parameter, and place here. In other words, in this case the entire query is 
-equal to whatver is input into the text editing region (default here is <tt>ls()</tt>). Other GUI 
+equal to whatever is input into the text editing region (default here is <tt>ls()</tt>). Other GUI 
 parameters that may be entered include:
 <ul>
 <li>comboBox: Drop-down list box</li>
 <li>doubleSpinBox: Widget for entering numerical values</li>
 <li>textEdit: Text editing region</li>
 <li>spComboBox: comboBox containing only the specified Spatial*DataFrame types</li>
+<li>helpString: A non-graphical parameter that is linked to the help button on the dialog</li>
 </ul>
 Default values for all of the above GUI parameters can be specified in the XML file, using semi-colons 
-to separate mutliple options. For the spComboBox, the default string should specify the type(s) of 
+to separate multiple options. For the spComboBox, the default string should specify the type(s) of 
 Spatial*DataFrame to display (e.g. SpatialPointsDataFrame;SpatialLinesDataFrame).
 <b>manageR</b> comes with several default R GUI functions which can be used as examples for creating
 custom R GUI functions.
@@ -460,6 +461,7 @@ class RFinder(QWidget):
         font = QFont(Config["fontfamily"], Config["fontsize"])
         font.setFixedPitch(True)
         find_label = QLabel("Find:")
+        find_label.setMaximumWidth(50)
         self.edit.setFont(font)
         self.edit.setToolTip("Find text")
         self.next = QToolButton(self)
@@ -473,21 +475,23 @@ class RFinder(QWidget):
         self.previous.setIcon(QIcon(":mActionPrevious.png"))
         self.previous.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.whole_words = QCheckBox()
-        self.whole_words.setText("Whole words only")
+        self.whole_words.setText("Whole words")
         self.case_sensitive = QCheckBox()
         self.case_sensitive.setText("Case sensitive")
-        find_horiz = QHBoxLayout()
-        find_horiz.addWidget(find_label)
-        find_horiz.addWidget(self.edit)
-        find_horiz.addWidget(self.previous)
-        find_horiz.addWidget(self.next)
-        options_horiz = QHBoxLayout()
-        options_horiz.addWidget(self.whole_words)
-        options_horiz.addWidget(self.case_sensitive)
-        options_horiz.insertSpacing(0,40)
-        grid.addLayout(options_horiz, 0, 2, 1, 1)
-        grid.addLayout(find_horiz, 1, 0, 1, 3)
+        #find_horiz = QHBoxLayout()
+        grid.addWidget(find_label,1,0,1,1)
+        #find_horiz.addWidget(find_label)
+        grid.addWidget(self.edit, 1,1,1,2)
+        #find_horiz.addWidget(self.edit)
+        grid.addWidget(self.next, 1,3,1,1)
+        #find_horiz.addWidget(self.previous)
+        grid.addWidget(self.previous, 1,4,1,1)
+        #find_horiz.addWidget(self.next)
+        grid.addWidget(self.whole_words, 0,3,1,1)
+        grid.addWidget(self.case_sensitive, 0,4,1,1)
+        #grid.addLayout(find_horiz, 1, 0, 1, 3)
         self.replace_label = QLabel("Replace:")
+        self.replace_label.setMaximumWidth(50)
         self.replace_edit = QLineEdit(self)
         self.replace_edit.setFont(font)
         self.replace_edit.setToolTip("Replace text")
@@ -497,12 +501,16 @@ class RFinder(QWidget):
         self.replace_all = QToolButton(self)
         self.replace_all.setToolTip("Replace all")
         self.replace_all.setText("Replace all")
-        replace_horiz = QHBoxLayout()
-        replace_horiz.addWidget(self.replace_label)
-        replace_horiz.addWidget(self.replace_edit)
-        replace_horiz.addWidget(self.replace)
-        replace_horiz.addWidget(self.replace_all)
-        grid.addLayout(replace_horiz, 2, 0, 1, 3)
+        #replace_horiz = QHBoxLayout()
+        grid.addWidget(self.replace_label, 2, 0, 1, 1)
+        #replace_horiz.addWidget(self.replace_label)
+        grid.addWidget(self.replace_edit, 2, 1, 1, 2)
+        #replace_horiz.addWidget(self.replace_edit)
+        grid.addWidget(self.replace, 2, 3, 1, 1)
+        #replace_horiz.addWidget(self.replace)
+        grid.addWidget(self.replace_all, 2, 4, 1, 1)
+        #replace_horiz.addWidget(self.replace_all)
+        #grid.addLayout(replace_horiz, 2, 0, 1, 3)
         self.setFocusProxy(self.edit)
         self.setVisible(False)
         
@@ -1573,7 +1581,9 @@ class RConsole(QTextEdit):
                                     class_(result.r["value"][0])[0] == "hsearch":
                                     self.helpTopic(result.r["value"][0], class_(result.r["value"][0])[0])
                                 elif not str(result.r["value"][0]) == "NULL":
-                                    robjects.r['print'](result.r["value"][0])
+                                    tmp = robjects.r['print'](result.r["value"][0])
+                                    if platform.system() == "Linux":
+                                        output_text.append(unicode(tmp))
                             else:
                                 try:
                                     if text.startsWith('library('):
@@ -2149,17 +2159,17 @@ class RHistoryWidget(QWidget):
         self.clearAction.setStatusTip("Clear command list")
         self.clearAction.setToolTip("Clear command list")
         self.clearAction.setIcon(QIcon(":mActionFileClose.png"))
-        self.clearAction.setEnabled(False)
+        self.clearAction.setEnabled(True)
         self.clearButton.setDefaultAction(self.clearAction)
         self.clearButton.setAutoRaise(True)
         
         grid = QGridLayout(self)
         horiz = QHBoxLayout()
-        horiz.addWidget(self.copyButton)
-        horiz.addWidget(self.selectButton)
-        horiz.addWidget(self.insertButton)
         horiz.addWidget(self.runButton)
+        horiz.addWidget(self.insertButton)
+        horiz.addWidget(self.copyButton)
         horiz.addWidget(self.clearButton)
+        horiz.addWidget(self.selectButton)
         horiz.addStretch()
         grid.addLayout(horiz, 0, 0, 1, 1)
         grid.addWidget(self.commandList, 1, 0, 1, 1)
@@ -2187,14 +2197,14 @@ class RHistoryWidget(QWidget):
         if len(self.commandList.selectedItems()) >= 1:
             self.runAction.setEnabled(True)
             self.copyAction.setEnabled(True)
-            self.clearAction.setEnabled(True)
+            #self.clearAction.setEnabled(True)
             if len(self.commandList.selectedItems()) == 1:
                 self.insertAction.setEnabled(True)
         else:
             self.insertAction.setEnabled(False)
             self.runAction.setEnabled(False)
             self.copyAction.setEnabled(False)
-            self.clearAction.setEnabled(False)
+            #self.clearAction.setEnabled(False)
 
     def copy(self):
         commands = QString()
@@ -2772,7 +2782,7 @@ class MainWindow(QMainWindow):
             self.editor.setPalette(palette)
             #self.editor.setTextColor(QColor(Config["normalfontcolor"]))
         self.finder = RFinder(self, self.editor)
-        self.finderDockWidget = QDockWidget("Find and Replace Toolbar", self)          
+        self.finderDockWidget = QDockWidget("Find and Replace", self)          
         self.finderDockWidget.setObjectName("findReplace")
         self.finderDockWidget.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.finderDockWidget.setWidget(self.finder)
@@ -2928,8 +2938,20 @@ class MainWindow(QMainWindow):
             workspaceMenu = self.menuBar().addMenu("&Workspace")
             self.addActions(workspaceMenu, (workspaceLoadAction, 
             workspaceSaveAction))
-        pluginCreator = PluginManager(self)
-        pluginCreator.createActions()
+        try:
+            pluginsMenu = self.menuBar().addMenu("&Plugins")
+            pluginCreator = PluginManager(self)
+            pluginCreator.createActions(pluginsMenu)
+        except Exception, e:
+            message = QMessageBox(self)
+            message.setWindowTitle("manageR load error")
+            message.setText("Error generating plugin interfaces.\n"
+            "Please ensure that your tools.xml file is correctly formatted.")
+            message.setInformativeText("Note: Plugins will be disabled for "
+            "the current manageR session." )
+            message.setDetailedText(str(e))
+            message.exec_()
+            pluginsMenu.deleteLater()
         self.viewMenu = self.menuBar().addMenu("&View")
         self.windowMenu = self.menuBar().addMenu("&Window")
         self.connect(self.windowMenu, SIGNAL("aboutToShow()"),
@@ -2989,7 +3011,7 @@ class MainWindow(QMainWindow):
         self.viewMenu.addAction(action)
         self.Toolbars[self.finderDockWidget] = action
         if isConsole:
-            self.finderDockWidget.setWindowTitle("Find Toolbar")
+            self.finderDockWidget.setWindowTitle("Find")
             self.finder.hideReplace()
         self.connect(self, SIGNAL("destroyed(QObject*)"),
                      MainWindow.updateInstances)
@@ -3096,7 +3118,7 @@ class MainWindow(QMainWindow):
         graphicWidget = RGraphicsWidget(self)
         graphicWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"),
         graphicWidget.updateGraphics)
-        graphicDockWidget = QDockWidget("Graphic devices", self)          
+        graphicDockWidget = QDockWidget("Graphic Device Manager", self)          
         graphicDockWidget.setObjectName("graphicDockWidget")
         graphicDockWidget.setAllowedAreas(Qt.LeftDockWidgetArea|Qt.RightDockWidgetArea)
         graphicDockWidget.setWidget(graphicWidget)
@@ -3105,7 +3127,7 @@ class MainWindow(QMainWindow):
         variableWidget = RVariableWidget(self)
         variableWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"),
         variableWidget.updateVariables)
-        variableDockWidget = QDockWidget("Variables", self)          
+        variableDockWidget = QDockWidget("Workspace Manager", self)          
         variableDockWidget.setObjectName("variableDockWidget")
         variableDockWidget.setAllowedAreas(Qt.RightDockWidgetArea|Qt.LeftDockWidgetArea)
         variableDockWidget.setWidget(variableWidget)
@@ -3114,7 +3136,7 @@ class MainWindow(QMainWindow):
         historyWidget = RHistoryWidget(self, self.editor)
         historyWidget.connect(self.editor, SIGNAL("updateHistory(PyQt_PyObject)"),
         historyWidget.updateCommands)
-        historyDockWidget = QDockWidget("Command history", self)          
+        historyDockWidget = QDockWidget("Command History Manager", self)          
         historyDockWidget.setObjectName("historyDockWidget")
         historyDockWidget.setAllowedAreas(Qt.LeftDockWidgetArea|Qt.RightDockWidgetArea)
         historyDockWidget.setWidget(historyWidget)
@@ -3122,7 +3144,7 @@ class MainWindow(QMainWindow):
         
         cwdWidget = RWDWidget(self,robjects.r('getwd()')[0])
         cwdWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"), cwdWidget.displayWorkingDir)
-        cwdDockWidget = QDockWidget("Working directory", self)
+        cwdDockWidget = QDockWidget("Working Directory Manager", self)
         cwdDockWidget.setObjectName("cwdDockWidget")
         cwdDockWidget.setAllowedAreas(Qt.TopDockWidgetArea|Qt.BottomDockWidgetArea)
         cwdDockWidget.setWidget(cwdWidget)

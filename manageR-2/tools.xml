@@ -1,7 +1,13 @@
 <?xml version="1.0"?>
 <manageRTools>
-<RTool name="Insert random R commands" query="|1|">
+<RTool name="Insert R commands" query="|1|">
 <Parameter label="R commands:" type="textEdit" default="ls()" notnull="true"/>
+<Parameter label="help" type="helpString" default="
+&lt;h4&gt;Insert R commands help&lt;/h4&gt;
+This is a simple test plugin that allows the user to input R commands into a simple text editor, 
+and run the commands in the console.&#xA;The tool does not require any specific R libraries. The 
+default command (&lt;tt&gt;ls()&lt;/tt&gt;), displays all variables and functions in the current 
+R environment." notnull="true"/>
 </RTool>
 <RTool name="Voronoi polygons" query="
 voronoipolygons &lt;- function(layer){&#xA;
@@ -22,6 +28,15 @@ voronoipolygons &lt;- function(layer){&#xA;
 }&#xA;
 |1|.voronoi &lt;- voronoipolygons(|1|)">
 <Parameter label="Point layer:" type="spComboBox" default="SpatialPointsDataFrame" notnull="true"/>
+<Parameter label="help" type="helpString" default="
+&lt;h4&gt;Voronoi polygons help&lt;/h4&gt;
+Calculate the Voronoi or Thiessen tesselation of an input SpatialPointsDataFrame.&#xA;
+Uses the &lt;tt&gt;sp&lt;/tt&gt; library to get the coordinates of 
+the input SpatialPointsDataFrame, and creates a bounded Voronoi tesselation using the &lt;tt&gt;deldir&lt;/tt&gt; 
+and &lt;tt&gt;tile.list&lt;/tt&gt; functions of the &lt;tt&gt;deldir&lt;/tt&gt; library. Output is a 
+SpatialPolygonsDataFrame, with the X and Y coordinates of the input points as attributes.&#xA;
+After running this plugin, you can acheive the same results by using the &lt;tt&gt;voronoipolygons()&lt;/tt&gt; 
+function in the console." notnull="true"/>
 </RTool>
 <RTool name="Polygon centroids" query="
 polygoncentroids &lt;- function(layer){&#xA;
@@ -33,38 +48,13 @@ polygoncentroids &lt;- function(layer){&#xA;
 }&#xA;
 |1|.centroids &lt;- polygoncentroids(|1|)">
 <Parameter label="Polygon layer:" type="spComboBox" default="SpatialPolygonsDataFrame" notnull="true"/>
-</RTool>
-<RTool name="Spatial weights" query="
-computeweights &lt;- function(layer, decay, style, type, value){&#xA;
-    #require(rgdal)&#xA;
-    #require(Matrix)&#xA;
-    require(spdep)&#xA;
-    if (type == 'CONTIG') {&#xA;
-        weights = poly2nb(pl=layer, snap=0.0005, queen=T) #Better parameter for snap?&#xA;
-        if (value >= 2)&#xA;
-            weights &lt;- nblag_cumul(nblags=nblag(neighbours=weights, maxlag=value))&#xA;
-    } else {&#xA;
-        ids &lt;- seq(dim(layer)[1])-1&#xA;
-        proj &lt;- proj4string(layer)&#xA;
-        coords &lt;- coordinates(obj=layer)&#xA;
-        output &lt;- SpatialPoints(coords=coords, proj4string=CRS(proj))&#xA;
-        if (type == 'DIST')&#xA;
-            dist &lt;- dnearneigh(x=output, d1=0, d2=value, row.names=ids)&#xA;
-        else # 'KNEAR'&#xA;
-            dist &lt;- knn2nb(knn=knearneigh(x=output, k=value), row.names=ids, sym=F)&#xA;
-        dlist &lt;- nbdists(nb=dist, coords=output)&#xA;
-        idlist &lt;- lapply(X=dlist, FUN=function(x) 1/(x**decay))&#xA;
-        weights &lt;- nb2listw(neighbours=dist, glist=idlist, style=style, zero.policy=T)&#xA;
-    }&#xA;
-}&#xA;
-|1|.weights &lt;- computeweights(|1|, |2|, |3|, |4|, |5|)">
-<Parameter label="Layer:" type="spComboBox" default="
-SpatialPolygonsDataFrame;SpatialPointsDataFrame;SpatialLinesDataFrame" notnull="true"/>
-<Parameter label="Decay:" type="doubleSpinBox" default="2.00" notnull="true"/>
-<Parameter label="Style:" type="comboBox" default="'W';'B';'C';'U';'S'" notnull="true"/>
-<Parameter label="Type:" type="comboBox" default="'CONTIG';'DIST';'KNEAR'" notnull="true"/>
-<Parameter label="Value:" type="doubleSpinBox" default="5.00" notnull="true"/>
 <Parameter label="help" type="helpString" default="
-This is a help string for an R plugin" notnull="true"/>
+&lt;h4&gt;Polygon centoids help&lt;/h4&gt;
+Calculate the true centroids, or 'center of mass' for each polygon in an input SpatialPolygonsDataFrame.&#xA;
+Uses the &lt;tt&gt;sp&lt;/tt&gt; library to get the coordinates of the input SpatialPolygonsDataFrame, 
+and creates a new SpatialPointsDataFrame consisting of the centroid coordinates or the polygons, with 
+the attributes of the input SpatialPolygonsDataFrame.&#xA;
+After running this plugin, you can acheive the same results by using the &lt;tt&gt;polygoncentroids()&lt;/tt&gt; 
+function in the console." notnull="true"/>
 </RTool>
 </manageRTools>

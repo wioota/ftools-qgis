@@ -1038,14 +1038,11 @@ class REditor(QTextEdit):
     def unindentRegion(self):
         self._walkTheLines(False, " " * self.tabwidth)
 
-
     def commentRegion(self):
         self._walkTheLines(True, "# ")
 
-
     def uncommentRegion(self):
         self._walkTheLines(False, "# ")
-
 
     def _walkTheLines(self, insert, text):
         userCursor = self.textCursor()
@@ -1542,21 +1539,33 @@ class RConsole(QTextEdit):
             try:
                 if (text.startsWith('quit(') or text.startsWith('q(')) \
                 and text.count(")") == 1:
-                    self.commandError("Error: System exit from manageR not allowed, close dialog manually")
+                    self.commandError(
+                    "Error: System exit from manageR not allowed, close dialog manually")
                 else:
                     output_text = QString()
-                    def write(output):
-                        if not QString(output).startsWith("Error"):
-                            output_text.append(unicode(output, 'utf-8'))
-                        if output_text.length() >= 50000 and output_text[-1] == "\n":
-                            self.commandOutput(output_text)
-                            output_text.clear()
-                        QApplication.processEvents()
-                    robjects.rinterface.setWriteConsole(write)
-                    def read(prompt): # TODO: This is a terrible workaround
-                        input = "\n"  # and needs to be futher investigated...
-                        return input
-                    robjects.rinterface.setReadConsole(read)
+                    if platform.system() == "Windows":
+                        tfile = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('tempfile', wantFun=True))
+                        tfile = tfile()
+                        temp = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('file', wantFun=True))
+                        temp = temp(tfile, open='w')
+                        sink = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('sink', wantFun=True))
+                        sink(temp)
+                    else:
+                        def write(output):
+                            if not QString(output).startsWith("Error"):
+                                output_text.append(unicode(output, 'utf-8'))
+                            if output_text.length() >= 50000 and output_text[-1] == "\n":
+                                self.commandOutput(output_text)
+                                output_text.clear()
+                            QApplication.processEvents()
+                        robjects.rinterface.setWriteConsole(write)
+                        def read(prompt): # TODO: This is a terrible workaround
+                            input = "\n"  # and needs to be futher investigated...
+                            return input
+                        robjects.rinterface.setReadConsole(read)
                     try:
                         try_ = robjects.r["try"]
                         parse_ = robjects.r["parse"]
@@ -1581,9 +1590,7 @@ class RConsole(QTextEdit):
                                     class_(result.r["value"][0])[0] == "hsearch":
                                     self.helpTopic(result.r["value"][0], class_(result.r["value"][0])[0])
                                 elif not str(result.r["value"][0]) == "NULL":
-                                    tmp = robjects.r['print'](result.r["value"][0])
-                                    if platform.system() == "Linux":
-                                        output_text.append(unicode(tmp))
+                                    robjects.r['print'](result.r["value"][0])
                             else:
                                 try:
                                     if text.startsWith('library('):
@@ -1597,6 +1604,22 @@ class RConsole(QTextEdit):
                         self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
                         self.commandComplete()
                         return
+                    if platform.system() == "Windows":
+                        sink()
+                        close = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('close', wantFun=True))
+                        close(temp)
+                        temp = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('file', wantFun=True))
+                        temp = temp(tfile, open='r')
+                        s = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('readLines', wantFun=True))
+                        s = s(temp)
+                        close(temp)
+                        unlink = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('unlink', wantFun=True))
+                        unlink(tfile)
+                        output_text = QString(str.join(os.linesep, s))
                     if not output_text.isEmpty():
                         self.commandOutput(output_text)
             except Exception, err:
@@ -2844,7 +2867,7 @@ class MainWindow(QMainWindow):
                     "mActionEditReplaceNext",
                     "Replace the next occurrence of the given text")
             editGotoLineAction =  self.createAction("&Go to line",
-                    self.editor.gotoLine, "Ctrl+H", "mActionEditGotoLine",
+                    self.editor.gotoLine, "Ctrl+G", "mActionEditGotoLine",
                     "Move the cursor to the given line")
             editIndentRegionAction = self.createAction("&Indent Region",
                     self.editor.indentRegion, "Tab", "mActionEditIndent",

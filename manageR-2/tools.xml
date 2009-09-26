@@ -57,4 +57,69 @@ the attributes of the input SpatialPolygonsDataFrame.&#xA;
 After running this plugin, you can acheive the same results by using the &lt;tt&gt;polygoncentroids()&lt;/tt&gt; 
 function in the console." notnull="true"/>
 </RTool>
+<RTool name="Simple plot" query="
+plot(|1|, type='|2|', main='|3|', sub='|4|', xlab='|5|', 
+ylab='|6|', bty='|7|', lab=c(|8|,|9|,7), las=|10|, |11|)&#xA;
+if (|12|) {&#xA;
+    |1|.fit &lt;- lm(|1| ~ seq(1,length(|1|)))&#xA;
+    abline(|1|.fit, lty='|13|')&#xA;
+}">
+<Parameter label="Input values:" type="spComboBox" default="
+numeric;data.frame;SpatialPointsDataFrame;SpatialPolygonsDataFrame;SpatialLinesDataFrame" notnull="true"/>
+<Parameter label="Plot type:" type="comboBox" default=
+"points;lines;both;overplotted;histogram;stair steps;no plotting" notnull="true"/>
+<Parameter label="Main title:" type="lineEdit" default="Scatterplot" notnull="false"/>
+<Parameter label="Sub title:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
+<Parameter label="Y label:" type="lineEdit" default="Y Axis" notnull="false"/>
+<Parameter label="Bounding box:" type="comboBox" default=
+"outline;l-shape;7-shape;c-shape;u-shape;]-shape;none" notnull="true"/>
+<Parameter label="X axis ticks:" type="lineEdit" default="5" notnull="true"/>
+<Parameter label="Y axis ticks:" type="lineEdit" default="5" notnull="true"/>
+<Parameter label="Axis labels:" type="comboBox" default="1;2;3;0" notnull="true"/>
+<Parameter label="Other parameters:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="Add trend line:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="Line style:" type="comboBox" default=
+"solid;dashed;dotted;dotdash;longdash;twodash" notnull="true"/>
+<Parameter label="help" type="helpString" default="
+&lt;h4&gt;Simple plot help&lt;/h4&gt;
+Produce a simple scatter-plot of numeric data. Common parameters can be specified using the interface,
+and additional parameters can be supplied via the 'Other parameters' line edit (e.g. pch=12).&lt;br&gt;
+&lt;b&gt;Note&lt;/b&gt;: The values of 'X axis ticks' and 'Y axis ticks' give the (approximate) number of tickmarks on the x 
+and y axes, however, the plotting function will ultimately determine exactly how many ticks are drawn.&lt;br&gt;
+&lt;b&gt;Note&lt;/b&gt;: The axis labels values (1,2,3,0) represent always horizontal, always perpendicular to the axis,
+always vertical, and always parallel to the axis respectively.&lt;br&gt;
+&lt;b&gt;Note&lt;/b&gt;: If 'Add trend line' is FALSE, then 'Line style' is ignored.&lt;br&gt;
+This tool provides limited plotting functionality. For further plotting control, use the plot function 
+directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
+For further information on plotting functions, see &lt;tt&gt;?plot&lt;/tt&gt; and &lt;tt&gt;?par.&lt;/tt&gt;" notnull="true"/>
+</RTool>
+<RTool name="Simple histogram" query="
+hist(|1|, breaks='|2|', main='|4|', sub='|5|', xlab='|6|', bty='|7|', 
+freq=ifelse('|3|'=='Frequency',TRUE,FALSE), |10|)&#xA;
+if (|8|) lines(density(|1|), lty='|9|')">
+<Parameter label="Input values:" type="spComboBox" default="
+numeric;data.frame;SpatialPointsDataFrame;SpatialPolygonsDataFrame;SpatialLinesDataFrame" notnull="true"/>
+<Parameter label="Break calculation:" type="comboBox" default=
+"Sturges;Scott;Freedman-Diaconis" notnull="true"/>
+<Parameter label="Plot type:" type="comboBox" default="Frequency;Density" notnull="true"/>
+<Parameter label="Main title:" type="lineEdit" default="Histogram" notnull="false"/>
+<Parameter label="Sub title:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
+<Parameter label="Bounding box:" type="comboBox" default=
+"outline;l-shape;7-shape;c-shape;u-shape;]-shape;none" notnull="true"/>
+<Parameter label="Add probability distribution:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="Line style:" type="comboBox" default=
+"solid;dashed;dotted;dotdash;longdash;twodash" notnull="true"/>
+<Parameter label="Other parameters:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="help" type="helpString" default="
+&lt;h4&gt;Simple histogram help&lt;/h4&gt;
+Produce a simple histogram. Common parameters can be specified using the interface,
+and additional parameters can be supplied via the 'Other parameters' line edit (e.g. col='blue').&lt;br&gt;
+&lt;b&gt;Note&lt;/b&gt;: Setting 'Add probability function' to TRUE only makes sense if 'Plot type' is equal to 'Density'.&lt;br&gt;
+&lt;b&gt;Note&lt;/b&gt;: If 'Add probability function' is FALSE, then 'Line style' is ignored.&lt;br&gt;
+This tool provides limited histogram plotting functionality. For further control, use the hist function 
+directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
+For further information on plotting histograms see &lt;tt&gt;?hist&lt;/tt&gt;." notnull="true"/>
+</RTool>
 </manageRTools>

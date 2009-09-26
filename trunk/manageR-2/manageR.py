@@ -116,7 +116,7 @@ Currently running %s""" % (version,robjects.r.version[12][0])
 
 def loadConfig():
     def setDefaultString(name, default):
-        value = settings.value("manageR/manageR/%s" % (name)).toString()
+        value = settings.value("manageR/%s" % (name)).toString()
         if value.isEmpty():
             value = default
         Config[name] = value

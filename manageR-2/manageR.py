@@ -345,7 +345,7 @@ as well as a tab to specify the text/commands to be included at the top of all n
 File\N{RIGHTWARDS ARROW}Configure\N{RIGHTWARDS ARROW}On New File).
 </p>
 <p>
-<i>Plugins</i><br>
+<i>Analysis</i><br>
 <b>manageR</b> supports simple plugins which help to streamline tedious R functions by providing a 
 plugin framework for creating simple graphical user interfaces (GUI) to commonly used R functions. 
 These functions can be specified using an XML ('tools.xml') file stored in the <b>manageR</b> 
@@ -2962,7 +2962,7 @@ class MainWindow(QMainWindow):
             self.addActions(workspaceMenu, (workspaceLoadAction, 
             workspaceSaveAction))
         try:
-            pluginsMenu = self.menuBar().addMenu("&Plugins")
+            pluginsMenu = self.menuBar().addMenu("&Analysis")
             pluginCreator = PluginManager(self)
             pluginCreator.createActions(pluginsMenu)
         except Exception, e:
@@ -2970,7 +2970,7 @@ class MainWindow(QMainWindow):
             message.setWindowTitle("manageR load error")
             message.setText("Error generating plugin interfaces.\n"
             "Please ensure that your tools.xml file is correctly formatted.")
-            message.setInformativeText("Note: Plugins will be disabled for "
+            message.setInformativeText("Note: Analysis plugins will be disabled for "
             "the current manageR session." )
             message.setDetailedText(str(e))
             message.exec_()

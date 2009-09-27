@@ -55,7 +55,7 @@ class PluginManager:
     def createActions(self, pluginsMenu):  
         self.actionlist=[] #list of actions
         self.callerlist=[] #list of funcions to call run() with id parameter
-        
+        self.sublist=[]
         #starting xml file reading
         if not self.tools is None:
             xmlfile=open(self.tools)
@@ -65,7 +65,24 @@ class PluginManager:
             #loads every tool in the file
             while tool:
                 if isinstance(tool, minidom.Element):
-                    name= tool.getAttribute("name")
+                    add = False
+                    name = tool.getAttribute("name")
+                    category = tool.getAttribute("category")
+                    if not category == "":
+                        sub = QMenu(category, self.parent)
+                        sub.setIcon(QIcon(":mActionAnalysisTool.png"))
+                        add = True
+                    else:
+                        sub = pluginsMenu
+                        add = False
+                    for item in self.sublist:
+                        if category == item.title():
+                            sub = item
+                            add = False
+                            break
+                    if add:
+                        self.sublist.append(sub)
+                        pluginsMenu.addMenu(sub)
                     # Create action that will start plugin configuration
                     self.actionlist.append(QAction(
                     QIcon(":mActionPluginsPlugin"), name, self.parent))
@@ -75,7 +92,7 @@ class PluginManager:
                     QObject.connect(self.actionlist[-1], 
                     SIGNAL("activated()"), self.callerlist[-1]) 
                     # Add toolbar button and menu item
-                    self.parent.addActions(pluginsMenu, (self.actionlist[-1],))
+                    self.parent.addActions(sub, (self.actionlist[-1],))
                 tool=tool.nextSibling
             xmlfile.close()
 

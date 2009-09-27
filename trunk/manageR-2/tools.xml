@@ -9,7 +9,7 @@ and run the commands in the console.&#xA;The tool does not require any specific 
 default command (&lt;tt&gt;ls()&lt;/tt&gt;), displays all variables and functions in the current 
 R environment." notnull="true"/>
 </RTool>
-<RTool name="Voronoi polygons" query="
+<RTool name="Voronoi polygons" category= "Spatial" query="
 voronoipolygons &lt;- function(layer){&#xA;
   require(deldir)&#xA;
   crds &lt;- layer@coords&#xA;
@@ -38,7 +38,7 @@ SpatialPolygonsDataFrame, with the X and Y coordinates of the input points as at
 After running this plugin, you can acheive the same results by using the &lt;tt&gt;voronoipolygons()&lt;/tt&gt; 
 function in the console." notnull="true"/>
 </RTool>
-<RTool name="Polygon centroids" query="
+<RTool name="Polygon centroids" category= "Spatial" query="
 polygoncentroids &lt;- function(layer){&#xA;
   proj &lt;- proj4string(layer)&#xA;
   coords &lt;- coordinates(layer)&#xA;
@@ -57,15 +57,14 @@ the attributes of the input SpatialPolygonsDataFrame.&#xA;
 After running this plugin, you can acheive the same results by using the &lt;tt&gt;polygoncentroids()&lt;/tt&gt; 
 function in the console." notnull="true"/>
 </RTool>
-<RTool name="Simple plot" query="
+<RTool name="Simple plot" category= "Plotting" query="
 plot(|1|, type='|2|', main='|3|', sub='|4|', xlab='|5|', 
 ylab='|6|', bty='|7|', lab=c(|8|,|9|,7), las=|10|, |11|)&#xA;
 if (|12|) {&#xA;
     |1|.fit &lt;- lm(|1| ~ seq(1,length(|1|)))&#xA;
     abline(|1|.fit, lty='|13|')&#xA;
 }">
-<Parameter label="Input values:" type="spComboBox" default="
-numeric;data.frame;SpatialPointsDataFrame;SpatialPolygonsDataFrame;SpatialLinesDataFrame" notnull="true"/>
+<Parameter label="Input values:" type="spComboBox" default="numeric;data.frame;" notnull="true"/>
 <Parameter label="Plot type:" type="comboBox" default=
 "points;lines;both;overplotted;histogram;stair steps;no plotting" notnull="true"/>
 <Parameter label="Main title:" type="lineEdit" default="Scatterplot" notnull="false"/>
@@ -94,12 +93,11 @@ This tool provides limited plotting functionality. For further plotting control,
 directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
 For further information on plotting functions, see &lt;tt&gt;?plot&lt;/tt&gt; and &lt;tt&gt;?par.&lt;/tt&gt;" notnull="true"/>
 </RTool>
-<RTool name="Simple histogram" query="
+<RTool name="Simple histogram" category= "Plotting" query="
 hist(|1|, breaks='|2|', main='|4|', sub='|5|', xlab='|6|', bty='|7|', 
 freq=ifelse('|3|'=='Frequency',TRUE,FALSE), |10|)&#xA;
 if (|8|) lines(density(|1|), lty='|9|')">
-<Parameter label="Input values:" type="spComboBox" default="
-numeric;data.frame;SpatialPointsDataFrame;SpatialPolygonsDataFrame;SpatialLinesDataFrame" notnull="true"/>
+<Parameter label="Input values:" type="spComboBox" default="numeric;data.frame" notnull="true"/>
 <Parameter label="Break calculation:" type="comboBox" default=
 "Sturges;Scott;Freedman-Diaconis" notnull="true"/>
 <Parameter label="Plot type:" type="comboBox" default="Frequency;Density" notnull="true"/>
@@ -121,5 +119,31 @@ and additional parameters can be supplied via the 'Other parameters' line edit (
 This tool provides limited histogram plotting functionality. For further control, use the hist function 
 directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
 For further information on plotting histograms see &lt;tt&gt;?hist&lt;/tt&gt;." notnull="true"/>
+</RTool>
+<RTool name="Simple box-plot" category= "Plotting" query="
+boxplot(|1|, varwidth=|2|, notch=|3|, outline=|4|, horizontal=|5|, 
+main='|6|', sub='|7|', xlab='|8|', ylab='|9|')&#xA;
+par()">
+<Parameter label="Input data:" type="spComboBox" default="numeric;data.frame" notnull="true"/>
+<Parameter label="Use variable width boxes:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="Add box notches:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="Show outliers:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
+<Parameter label="Plot boxes horizontally:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="Main title:" type="lineEdit" default="Box-plot" notnull="false"/>
+<Parameter label="Sub title:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
+<Parameter label="Y label:" type="lineEdit" default="Y Axis" notnull="false"/>
+<Parameter label="help" type="helpString" default="
+&lt;h4&gt;Simple box-plot help&lt;/h4&gt;
+Produce a simple box-plot.&lt;br&gt;
+&lt;b&gt;Note&lt;/b&gt;: Setting 'Use variable width boxes' to TRUE means that the boxes are drawn 
+with widths proportional to the square-roots of the number of observations in the groups.&lt;br&gt;
+&lt;b&gt;Note&lt;/b&gt;: If 'Add box notches' is TRUE, a notch is drawn in each side of the
+boxes.  If the notches of two plots do not overlap this is 'strong evidence' that the two medians 
+differ (Chambers &lt;i&gt;et al.&lt;/i&gt;, 1983, p. 62).  See &lt;tt&gt;?boxplot.stats&lt;/tt&gt; 
+for the calculations used.&lt;br&gt;
+This tool provides limited box-plot functionality. For further control, use the boxplot function 
+directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
+For further information on box-plots see &lt;tt&gt;?boxplot&lt;/tt&gt;." notnull="true"/>
 </RTool>
 </manageRTools>

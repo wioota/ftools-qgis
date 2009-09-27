@@ -1,6 +1,7 @@
 <RCC>
     <qresource>
         <file alias="mActionFileQuit.png">icons/mActionFileQuit.png</file>
+        <file alias="mActionAnalysisTool.png">icons/mActionAnalysisTool.png</file>
         <file alias="mActionEditGotoLine.png">icons/mActionEditGotoLine.png</file>
         <file alias="mActionGraphicRefresh.png">icons/mActionGraphicRefresh.png</file>
         <file alias="mActionFileConfigure.png">icons/mActionFileConfigure.png</file>

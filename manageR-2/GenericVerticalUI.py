@@ -60,7 +60,7 @@ class SpComboBox(QtGui.QComboBox):
         
     def spTypes(self):
         return self.types
-
+        
 class GenericVerticalUI(object):
     """Generic class of user interface"""
     def addGuiItem(self, ParentClass, parameters, width):
@@ -82,6 +82,7 @@ class GenericVerticalUI(object):
             widget = SpComboBox(ParentClass, default.split(';'))
             widget.setFixedHeight(26)
             self.hasSpComboBox = True
+            widget.setEditable(True)
         elif widgetType=="doubleSpinBox":
             widget = QtGui.QDoubleSpinBox(ParentClass)
             widget.setValue(float(default))
@@ -119,7 +120,7 @@ class GenericVerticalUI(object):
     def isSpatial(self):
         return self.hasSpComboBox
         
-    def updateSpatialObjects(self):
+    def updateRObjects(self):
         splayers = currentRObjects()
         for widget in self.widgets:
             if isinstance(widget, SpComboBox):
@@ -127,7 +128,23 @@ class GenericVerticalUI(object):
                 for sptype in sptypes:
                     for layer in splayers.keys():
                         if splayers[layer] == sptype.strip():
-                            widget.addItem(layer)
+                            value = layer
+                            widget.addItem(value)
+                        elif splayers[layer] in VECTORTYPES \
+                        and sptype.strip() == "data.frame":
+                            value = layer+"@data"
+                            widget.addItem(value)
+                        elif splayers[layer] in VECTORTYPES \
+                        or splayers[layer] == "data.frame":
+                            for item in list(robjects.r('names(%s)' % (layer))):
+                                if splayers[layer] == "data.frame":
+                                    value = layer+"$"+item
+                                else:
+                                    value = layer+"@data$"+item
+                                if str(robjects.r('class(%s)' % (value))[0]) == sptype.strip():
+                                    widget.addItem(value)
+                            
+                                        
 
     def setupUi(self, ParentClass, itemlist):
         self.ParentClass = ParentClass
@@ -146,11 +163,13 @@ class GenericVerticalUI(object):
         # Draw a label/widget pair for every item in the list
         for item in itemlist:
             self.addGuiItem(self.ParentClass, item, width)
+        self.showCommands = QtGui.QCheckBox("Append commands to console",self.ParentClass)
         self.buttonBox = QtGui.QDialogButtonBox(self.ParentClass)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(
         QtGui.QDialogButtonBox.Help|QtGui.QDialogButtonBox.Close|QtGui.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
+        self.vbox.addWidget(self.showCommands)
         self.vbox.addWidget(self.buttonBox)
         # accept gets connected in the plugin manager
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL("rejected()"), self.ParentClass.reject)

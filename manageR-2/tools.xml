@@ -9,10 +9,10 @@ and run the commands in the console.&#xA;The tool does not require any specific 
 default command (&lt;tt&gt;ls()&lt;/tt&gt;), displays all variables and functions in the current 
 R environment." notnull="true"/>
 </RTool>
-<RTool name="Voronoi polygons" category= "Spatial" query="
-voronoipolygons &lt;- function(layer){&#xA;
+<RTool name="Voronoi polygons" category= "Spatial" query=
+"|2| &lt;- local({&#xA;
   require(deldir)&#xA;
-  crds &lt;- layer@coords&#xA;
+  crds &lt;- |1|@coords&#xA;
   z &lt;- deldir(crds[,1], crds[,2])&#xA;
   w &lt;- tile.list(z)&#xA;
   polys &lt;- vector(mode='list', length=length(w))&#xA;
@@ -23,11 +23,12 @@ voronoipolygons &lt;- function(layer){&#xA;
     polys[[i]] &lt;- Polygons(list(Polygon(pcrds)), ID=as.character(i))&#xA;
   }&#xA;
   SP &lt;- SpatialPolygons(polys)&#xA;
-  voronoi &lt;- SpatialPolygonsDataFrame(SP, data=data.frame(x=crds[,1], &#xA;
-  y=crds[,2], row.names=sapply(slot(SP, 'polygons'), function(x) slot(x, 'ID'))))&#xA;
-}&#xA;
-|1|.voronoi &lt;- voronoipolygons(|1|)">
+  areas &lt;- sapply(slot(SP, 'polygons'), function(x) sapply(slot(x,'Polygons'), slot, 'area'))&#xA;
+  SpatialPolygonsDataFrame(SP, data=data.frame(x=crds[,1], y=crds[,2], row.names=sapply(slot(SP, 
+  'polygons'), function(x) slot(x, 'ID')), area=areas))&#xA;
+})&#xA;">
 <Parameter label="Point layer:" type="spComboBox" default="SpatialPointsDataFrame" notnull="true"/>
+<Parameter label="Output layer:" type="lineEdit" default="voronoi" notnull="true"/>
 <Parameter label="help" type="helpString" default="
 &lt;h4&gt;Voronoi polygons help&lt;/h4&gt;
 Calculate the Voronoi or Thiessen tesselation of an input SpatialPointsDataFrame.&#xA;
@@ -38,16 +39,16 @@ SpatialPolygonsDataFrame, with the X and Y coordinates of the input points as at
 After running this plugin, you can acheive the same results by using the &lt;tt&gt;voronoipolygons()&lt;/tt&gt; 
 function in the console." notnull="true"/>
 </RTool>
-<RTool name="Polygon centroids" category= "Spatial" query="
-polygoncentroids &lt;- function(layer){&#xA;
-  proj &lt;- proj4string(layer)&#xA;
-  coords &lt;- coordinates(layer)&#xA;
-  attrs &lt;- layer@data&#xA;
+<RTool name="Polygon centroids" category= "Spatial" query=
+"|2| &lt;- local({&#xA;
+  proj &lt;- proj4string(|1|)&#xA;
+  coords &lt;- coordinates(|1|)&#xA;
+  attrs &lt;- |1|@data&#xA;
   centroids &lt;- SpatialPointsDataFrame(coords=coords, &#xA;
   data=attrs, proj4string=CRS(proj))&#xA;
-}&#xA;
-|1|.centroids &lt;- polygoncentroids(|1|)">
+})">
 <Parameter label="Polygon layer:" type="spComboBox" default="SpatialPolygonsDataFrame" notnull="true"/>
+<Parameter label="Output layer:" type="lineEdit" default="centroids" notnull="true"/>
 <Parameter label="help" type="helpString" default="
 &lt;h4&gt;Polygon centoids help&lt;/h4&gt;
 Calculate the true centroids, or 'center of mass' for each polygon in an input SpatialPolygonsDataFrame.&#xA;
@@ -57,14 +58,23 @@ the attributes of the input SpatialPolygonsDataFrame.&#xA;
 After running this plugin, you can acheive the same results by using the &lt;tt&gt;polygoncentroids()&lt;/tt&gt; 
 function in the console." notnull="true"/>
 </RTool>
-<RTool name="Simple plot" category= "Plotting" query="
+<RTool name="Simple plot" category= "Plotting" query=
+"local({&#xA;
+if (class(|1|) == 'numeric') {&#xA;
 plot(|1|, type='|2|', main='|3|', sub='|4|', xlab='|5|', 
-ylab='|6|', bty='|7|', lab=c(|8|,|9|,7), las=|10|, |11|)&#xA;
+ylab='|6|', bty='|7|', lab=c(|8|,|9|,7), las=|10|, |11|)&#xA;        
 if (|12|) {&#xA;
-    |1|.fit &lt;- lm(|1| ~ seq(1,length(|1|)))&#xA;
-    abline(|1|.fit, lty='|13|')&#xA;
-}">
-<Parameter label="Input values:" type="spComboBox" default="numeric;data.frame;" notnull="true"/>
+tmp &lt;- |1|&#xA;
+vals &lt;- seq(1,length(|1|))&#xA;
+tmp.fit &lt;- lm(tmp ~ vals)&#xA;
+abline(tmp.fit, lty='|13|')&#xA;
+}&#xA;
+} else {&#xA;    
+plot(|1|,  main='|3|', sub='|4|', bty='|7|', 
+lab=c(|8|,|9|,7), las=|10|)&#xA;
+}&#xA;
+})">
+<Parameter label="Input values:" type="spComboBox" default="numeric;data.frame" notnull="true"/>
 <Parameter label="Plot type:" type="comboBox" default=
 "points;lines;both;overplotted;histogram;stair steps;no plotting" notnull="true"/>
 <Parameter label="Main title:" type="lineEdit" default="Scatterplot" notnull="false"/>
@@ -76,14 +86,14 @@ if (|12|) {&#xA;
 <Parameter label="X axis ticks:" type="lineEdit" default="5" notnull="true"/>
 <Parameter label="Y axis ticks:" type="lineEdit" default="5" notnull="true"/>
 <Parameter label="Axis labels:" type="comboBox" default="1;2;3;0" notnull="true"/>
-<Parameter label="Other parameters:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
 <Parameter label="Add trend line:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
 <Parameter label="Line style:" type="comboBox" default=
 "solid;dashed;dotted;dotdash;longdash;twodash" notnull="true"/>
 <Parameter label="help" type="helpString" default="
 &lt;h4&gt;Simple plot help&lt;/h4&gt;
 Produce a simple scatter-plot of numeric data. Common parameters can be specified using the interface,
-and additional parameters can be supplied via the 'Other parameters' line edit (e.g. pch=12).&lt;br&gt;
+and additional parameters can be supplied via the 'Additional parameters' line edit (e.g. pch=12).&lt;br&gt;
 &lt;b&gt;Note&lt;/b&gt;: The values of 'X axis ticks' and 'Y axis ticks' give the (approximate) number of tickmarks on the x 
 and y axes, however, the plotting function will ultimately determine exactly how many ticks are drawn.&lt;br&gt;
 &lt;b&gt;Note&lt;/b&gt;: The axis labels values (1,2,3,0) represent always horizontal, always perpendicular to the axis,
@@ -93,11 +103,13 @@ This tool provides limited plotting functionality. For further plotting control,
 directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
 For further information on plotting functions, see &lt;tt&gt;?plot&lt;/tt&gt; and &lt;tt&gt;?par.&lt;/tt&gt;" notnull="true"/>
 </RTool>
-<RTool name="Simple histogram" category= "Plotting" query="
+<RTool name="Simple histogram" category= "Plotting" query=
+"local({&#xA;
 hist(|1|, breaks='|2|', main='|4|', sub='|5|', xlab='|6|', bty='|7|', 
 freq=ifelse('|3|'=='Frequency',TRUE,FALSE), |10|)&#xA;
-if (|8|) lines(density(|1|), lty='|9|')">
-<Parameter label="Input values:" type="spComboBox" default="numeric;data.frame" notnull="true"/>
+if (|8|) lines(density(|1|), lty='|9|')&#xA;
+})">
+<Parameter label="Input values:" type="spComboBox" default="numeric" notnull="true"/>
 <Parameter label="Break calculation:" type="comboBox" default=
 "Sturges;Scott;Freedman-Diaconis" notnull="true"/>
 <Parameter label="Plot type:" type="comboBox" default="Frequency;Density" notnull="true"/>
@@ -109,21 +121,22 @@ if (|8|) lines(density(|1|), lty='|9|')">
 <Parameter label="Add probability distribution:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
 <Parameter label="Line style:" type="comboBox" default=
 "solid;dashed;dotted;dotdash;longdash;twodash" notnull="true"/>
-<Parameter label="Other parameters:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
 <Parameter label="help" type="helpString" default="
 &lt;h4&gt;Simple histogram help&lt;/h4&gt;
 Produce a simple histogram. Common parameters can be specified using the interface,
-and additional parameters can be supplied via the 'Other parameters' line edit (e.g. col='blue').&lt;br&gt;
+and additional parameters can be supplied via the 'Additional parameters' line edit (e.g. col='blue').&lt;br&gt;
 &lt;b&gt;Note&lt;/b&gt;: Setting 'Add probability function' to TRUE only makes sense if 'Plot type' is equal to 'Density'.&lt;br&gt;
 &lt;b&gt;Note&lt;/b&gt;: If 'Add probability function' is FALSE, then 'Line style' is ignored.&lt;br&gt;
 This tool provides limited histogram plotting functionality. For further control, use the hist function 
 directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
 For further information on plotting histograms see &lt;tt&gt;?hist&lt;/tt&gt;." notnull="true"/>
 </RTool>
-<RTool name="Simple box-plot" category= "Plotting" query="
+<RTool name="Simple box-plot" category= "Plotting" query=
+"local({&#xA;
 boxplot(|1|, varwidth=|2|, notch=|3|, outline=|4|, horizontal=|5|, 
 main='|6|', sub='|7|', xlab='|8|', ylab='|9|')&#xA;
-par()">
+})">
 <Parameter label="Input data:" type="spComboBox" default="numeric;data.frame" notnull="true"/>
 <Parameter label="Use variable width boxes:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
 <Parameter label="Add box notches:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
@@ -145,5 +158,50 @@ for the calculations used.&lt;br&gt;
 This tool provides limited box-plot functionality. For further control, use the boxplot function 
 directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
 For further information on box-plots see &lt;tt&gt;?boxplot&lt;/tt&gt;." notnull="true"/>
+</RTool>
+<RTool name="Simple pie-chart" category= "Plotting" query=
+"local({&#xA;
+pie(|1|, clockwise=|2|, main='|3|', sub='|4|', |5| )&#xA;
+})">
+<Parameter label="Input data:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Clockwise:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="Main title:" type="lineEdit" default="Pie-chart" notnull="false"/>
+<Parameter label="Sub title:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="help" type="helpString" default="
+&lt;h4&gt;Simple pie-chart help&lt;/h4&gt;
+Produce a simple pie-chart. Common parameters can be specified using the interface,
+and additional parameters can be supplied via the 'Additional parameters' line edit 
+(e.g. col='gray(len(x))).&lt;br&gt;
+&lt;b&gt;Note&lt;/b&gt;Pie charts are a very bad way of displaying information. The eye is good 
+at judging linear measures and bad at judging relative areas. A bar chart or dot chart is a 
+preferable way of displaying this type of data.&lt;br&gt;
+&lt;b&gt;Note&lt;/b&gt;To change the labels of the pie segments use &lt;tt&gt;names(x) 
+&lt;- names&lt;/tt&gt;, where x in the input vector, and names is a vector of labels.&lt;br&gt;
+This tool provides limited pie-chart functionality. For further control, use the pie function 
+directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
+For further information on pie-charts see &lt;tt&gt;?pie&lt;/tt&gt;." notnull="true"/>
+</RTool>
+<RTool name="Simple bar-graph" category= "Plotting" query="
+local({&#xA;
+barplot(|1|, horiz=|2|, main='|3|', sub='|4|', xlab='|5|', ylab='|6|', |7|)&#xA;
+})">
+<Parameter label="Input data:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Horizontal:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="Main title:" type="lineEdit" default="Bar-graph" notnull="false"/>
+<Parameter label="Sub title:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
+<Parameter label="Y label:" type="lineEdit" default="Y Axis" notnull="false"/>
+<Parameter label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="help" type="helpString" default="
+&lt;h4&gt;Simple bar-graph help&lt;/h4&gt;
+Produce a simple bar-graph. Common parameters can be specified using the interface,
+and additional parameters can be supplied via the 'Additional parameters' line edit 
+(e.g. col='green').&lt;br&gt;
+&lt;b&gt;Note&lt;/b&gt;: To change the labels of the bars use &lt;tt&gt;names(x) = names&lt;/tt&gt;,
+where x in the input vector of bar heights, and names is a vector of labels.&lt;br&gt;
+This tool provides limited bar-graph functionality. For further control, use the barplot function 
+directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
+For further information on bar-graphs see &lt;tt&gt;?barplot&lt;/tt&gt;." notnull="true"/>
 </RTool>
 </manageRTools>

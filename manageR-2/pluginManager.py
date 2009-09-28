@@ -70,7 +70,7 @@ class PluginManager:
                     category = tool.getAttribute("category")
                     if not category == "":
                         sub = QMenu(category, self.parent)
-                        sub.setIcon(QIcon(":mActionAnalysisTool.png"))
+                        sub.setIcon(QIcon(":mActionAnalysisMenu.png"))
                         add = True
                     else:
                         sub = pluginsMenu
@@ -85,7 +85,7 @@ class PluginManager:
                         pluginsMenu.addMenu(sub)
                     # Create action that will start plugin configuration
                     self.actionlist.append(QAction(
-                    QIcon(":mActionPluginsPlugin"), name, self.parent))
+                    QIcon(":mActionAnalysisTool"), name, self.parent))
                     #create a new funcion that calls run() with the id parameter
                     self.callerlist.append(self.makeCaller(len(self.actionlist)-1)) 
                     # connect the action to the run method
@@ -98,15 +98,20 @@ class PluginManager:
 
     def runCommand(self, command):
         mime = QMimeData()
-        mime.setText(command)
         self.parent.editor.moveToEnd()
         self.parent.editor.cursor.movePosition(
         QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
         self.parent.editor.cursor.removeSelectedText()
         self.parent.editor.cursor.insertText(
         self.parent.editor.currentPrompt)
-        self.parent.editor.insertFromMimeData(mime)
-        self.parent.editor.entered()
+        if self.dlg.ui.showCommands.isChecked():
+            mime.setText(command)
+            self.parent.editor.insertFromMimeData(mime)
+            self.parent.editor.entered()
+        else:
+            mime.setText("manageR analysis tool")
+            self.parent.editor.insertFromMimeData(mime)
+            self.parent.editor.execute(QString(command))
     
     def start(self):
         #reads the info in the widgets and calls the sql command
@@ -164,7 +169,7 @@ class PluginManager:
         self.dlg = PluginsDialog(parameters)
         self.dlg.setWindowTitle(name)
         if self.dlg.ui.isSpatial():
-            self.dlg.ui.updateSpatialObjects()
+            self.dlg.ui.updateRObjects()
         #connect the slots
         QObject.connect(self.dlg.ui.buttonBox, SIGNAL("accepted()"), self.start)
         #self.helpString = QString(parameters[actionid][-1])

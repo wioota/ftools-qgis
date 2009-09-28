@@ -14,6 +14,7 @@
         <file alias="mActionEditComplete.png">icons/mActionEditComplete.png</file>
         <file alias="mActionGraphicExport.png">icons/mActionGraphicExport.png</file>
         <file alias="mActionActionImport.png">icons/mActionActionImport.png</file>
+        <file alias="mActionAnalysisMenu.png">icons/mActionAnalysisMenu.png</file>
         <file alias="mActionEditCut.png">icons/mActionEditCut.png</file>
         <file alias="mActionIcon.png">icons/mActionIcon.png</file>
         <file alias="mActionEditIndent.png">icons/mActionEditIndent.png</file>
@@ -31,7 +32,6 @@
         <file alias="mActionEditUndo.png">icons/mActionEditUndo.png</file>
         <file alias="mActionGraphicSave.png">icons/mActionGraphicSave.png</file>
         <file alias="mActionWindow.png">icons/mActionWindow.png</file>
-        <file alias="mActionPluginsPlugin.png">icons/mActionPluginsPlugin.png</file>
         <file alias="mActionFileSaveAll.png">icons/mActionFileSaveAll.png</file>
         <file alias="mActionActionExport.png">icons/mActionActionExport.png</file>
         <file alias="mActionHelpHelp.png">icons/mActionHelpHelp.png</file>

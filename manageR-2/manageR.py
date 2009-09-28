@@ -1088,6 +1088,8 @@ class RConsole(QTextEdit):
         self.reset()
         self.setPrompt(Config["beforeinput"]+" ", Config["afteroutput"]+" ")
         self.cursor = self.textCursor()
+        self.connect(self, SIGNAL("cursorPositionChanged()"),
+        self.positionChanged)
 
     def loadRHistory(self):
         success = True
@@ -1146,6 +1148,9 @@ class RConsole(QTextEdit):
         self.runningCommand.clear()
         self.append(self.currentPrompt)
         self.moveCursor(QTextCursor.End, QTextCursor.MoveAnchor)
+
+    def positionChanged(self):
+        self.highlight()
 
     def keyPressEvent(self, e):
         self.cursor = self.textCursor()
@@ -1341,23 +1346,9 @@ class RConsole(QTextEdit):
         self.setTextCursor(cursor)
         self.emit(SIGNAL("textChanged()"))
 
-    def positionChanged(self):
-        self.highlight()
-
     def highlight(self):
         extraSelections = []
         self.setExtraSelections(extraSelections)
-        format = QTextCharFormat()
-        format.setBackground(QColor(Config["backgroundcolor"]).darker(110))
-        format.setProperty(QTextFormat.FullWidthSelection, QVariant(True))
-        selection = QTextEdit.ExtraSelection()
-        selection.format = format
-        cursor = self.textCursor()
-        selection.cursor = cursor
-        selection.cursor.clearSelection()
-        extraSelections.append(selection)
-        self.setExtraSelections(extraSelections)
-        
         format = QTextCharFormat()
         format.setForeground(QColor(Config["delimiterfontcolor"]))
         format.setBackground(QColor(Qt.yellow).lighter(160)) #QColor(Config["bracketcolor"])?
@@ -3122,7 +3113,8 @@ class MainWindow(QMainWindow):
                 mime = QMimeData()
                 mime.setText(Config["consolestartup"])
                 self.editor.insertFromMimeData(mime)
-                self.editor.execute(QString(Config["consolestartup"]))
+                self.editor.entered()
+                #self.editor.execute(QString(Config["consolestartup"]))
             # If requested, load all default library functions into CAT
             if Config["enableautocomplete"]:
                 splash.showMessage("Loading default library commands", \

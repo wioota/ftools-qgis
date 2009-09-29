@@ -166,7 +166,7 @@ class PluginManager:
         #reads the xml file
         name, self.command, parameters = self.getTool(actionid)
         # create and show the dialog 
-        self.dlg = PluginsDialog(parameters)
+        self.dlg = PluginsDialog(self.parent, parameters)
         self.dlg.setWindowTitle(name)
         if self.dlg.ui.isSpatial():
             self.dlg.ui.updateRObjects()
@@ -183,7 +183,7 @@ class PluginManager:
             print "ok pressed"
             
 class PluginsDialog(QDialog):
-    def __init__(self, interface): 
-        QDialog.__init__(self) 
+    def __init__(self, parent, interface): 
+        QDialog.__init__(self, parent) 
         self.ui = GenericVerticalUI()
         self.ui.setupUi(self, interface)

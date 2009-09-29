@@ -40,7 +40,7 @@ from qgis.core import *
 import os, resources
 from xml.dom import minidom
 
-from GenericVerticalUI import GenericVerticalUI
+from GenericVerticalUI import GenericVerticalUI, SpListWidget, SpComboBox
 
 class PluginManager: 
     def __init__(self, parent):#, iface):
@@ -105,11 +105,11 @@ class PluginManager:
         self.parent.editor.cursor.insertText(
         self.parent.editor.currentPrompt)
         if self.dlg.ui.showCommands.isChecked():
-            mime.setText(command)
+            mime.setText("# manageR '%s' tool\n%s" % (self.name,command))
             self.parent.editor.insertFromMimeData(mime)
             self.parent.editor.entered()
         else:
-            mime.setText("manageR analysis tool")
+            mime.setText("# manageR '%s' tool" % (self.name))
             self.parent.editor.insertFromMimeData(mime)
             self.parent.editor.execute(QString(command))
     
@@ -125,6 +125,12 @@ class PluginManager:
                 text=str(item.value())
             elif type(item)==type(QComboBox()):
                 text=str(item.currentText())
+            elif isinstance(item, SpListWidget):
+                items=item.selectedItems()
+                text=QString()
+                for j in items:
+                    text.append(j.text()+item.spDelimiter())
+                text.remove(-1,1)
             else:
                 try:
                     text=str(item.currentText())
@@ -164,10 +170,10 @@ class PluginManager:
     # run method that performs all the real work
     def run(self, actionid): 
         #reads the xml file
-        name, self.command, parameters = self.getTool(actionid)
+        self.name, self.command, parameters = self.getTool(actionid)
         # create and show the dialog 
         self.dlg = PluginsDialog(self.parent, parameters)
-        self.dlg.setWindowTitle(name)
+        self.dlg.setWindowTitle(self.name)
         if self.dlg.ui.isSpatial():
             self.dlg.ui.updateRObjects()
         #connect the slots

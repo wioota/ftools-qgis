@@ -61,6 +61,19 @@ class SpComboBox(QtGui.QComboBox):
     def spTypes(self):
         return self.types
         
+class SpListWidget(QtGui.QListWidget):
+    def __init__(self, parent=None, 
+        types=QtCore.QStringList(), delimiter=','):
+        super(SpListWidget, self).__init__(parent)
+        self.types = types
+        self.delimiter = delimiter
+        
+    def spTypes(self):
+        return self.types
+        
+    def spDelimiter(self):
+        return self.delimiter
+        
 class GenericVerticalUI(object):
     """Generic class of user interface"""
     def addGuiItem(self, ParentClass, parameters, width):
@@ -73,6 +86,7 @@ class GenericVerticalUI(object):
         else:
             default=""
         skip = False
+        notnull=parameters[3]
         #setting the right type of widget
         if widgetType=="comboBox":
             widget = QtGui.QComboBox(ParentClass)
@@ -83,6 +97,13 @@ class GenericVerticalUI(object):
             widget.setFixedHeight(26)
             self.hasSpComboBox = True
             widget.setEditable(True)
+        elif widgetType=="spListWidget":
+            widget = SpListWidget(ParentClass, 
+            default.split(';'), notnull)
+            widget.setMinimumHeight(116)
+            self.hasSpComboBox = True
+            widget.setSelectionMode(
+            QtGui.QAbstractItemView.ExtendedSelection)
         elif widgetType=="doubleSpinBox":
             widget = QtGui.QDoubleSpinBox(ParentClass)
             widget.setValue(float(default))
@@ -123,7 +144,8 @@ class GenericVerticalUI(object):
     def updateRObjects(self):
         splayers = currentRObjects()
         for widget in self.widgets:
-            if isinstance(widget, SpComboBox):
+            if isinstance(widget, SpComboBox) \
+            or isinstance(widget, SpListWidget):
                 sptypes = widget.spTypes()
                 for sptype in sptypes:
                     for layer in splayers.keys():
@@ -181,9 +203,17 @@ class GenericVerticalUI(object):
 
     def help(self):
         if QtCore.QString(self.helpString).startsWith("topic:"):
+            topic = QtCore.QString(self.helpString).remove("topic:")
+            self.ParentClass.parent().editor.moveToEnd()
+            self.ParentClass.parent().editor.cursor.movePosition(
+            QtGui.QTextCursor.StartOfBlock, QtGui.QTextCursor.KeepAnchor)
+            self.ParentClass.parent().editor.cursor.removeSelectedText()
+            self.ParentClass.parent().editor.cursor.insertText(
+            "%shelp(%s)" % (
+            self.ParentClass.parent().editor.currentPrompt,
+            str(topic)))
             self.ParentClass.parent().editor.execute(
-            QtCore.QString("help("+QtCore.QString(
-            self.helpString).remove("topic:")+")"))
+            QtCore.QString("help('%s')" % (str(topic))))
         else:
             HelpForm(self.ParentClass, self.helpString).show()
     

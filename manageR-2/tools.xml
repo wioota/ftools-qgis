@@ -80,17 +80,7 @@ abline(tmp.fit, lty='|13|')&#xA;
 <Parameter label="Y axis ticks:" type="lineEdit" default="5" notnull="true"/>
 <Parameter label="Axis labels:" type="comboBox" default="1;2;3;0" notnull="true"/>
 <Parameter label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
-<Parameter label="help" type="helpString" default="
-&lt;h4&gt;Quick plot help&lt;/h4&gt;
-Produce a generic plot of numeric data. Common parameters can be specified using the interface,
-and additional parameters can be supplied via the 'Additional parameters' line edit (e.g. pch=12).&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;: The values of 'X axis ticks' and 'Y axis ticks' give the (approximate) number of tickmarks on the x 
-and y axes, however, the plotting function will ultimately determine exactly how many ticks are drawn.&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;: The axis labels values (1,2,3,0) represent always horizontal, always perpendicular to the axis,
-always vertical, and always parallel to the axis respectively.&lt;br&gt;
-This tool provides limited plotting functionality. For further plotting control, use the plot function 
-directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
-For further information on plotting functions, see &lt;tt&gt;?plot&lt;/tt&gt; and &lt;tt&gt;?par.&lt;/tt&gt;" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:plot" notnull="true"/>
 </RTool>
 <RTool name="Scatterplot" category= "Plotting" query=
 "local({&#xA;
@@ -116,18 +106,7 @@ abline(tmp.fit, lty='|13|')&#xA;
 <Parameter label="Add trend line:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
 <Parameter label="Trend line style:" type="comboBox" default=
 "solid;dashed;dotted;dotdash;longdash;twodash" notnull="true"/>
-<Parameter label="help" type="helpString" default="
-&lt;h4&gt;Scatterplot help&lt;/h4&gt;
-Produce a simple scatterplot of numeric data. Common parameters can be specified using the interface,
-and additional parameters can be supplied via the 'Additional parameters' line edit (e.g. pch=12).&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;: The values of 'X axis ticks' and 'Y axis ticks' give the (approximate) number of tickmarks on the x 
-and y axes, however, the plotting function will ultimately determine exactly how many ticks are drawn.&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;: The axis labels values (1,2,3,0) represent always horizontal, always perpendicular to the axis,
-always vertical, and always parallel to the axis respectively.&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;: If 'Add trend line' is FALSE, then 'Line style' is ignored.&lt;br&gt;
-This tool provides limited plotting functionality. For further plotting control, use the plot function 
-directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
-For further information on plotting functions, see &lt;tt&gt;?plot&lt;/tt&gt; and &lt;tt&gt;?par.&lt;/tt&gt;" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:plot" notnull="true"/>
 </RTool>
 <RTool name="Histogram" category= "Plotting" query=
 "local({&#xA;
@@ -148,15 +127,7 @@ if (|8|) lines(density(|1|), lty='|9|')&#xA;
 <Parameter label="Line style:" type="comboBox" default=
 "solid;dashed;dotted;dotdash;longdash;twodash" notnull="true"/>
 <Parameter label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
-<Parameter label="help" type="helpString" default="
-&lt;h4&gt;Simple histogram help&lt;/h4&gt;
-Produce a simple histogram. Common parameters can be specified using the interface,
-and additional parameters can be supplied via the 'Additional parameters' line edit (e.g. col='blue').&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;: Setting 'Add probability function' to TRUE only makes sense if 'Plot type' is equal to 'Density'.&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;: If 'Add probability function' is FALSE, then 'Line style' is ignored.&lt;br&gt;
-This tool provides limited histogram plotting functionality. For further control, use the hist function 
-directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
-For further information on plotting histograms see &lt;tt&gt;?hist&lt;/tt&gt;." notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:hist" notnull="true"/>
 </RTool>
 <RTool name="Box-plot" category= "Plotting" query=
 "local({&#xA;
@@ -172,18 +143,7 @@ main='|6|', sub='|7|', xlab='|8|', ylab='|9|')&#xA;
 <Parameter label="Sub title:" type="lineEdit" default="" notnull="false"/>
 <Parameter label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
 <Parameter label="Y label:" type="lineEdit" default="Y Axis" notnull="false"/>
-<Parameter label="help" type="helpString" default="
-&lt;h4&gt;Simple box-plot help&lt;/h4&gt;
-Produce a simple box-plot.&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;: Setting 'Use variable width boxes' to TRUE means that the boxes are drawn 
-with widths proportional to the square-roots of the number of observations in the groups.&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;: If 'Add box notches' is TRUE, a notch is drawn in each side of the
-boxes.  If the notches of two plots do not overlap this is 'strong evidence' that the two medians 
-differ (Chambers &lt;i&gt;et al.&lt;/i&gt;, 1983, p. 62).  See &lt;tt&gt;?boxplot.stats&lt;/tt&gt; 
-for the calculations used.&lt;br&gt;
-This tool provides limited box-plot functionality. For further control, use the boxplot function 
-directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
-For further information on box-plots see &lt;tt&gt;?boxplot&lt;/tt&gt;." notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:boxplot" notnull="true"/>
 </RTool>
 <RTool name="Pie-chart" category= "Plotting" query=
 "local({&#xA;
@@ -194,19 +154,7 @@ pie(|1|, clockwise=|2|, main='|3|', sub='|4|', |5| )&#xA;
 <Parameter label="Main title:" type="lineEdit" default="Pie-chart" notnull="false"/>
 <Parameter label="Sub title:" type="lineEdit" default="" notnull="false"/>
 <Parameter label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
-<Parameter label="help" type="helpString" default="
-&lt;h4&gt;Simple pie-chart help&lt;/h4&gt;
-Produce a simple pie-chart. Common parameters can be specified using the interface,
-and additional parameters can be supplied via the 'Additional parameters' line edit 
-(e.g. col='gray(len(x))).&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;Pie charts are a very bad way of displaying information. The eye is good 
-at judging linear measures and bad at judging relative areas. A bar chart or dot chart is a 
-preferable way of displaying this type of data.&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;To change the labels of the pie segments use &lt;tt&gt;names(x) 
-= names&lt;/tt&gt;, where x in the input vector, and names is a vector of labels.&lt;br&gt;
-This tool provides limited pie-chart functionality. For further control, use the pie function 
-directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
-For further information on pie-charts see &lt;tt&gt;?pie&lt;/tt&gt;." notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:pie" notnull="true"/>
 </RTool>
 <RTool name="Bar-graph" category= "Plotting" query="
 local({&#xA;
@@ -219,16 +167,7 @@ barplot(|1|, horiz=|2|, main='|3|', sub='|4|', xlab='|5|', ylab='|6|', |7|)&#xA;
 <Parameter label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
 <Parameter label="Y label:" type="lineEdit" default="Y Axis" notnull="false"/>
 <Parameter label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
-<Parameter label="help" type="helpString" default="
-&lt;h4&gt;Simple bar-graph help&lt;/h4&gt;
-Produce a simple bar-graph. Common parameters can be specified using the interface,
-and additional parameters can be supplied via the 'Additional parameters' line edit 
-(e.g. col='green').&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;: To change the labels of the bars use &lt;tt&gt;names(x) = names&lt;/tt&gt;,
-where x in the input vector of bar heights, and names is a vector of labels.&lt;br&gt;
-This tool provides limited bar-graph functionality. For further control, use the barplot function 
-directly by using the code provided by this function as an example.&lt;br&gt;&lt;br&gt;
-For further information on bar-graphs see &lt;tt&gt;?barplot&lt;/tt&gt;." notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:barplot" notnull="true"/>
 </RTool>
 <RTool name="Density plot" category= "Plotting" query="
 local({&#xA;
@@ -308,5 +247,27 @@ summary(|1|)
 })">
 <Parameter label="Input data:" type="spComboBox" default="all" notnull="true"/>
 <Parameter label="help" type="helpString" default="topic:summary" notnull="true"/>
+</RTool>
+<RTool name="Correlation matrix" category= "Statistics" query=
+"local({&#xA;
+tmp &lt;- data.frame(|1|)&#xA;
+cor(tmp, use='|2|', method='|3|')&#xA;
+})">
+<Parameter label="Input data:" type="spListWidget" default="numeric" notnull=","/>
+<Parameter label="Use (with NAs):" type="comboBox" default=
+"everything;all.obs;complete.obs;na.or.complete;pairwise.complete.obs"
+notnull="true"/>
+<Parameter label="Method:" type="comboBox" default="pearson;kendall;spearman" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:cor" notnull="true"/>
+</RTool>
+<RTool name="Linear regression" category= "Statistics" query=
+"local({&#xA;
+if (|3|) summary.lm(lm(|1| ~ |2|))&#xA;
+else summary.lm(lm(|1| ~ 0 + |2|))&#xA;
+})">
+<Parameter label="Dependant variable:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Independent variables:" type="spListWidget" default="numeric" notnull="+"/>
+<Parameter label="Include intercept:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:lm" notnull="true"/>
 </RTool>
 </manageRTools>

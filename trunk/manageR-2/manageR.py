@@ -1995,7 +1995,7 @@ class helpDialog(QDialog):
         help_string.remove("_")
         display.setPlainText(help_string)
         help_file.close()
-        self.resize(550, 400)
+        self.resize(650, 400)
 
 class searchDialog(QDialog):
 
@@ -2043,7 +2043,7 @@ class searchDialog(QDialog):
             display_string.append(row)
       display.setPlainText(display_string)
       #help_file.close()
-      self.resize(550, 400)
+      self.resize(650, 400)
 
 class RWDWidget(QWidget):
 
@@ -2796,7 +2796,7 @@ class MainWindow(QMainWindow):
             self.editor.setPalette(palette)
             #self.editor.setTextColor(QColor(Config["normalfontcolor"]))
         self.finder = RFinder(self, self.editor)
-        self.finderDockWidget = QDockWidget("Find and Replace", self)          
+        self.finderDockWidget = QDockWidget("Find and Replace Toolbar", self)          
         self.finderDockWidget.setObjectName("findReplace")
         self.finderDockWidget.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.finderDockWidget.setWidget(self.finder)
@@ -2949,23 +2949,23 @@ class MainWindow(QMainWindow):
             self.addActions(actionMenu, (actionShowPrevAction, actionShowNextAction,
             actionImportLayerAction, actionImportAttibutesAction,
             actionExportCanvasAction, actionExportFileAction,))
-            workspaceMenu = self.menuBar().addMenu("&Workspace")
+            workspaceMenu = self.menuBar().addMenu("Wo&rkspace")
             self.addActions(workspaceMenu, (workspaceLoadAction, 
             workspaceSaveAction))
-        try:
-            pluginsMenu = self.menuBar().addMenu("&Analysis")
-            pluginCreator = PluginManager(self)
-            pluginCreator.createActions(pluginsMenu)
-        except Exception, e:
-            message = QMessageBox(self)
-            message.setWindowTitle("manageR load error")
-            message.setText("Error generating plugin interfaces.\n"
-            "Please ensure that your tools.xml file is correctly formatted.")
-            message.setInformativeText("Note: Analysis plugins will be disabled for "
-            "the current manageR session." )
-            message.setDetailedText(str(e))
-            message.exec_()
-            pluginsMenu.deleteLater()
+            try:
+                pluginsMenu = self.menuBar().addMenu("A&nalysis")
+                pluginCreator = PluginManager(self)
+                pluginCreator.createActions(pluginsMenu)
+            except Exception, e:
+                message = QMessageBox(self)
+                message.setWindowTitle("manageR load error")
+                message.setText("Error generating plugin interfaces.\n"
+                "Please ensure that your tools.xml file is correctly formatted.")
+                message.setInformativeText("Note: Analysis plugins will be disabled for "
+                "the current manageR session." )
+                message.setDetailedText(str(e))
+                message.exec_()
+                pluginsMenu.deleteLater()
         self.viewMenu = self.menuBar().addMenu("&View")
         self.windowMenu = self.menuBar().addMenu("&Window")
         self.connect(self.windowMenu, SIGNAL("aboutToShow()"),
@@ -3025,7 +3025,7 @@ class MainWindow(QMainWindow):
         self.viewMenu.addAction(action)
         self.Toolbars[self.finderDockWidget] = action
         if isConsole:
-            self.finderDockWidget.setWindowTitle("Find")
+            self.finderDockWidget.setWindowTitle("Find Toolbar")
             self.finder.hideReplace()
         self.connect(self, SIGNAL("destroyed(QObject*)"),
                      MainWindow.updateInstances)

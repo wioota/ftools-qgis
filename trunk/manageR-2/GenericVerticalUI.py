@@ -127,21 +127,24 @@ class GenericVerticalUI(object):
                 sptypes = widget.spTypes()
                 for sptype in sptypes:
                     for layer in splayers.keys():
-                        if splayers[layer] == sptype.strip():
+                        if splayers[layer] == sptype.strip() \
+                        or sptype.strip() == "all":
                             value = layer
                             widget.addItem(value)
-                        elif splayers[layer] in VECTORTYPES \
-                        and sptype.strip() == "data.frame":
+                        if splayers[layer] in VECTORTYPES \
+                        and (sptype.strip() == "data.frame" \
+                        or sptype.strip() == "all"):
                             value = layer+"@data"
                             widget.addItem(value)
-                        elif splayers[layer] in VECTORTYPES \
+                        if splayers[layer] in VECTORTYPES \
                         or splayers[layer] == "data.frame":
                             for item in list(robjects.r('names(%s)' % (layer))):
                                 if splayers[layer] == "data.frame":
                                     value = layer+"$"+item
                                 else:
                                     value = layer+"@data$"+item
-                                if str(robjects.r('class(%s)' % (value))[0]) == sptype.strip():
+                                if str(robjects.r('class(%s)' % (value))[0]) == sptype.strip() \
+                                or sptype.strip() == "all":
                                     widget.addItem(value)
                             
                                         
@@ -177,7 +180,12 @@ class GenericVerticalUI(object):
         QtCore.QMetaObject.connectSlotsByName(self.ParentClass)
 
     def help(self):
-        HelpForm(self.ParentClass, self.helpString).show()
+        if QtCore.QString(self.helpString).startsWith("topic:"):
+            self.ParentClass.parent().editor.execute(
+            QtCore.QString("help("+QtCore.QString(
+            self.helpString).remove("topic:")+")"))
+        else:
+            HelpForm(self.ParentClass, self.helpString).show()
     
 class HelpForm(QtGui.QDialog):
 

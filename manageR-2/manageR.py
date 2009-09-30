@@ -359,8 +359,8 @@ installation folder (%s). The format of the XML file should be as follows:
 &lt;manageRTools&gt;</i></font>
 </pre>
 where each RTool specifies a unique R function. In the above example, the GUI will consist of a simple 
-dialog with a text editing region to input user-defined R commands, and an OK and CANCEL button. When 
-OK is clicked, the R commands in the text editing region will be run, and when CANCEL is clicked, 
+dialog with a text editing region to input user-defined R commands, and an OK and CLOSE button. When 
+OK is clicked, the R commands in the text editing region will be run, and when CLOSE is clicked, 
 the dialog will be closed. In the example above, query is set to <tt>|1|</tt>, which means take the 
 output from the first parameter, and place here. In other words, in this case the entire query is 
 equal to whatever is input into the text editing region (default here is <tt>ls()</tt>). Other GUI 
@@ -369,14 +369,16 @@ parameters that may be entered include:
 <li>comboBox: Drop-down list box</li>
 <li>doubleSpinBox: Widget for entering numerical values</li>
 <li>textEdit: Text editing region</li>
-<li>spComboBox: comboBox containing only the specified Spatial*DataFrame types</li>
-<li>helpString: A non-graphical parameter that is linked to the help button on the dialog</li>
-</ul>
+<li>spComboBox: Combobox widget for displaying a dropdown list of variables (e.g. numeric, 
+data.frame, Spatial*DataFrame)</li>
+<li>spListWidget: Widget for displaying lists of variables (e.g. numeric, data.frame, Spatial*DataFrame)</li>
+<li>helpString: Non-graphical parameter that is linked to the help button on the dialog
+(can use 'topic:help_topic' or custom html based help text)</li></ul>
 Default values for all of the above GUI parameters can be specified in the XML file, using semi-colons 
 to separate multiple options. For the spComboBox, the default string should specify the type(s) of 
-Spatial*DataFrame to display (e.g. SpatialPointsDataFrame;SpatialLinesDataFrame).
+variables to display (e.g. numeric;data,frame;SpatialPointsDataFrame).
 <b>manageR</b> comes with several default R GUI functions which can be used as examples for creating
-custom R GUI functions.
+custom R functions.
 </p>
 <h4>Key bindings:</h4>
 <ul>

@@ -270,4 +270,46 @@ else summary.lm(lm(|1| ~ 0 + |2|))&#xA;
 <Parameter label="Include intercept:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
 <Parameter label="help" type="helpString" default="topic:lm" notnull="true"/>
 </RTool>
+<RTool name="Create spatial weights" category= "Spatial" query=
+"require(spdep)&#xA;
+|7| &lt;- local({&#xA;
+    input &lt;- |1|&#xA;
+    type &lt;- '|2|'&#xA;
+    value &lt;- |3|&#xA;
+    style &lt;- '|6|'&#xA;
+    if ('|4|'=='binary') decay &lt;- 1&#xA;
+    else decay &lt;- |5|&#xA;
+    if (type=='contiguity') {&#xA;
+        weights &lt;- poly2nb(pl=input, snap=0.0005, queen=T) #Better parameter for snap?&#xA;
+        if (value >= 2) {&#xA;
+            nblags &lt;- nblag(neighbours=weights, maxlag=value)&#xA;
+            weights &lt;- nblag.cumul(nblags=nblags)&#xA;
+         }&#xA;
+    } else {&#xA;
+        ids &lt;- seq(1,dim(input@data)[1])&#xA;
+        proj4 &lt;- proj4string(input)&#xA;
+        coords &lt;- coordinates(obj=input)&#xA;
+        points &lt;- SpatialPoints(coords=coords, proj4string=CRS(proj4))&#xA;
+        if (type=='distance') {&#xA;
+            dist &lt;- dnearneigh(x=points, d1=0, d2=value, row.names=ids)&#xA;
+        } else { # 'knearest'&#xA;
+            knear &lt;- knearneigh(x=points, k=value)&#xA;
+            dist &lt;- knn2nb(knn=knear, row.names=ids, sym=FALSE)&#xA;
+        }&#xA;
+        dlist &lt;- nbdists(nb=dist, coords=points)&#xA;
+        decayfun &lt;- function(x) 1/(x^decay)&#xA;
+        idlist &lt;- lapply(X=dlist, FUN=decayfun)&#xA;
+        weights &lt;- nb2listw(neighbours=dist, glist=idlist, style=style, zero.policy=T)&#xA;
+    }&#xA;
+})">
+<Parameter label="Input layer:" type="spComboBox" default=
+"SpatialPointsDataFrame;SpatialLinesDataFrame;SpatialPolygonsDataFrame" notnull="true"/>
+<Parameter label="Spatial neighbourhood type:" type="comboBox" default="distance;knearest;contiguity" notnull="true"/>
+<Parameter label="Distance or K neighbours or K lags:" type="doubleSpinBox" default="1.00" notnull="true"/>
+<Parameter label="Weighting scheme:" type="comboBox" default="binary;inverse.distance" notnull="true"/>
+<Parameter label="Distance decay:" type="doubleSpinBox" default="1.00" notnull="true"/>
+<Parameter label="Weighting style:" type="comboBox" default="W;B;C;U;S" notnull="true"/>
+<Parameter label="Output name:" type="lineEdit" default="weights" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:nb2listw" notnull="true"/>
+</RTool>
 </manageRTools>

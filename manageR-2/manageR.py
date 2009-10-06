@@ -632,7 +632,9 @@ class RHighlighter(QSyntaxHighlighter):
                 r"|\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b"),
                 "number"))
         RHighlighter.Rules.append((QRegExp(
-                r"(<){1,2}-"), "assignment"))
+                r"(<){1,2}-"
+                r"$"
+                r"@"), "assignment"))
         RHighlighter.Rules.append((QRegExp(r"[\)\(]+|[\{\}]+|[][]+"),
                 "delimiter"))
         RHighlighter.Rules.append((QRegExp(r"#.*"), "comment"))
@@ -1156,88 +1158,91 @@ class RConsole(QTextEdit):
         self.highlight()
 
     def keyPressEvent(self, e):
-        self.cursor = self.textCursor()
-        # if the cursor isn't in the edition zone, don't do anything except Ctrl+C
-        if not self.isCursorInEditionZone():
-            if e.modifiers() == Qt.ControlModifier or \
-                e.modifiers() == Qt.MetaModifier:
-                if e.key() == Qt.Key_C or e.key() == Qt.Key_A:
-                    QTextEdit.keyPressEvent(self, e)
-            else:
-                # all other keystrokes get sent to the input line
-                self.cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
+        if e.key() == Qt.Key_A and (e.modifiers() == Qt.ControlModifier or \
+            e.modifiers() == Qt.MetaModifier):
+            self.selectAll()
         else:
-            # if Ctrl + C is pressed, then undo the current command
-            if e.key() == Qt.Key_C and (e.modifiers() == Qt.ControlModifier or \
-                e.modifiers() == Qt.MetaModifier) and not self.cursor.hasSelection():
-                self.runningCommand.clear()
-                block = self.cursor.block()
-                block.setUserState(0)
-                print block.userState()
-                self.switchPrompt(True)
-                self.displayPrompt()
-                MainWindow.Console.statusBar().clearMessage()
-            elif e.key() == Qt.Key_Tab:
-                indent = " " * int(Config["tabwidth"])
-                self.cursor.insertText(indent)
-              # if Return is pressed, then perform the commands
-            elif e.key() == Qt.Key_Return:
-                self.entered()
-              # if Up or Down is pressed
-            elif e.key() == Qt.Key_Down:
-                self.showPrevious()
-            elif e.key() == Qt.Key_Up:
-                self.showNext()
-              # if backspace is pressed, delete until we get to the prompt
-            elif e.key() == Qt.Key_Backspace:
-                if not self.cursor.hasSelection() and \
-                    self.cursor.columnNumber() == self.currentPromptLength:
-                    return
-                QTextEdit.keyPressEvent(self, e)
-              # if the left key is pressed, move left until we get to the prompt
-            elif e.key() == Qt.Key_Left and \
-                self.cursor.position() > self.document().lastBlock().position() + \
-                self.currentPromptLength:
-                if e.modifiers() == Qt.ShiftModifier:
-                    anchor = QTextCursor.KeepAnchor
+            self.cursor = self.textCursor()
+            # if the cursor isn't in the edition zone, don't do anything except Ctrl+C
+            if not self.isCursorInEditionZone():
+                if e.modifiers() == Qt.ControlModifier or \
+                    e.modifiers() == Qt.MetaModifier:
+                    if e.key() == Qt.Key_C:
+                        QTextEdit.keyPressEvent(self, e)
                 else:
-                    anchor = QTextCursor.MoveAnchor
-                if (e.modifiers() == Qt.ControlModifier or \
-                e.modifiers() == Qt.MetaModifier):
-                    self.cursor.movePosition(QTextCursor.WordLeft, anchor)
-                else:
-                    self.cursor.movePosition(QTextCursor.Left, anchor)
-              # use normal operation for right key
-            elif e.key() == Qt.Key_Right:
-                if e.modifiers() == Qt.ShiftModifier:
-                    anchor = QTextCursor.KeepAnchor
-                else:
-                    anchor = QTextCursor.MoveAnchor
-                if (e.modifiers() == Qt.ControlModifier or \
-                e.modifiers() == Qt.MetaModifier):
-                    self.cursor.movePosition(QTextCursor.WordRight, anchor)
-                else:
-                    self.cursor.movePosition(QTextCursor.Right, anchor)
-              # if home is pressed, move cursor to right of prompt
-            elif e.key() == Qt.Key_Home:
-                if e.modifiers() == Qt.ShiftModifier:
-                    anchor = QTextCursor.KeepAnchor
-                else:
-                    anchor = QTextCursor.MoveAnchor
-                self.cursor.movePosition(QTextCursor.StartOfBlock, anchor, 1)
-                self.cursor.movePosition(QTextCursor.Right, anchor, self.currentPromptLength)
-              # use normal operation for end key
-            elif e.key() == Qt.Key_End:
-                if e.modifiers() == Qt.ShiftModifier:
-                    anchor = QTextCursor.KeepAnchor
-                else:
-                    anchor = QTextCursor.MoveAnchor
-                self.cursor.movePosition(
-                QTextCursor.EndOfBlock, anchor, 1)
-                # use normal operation for all remaining keys
+                    # all other keystrokes get sent to the input line
+                    self.cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
             else:
-                QTextEdit.keyPressEvent(self, e)
-        self.setTextCursor(self.cursor)
+                # if Ctrl + C is pressed, then undo the current command
+                if e.key() == Qt.Key_C and (e.modifiers() == Qt.ControlModifier or \
+                    e.modifiers() == Qt.MetaModifier) and not self.cursor.hasSelection():
+                    self.runningCommand.clear()
+                    block = self.cursor.block()
+                    block.setUserState(0)
+                    self.switchPrompt(True)
+                    self.displayPrompt()
+                    MainWindow.Console.statusBar().clearMessage()
+                elif e.key() == Qt.Key_Tab:
+                    indent = " " * int(Config["tabwidth"])
+                    self.cursor.insertText(indent)
+                  # if Return is pressed, then perform the commands
+                elif e.key() == Qt.Key_Return:
+                    self.entered()
+                  # if Up or Down is pressed
+                elif e.key() == Qt.Key_Down:
+                    self.showPrevious()
+                elif e.key() == Qt.Key_Up:
+                    self.showNext()
+                  # if backspace is pressed, delete until we get to the prompt
+                elif e.key() == Qt.Key_Backspace:
+                    if not self.cursor.hasSelection() and \
+                        self.cursor.columnNumber() == self.currentPromptLength:
+                        return
+                    QTextEdit.keyPressEvent(self, e)
+                  # if the left key is pressed, move left until we get to the prompt
+                elif e.key() == Qt.Key_Left and \
+                    self.cursor.position() > self.document().lastBlock().position() + \
+                    self.currentPromptLength:
+                    if e.modifiers() == Qt.ShiftModifier:
+                        anchor = QTextCursor.KeepAnchor
+                    else:
+                        anchor = QTextCursor.MoveAnchor
+                    if (e.modifiers() == Qt.ControlModifier or \
+                    e.modifiers() == Qt.MetaModifier):
+                        self.cursor.movePosition(QTextCursor.WordLeft, anchor)
+                    else:
+                        self.cursor.movePosition(QTextCursor.Left, anchor)
+                  # use normal operation for right key
+                elif e.key() == Qt.Key_Right:
+                    if e.modifiers() == Qt.ShiftModifier:
+                        anchor = QTextCursor.KeepAnchor
+                    else:
+                        anchor = QTextCursor.MoveAnchor
+                    if (e.modifiers() == Qt.ControlModifier or \
+                    e.modifiers() == Qt.MetaModifier):
+                        self.cursor.movePosition(QTextCursor.WordRight, anchor)
+                    else:
+                        self.cursor.movePosition(QTextCursor.Right, anchor)
+                  # if home is pressed, move cursor to right of prompt
+                elif e.key() == Qt.Key_Home:
+                    if e.modifiers() == Qt.ShiftModifier:
+                        anchor = QTextCursor.KeepAnchor
+                    else:
+                        anchor = QTextCursor.MoveAnchor
+                    self.cursor.movePosition(QTextCursor.StartOfBlock, anchor, 1)
+                    self.cursor.movePosition(QTextCursor.Right, anchor, self.currentPromptLength)
+                  # use normal operation for end key
+                elif e.key() == Qt.Key_End:
+                    if e.modifiers() == Qt.ShiftModifier:
+                        anchor = QTextCursor.KeepAnchor
+                    else:
+                        anchor = QTextCursor.MoveAnchor
+                    self.cursor.movePosition(
+                    QTextCursor.EndOfBlock, anchor, 1)
+                    # use normal operation for all remaining keys
+                else:
+                    QTextEdit.keyPressEvent(self, e)
+            self.setTextCursor(self.cursor)
         self.ensureCursorVisible()
         
     def entered(self):
@@ -2363,6 +2368,15 @@ class RVariableWidget(QWidget):
         self.loadAction.setEnabled(True)
         self.load.setAutoRaise(True)
         
+        self.method = QToolButton(self)
+        self.methodAction = QAction("&Print available methods", self)
+        self.methodAction.setToolTip("Print available methods for object class")
+        self.methodAction.setWhatsThis("Print available methods for object class")
+        self.methodAction.setIcon(QIcon(":mActionQuestion.png"))
+        self.method.setDefaultAction(self.methodAction)
+        self.methodAction.setEnabled(True)
+        self.method.setAutoRaise(True)
+        
         grid = QGridLayout(self)
         horiz = QHBoxLayout()
         horiz.addWidget(self.rm)
@@ -2371,6 +2385,7 @@ class RVariableWidget(QWidget):
         horiz.addWidget(self.canvas)
         horiz.addWidget(self.save)
         horiz.addWidget(self.load)
+        horiz.addWidget(self.method)
         horiz.addStretch()
         grid.addLayout(horiz, 0, 0, 1, 1)
         grid.addWidget(self.variableTable, 1, 0, 1, 1)
@@ -2381,6 +2396,7 @@ class RVariableWidget(QWidget):
         self.connect(self.saveAction, SIGNAL("triggered()"), self.saveVariable)
         self.connect(self.canvasAction, SIGNAL("triggered()"), self.exportToCanvas)
         self.connect(self.loadAction, SIGNAL("triggered()"), self.loadRVariable)
+        self.connect(self.methodAction, SIGNAL("triggered()"), self.printRMethods)
         #self.connect(self.layer, SIGNAL("clicked()"), self.importFromCanvas)
         self.connect(self.variableTable, \
         SIGNAL("itemSelectionChanged()"), self.selectionChanged)
@@ -2393,6 +2409,7 @@ class RVariableWidget(QWidget):
         menu.addAction(self.canvasAction)
         menu.addAction(self.saveAction)
         menu.addAction(self.loadAction)
+        menu.addAction(self.methodAction)
         menu.exec_(event.globalPos())
 
     def updateVariables(self, variables):
@@ -2436,6 +2453,13 @@ class RVariableWidget(QWidget):
             else:
                 #self.canvas.setEnabled(False)
                 self.canvasAction.setEnabled(False)
+
+    def printRMethods(self):
+        row = self.variableTable.currentRow()
+        if row < 0:
+            return False
+        itemName, itemType = self.getVariableInfo(row)
+        self.sendCommands(QString('methods(class=class(%s))' % (itemName)))
 
     def removeVariable(self):
         row = self.variableTable.currentRow()
@@ -2957,7 +2981,7 @@ class MainWindow(QMainWindow):
             self.addActions(actionMenu, (actionRunAction,))
         else:
             self.addActions(actionMenu, (actionShowPrevAction, actionShowNextAction,
-            actionImportLayerAction, actionImportAttibutesAction,
+            None, actionImportLayerAction, actionImportAttibutesAction,
             actionExportCanvasAction, actionExportFileAction,))
             workspaceMenu = self.menuBar().addMenu("Wo&rkspace")
             self.addActions(workspaceMenu, (workspaceLoadAction, 

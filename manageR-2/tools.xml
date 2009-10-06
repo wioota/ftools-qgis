@@ -9,7 +9,7 @@ and run the commands in the console.&#xA;The tool does not require any specific 
 default command (&lt;tt&gt;ls()&lt;/tt&gt;), displays all variables and functions in the current 
 R environment." notnull="true"/>
 </RTool>
-<RTool name="Voronoi polygons" category= "Spatial" query=
+<RTool name="Voronoi polygons" category= "Spatial operations" query=
 "|2| &lt;- local({&#xA;
   require(deldir)&#xA;
   crds &lt;- |1|@coords&#xA;
@@ -39,7 +39,7 @@ SpatialPolygonsDataFrame, with the X and Y coordinates of the input points as at
 After running this plugin, you can acheive the same results by using the &lt;tt&gt;voronoipolygons()&lt;/tt&gt; 
 function in the console." notnull="true"/>
 </RTool>
-<RTool name="Polygon centroids" category= "Spatial" query=
+<RTool name="Polygon centroids" category= "Spatial operations" query=
 "|2| &lt;- local({&#xA;
   proj &lt;- proj4string(|1|)&#xA;
   coords &lt;- coordinates(|1|)&#xA;
@@ -270,7 +270,7 @@ else summary.lm(lm(|1| ~ 0 + |2|))&#xA;
 <Parameter label="Include intercept:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
 <Parameter label="help" type="helpString" default="topic:lm" notnull="true"/>
 </RTool>
-<RTool name="Create spatial weights" category= "Spatial" query=
+<RTool name="Create spatial weights" category= "Spatial operations" query=
 "require(spdep)&#xA;
 |7| &lt;- local({&#xA;
     input &lt;- |1|&#xA;
@@ -329,7 +329,7 @@ bty='|7|', labels=|3|)&#xA;
 "outline;l-shape;7-shape;c-shape;u-shape;]-shape;none" notnull="true"/>
 <Parameter label="help" type="helpString" default="topic:moran.plot" notnull="true"/>
 </RTool>
-<RTool name="Moran's I" category= "Spatial" query=
+<RTool name="Moran's I" category= "Spatial statistics" query=
 "require(spdep)&#xA;
 local({&#xA;
 moran.test(|1|, |2|, randomisation=ifelse('|3|'=='normality',FALSE,TRUE), alternative='|4|', rank=|5|)
@@ -342,7 +342,7 @@ moran.test(|1|, |2|, randomisation=ifelse('|3|'=='normality',FALSE,TRUE), altern
 <Parameter label="Ranked data:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
 <Parameter label="help" type="helpString" default="topic:moran.test" notnull="true"/>
 </RTool>
-<RTool name="Moran's I permutation test" category= "Spatial" query=
+<RTool name="Moran's I permutation test" category= "Spatial statistics" query=
 "require(spdep)&#xA;
 |6| &lt;- moran.mc(|1|, |2|, nsim=|3|, alternative='|4|')&#xA;
 if (|5|) plot(|6|)&#xA;
@@ -352,8 +352,64 @@ if (|7|) |6|">
 <Parameter label="Number of simulations:" type="doubleSpinBox" default="99" notnull="true"/>
 <Parameter label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
 <Parameter label="Display density plot:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Parameter label="Output name:" type="lineEdit" default="perm.test" notnull="true"/>
+<Parameter label="Output name:" type="lineEdit" default="perm.moran" notnull="true"/>
 <Parameter label="Print results:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
 <Parameter label="help" type="helpString" default="topic:moran.mc" notnull="true"/>
+</RTool>
+<RTool name="Geary's c" category= "Spatial statistics" query=
+"require(spdep)&#xA;
+local({&#xA;
+geary.test(|1|, |2|, randomisation=ifelse('|3|'=='normality',FALSE,TRUE), alternative='|4|')
+&#xA;
+})">
+<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
+<Parameter label="Variance assumption:" type="comboBox" default="randomisation;normality" notnull="true"/>
+<Parameter label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:geary.test" notnull="true"/>
+</RTool>
+<RTool name="Geary's c permutation test" category= "Spatial statistics" query=
+"require(spdep)&#xA;
+|6| &lt;- geary.mc(|1|, |2|, nsim=|3|, alternative='|4|')&#xA;
+if (|5|) plot(|6|)&#xA;
+if (|7|) |6|">
+<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
+<Parameter label="Number of simulations:" type="doubleSpinBox" default="99" notnull="true"/>
+<Parameter label="Alternative hypothesis:" type="comboBox" default="less;greater" notnull="true"/>
+<Parameter label="Display density plot:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="Output name:" type="lineEdit" default="perm.gery" notnull="true"/>
+<Parameter label="Print results:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:geary.mc" notnull="true"/>
+</RTool>
+<RTool name="Local Gi statistics" category= "Spatial statistics" query=
+"require(spdep)&#xA;
+|4| &lt;- local({
+if (|3|) weights &lt;- nb2listw(include.self(|2|$neighbours),
+style=|2|$style,glist=lapply(|2|$weights, function(x) c(1,x)))&#xA;
+else weights &lt;- weights&#xA;
+localG(|1|, weights)&#xA;
+})&#xA;
+if (|5|) |4|">
+<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
+<Parameter label="Gi* Statistic:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
+<Parameter label="Output name:" type="lineEdit" default="local.Gi" notnull="true"/>
+<Parameter label="Print results:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:localG" notnull="true"/>
+</RTool>
+<RTool name="Local Moran's Ii statistic" category= "Spatial statistics" query=
+"require(spdep)&#xA;
+|5| &lt;- local({
+localmoran(|1|, |2|, alternative='|3|', p.adjust.method='|4|')&#xA;
+})&#xA;
+if (|6|) |5|">
+<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
+<Parameter label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
+<Parameter label="P-value adjustment:" type="comboBox" default="none;bonferroni;holm;hochberg;hommel;fdr" notnull="true"/>
+<Parameter label="Output name:" type="lineEdit" default="local.moran" notnull="true"/>
+<Parameter label="Print results:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:localmoran" notnull="true"/>
 </RTool>
 </manageRTools>

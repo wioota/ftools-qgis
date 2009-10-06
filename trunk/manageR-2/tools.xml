@@ -312,4 +312,48 @@ else summary.lm(lm(|1| ~ 0 + |2|))&#xA;
 <Parameter label="Output name:" type="lineEdit" default="weights" notnull="true"/>
 <Parameter label="help" type="helpString" default="topic:nb2listw" notnull="true"/>
 </RTool>
+<RTool name="Moran scatterplot" category= "Plotting" query=
+"require(spdep)&#xA;
+local({&#xA;
+moran.plot(|1|, |2|, zero.policy=FALSE, spChk=FALSE, quiet=ifelse(|3|,FALSE,TRUE),
+main='|4|', sub='|5|', xlab='|6|', ylab=paste('Spatially lagged','|6|'), 
+bty='|7|', labels=|3|)&#xA;
+})">
+<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
+<Parameter label="Display influential variables:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
+<Parameter label="Main title:" type="lineEdit" default="Moran scatterplot" notnull="false"/>
+<Parameter label="Sub title:" type="lineEdit" default="" notnull="false"/>
+<Parameter label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
+<Parameter label="Bounding box:" type="comboBox" default=
+"outline;l-shape;7-shape;c-shape;u-shape;]-shape;none" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:moran.plot" notnull="true"/>
+</RTool>
+<RTool name="Moran's I" category= "Spatial" query=
+"require(spdep)&#xA;
+local({&#xA;
+moran.test(|1|, |2|, randomisation=ifelse('|3|'=='normality',FALSE,TRUE), alternative='|4|', rank=|5|)
+&#xA;
+})">
+<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
+<Parameter label="Variance assumption:" type="comboBox" default="randomisation;normality" notnull="true"/>
+<Parameter label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
+<Parameter label="Ranked data:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:moran.test" notnull="true"/>
+</RTool>
+<RTool name="Moran's I permutation test" category= "Spatial" query=
+"require(spdep)&#xA;
+|6| &lt;- moran.mc(|1|, |2|, nsim=|3|, alternative='|4|')&#xA;
+if (|5|) plot(|6|)&#xA;
+if (|7|) |6|">
+<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
+<Parameter label="Number of simulations:" type="doubleSpinBox" default="99" notnull="true"/>
+<Parameter label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
+<Parameter label="Display density plot:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
+<Parameter label="Output name:" type="lineEdit" default="perm.test" notnull="true"/>
+<Parameter label="Print results:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:moran.mc" notnull="true"/>
+</RTool>
 </manageRTools>

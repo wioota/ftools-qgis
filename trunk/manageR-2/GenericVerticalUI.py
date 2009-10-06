@@ -160,14 +160,16 @@ class GenericVerticalUI(object):
                             widget.addItem(value)
                         if splayers[layer] in VECTORTYPES \
                         or splayers[layer] == "data.frame":
-                            for item in list(robjects.r('names(%s)' % (layer))):
-                                if splayers[layer] == "data.frame":
-                                    value = layer+"$"+item
-                                else:
-                                    value = layer+"@data$"+item
-                                if str(robjects.r('class(%s)' % (value))[0]) == sptype.strip() \
-                                or sptype.strip() == "all":
-                                    widget.addItem(value)
+                            names =  robjects.r('names(%s)' % (layer))
+                            if not str(names) == 'NULL':
+                                for item in list(names):
+                                    if splayers[layer] == "data.frame":
+                                        value = layer+"$"+item
+                                    else:
+                                        value = layer+"@data$"+item
+                                    if str(robjects.r('class(%s)' % (value))[0]) == sptype.strip() \
+                                    or sptype.strip() == "all":
+                                        widget.addItem(value)
                             
                                         
 

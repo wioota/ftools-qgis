@@ -168,25 +168,28 @@ class PluginManager:
         return name, query, lines
 
     # run method that performs all the real work
-    def run(self, actionid): 
-        #reads the xml file
-        self.name, self.command, parameters = self.getTool(actionid)
-        # create and show the dialog 
-        self.dlg = PluginsDialog(self.parent, parameters)
-        self.dlg.setWindowTitle(self.name)
-        if self.dlg.ui.isSpatial():
-            self.dlg.ui.updateRObjects()
-        #connect the slots
-        QObject.connect(self.dlg.ui.buttonBox, SIGNAL("accepted()"), self.start)
-        #self.helpString = QString(parameters[actionid][-1])
-        # show the dialog
-        self.dlg.show()
-        result = self.dlg.exec_() 
-        # See if OK was pressed
-        if result == 1: 
-            # do something useful (delete the line containing pass and
-            # substitute with your code
-            print "ok pressed"
+    def run(self, actionid):
+        #try:
+            #reads the xml file
+            self.name, self.command, parameters = self.getTool(actionid)
+            # create and show the dialog 
+            self.dlg = PluginsDialog(self.parent, parameters)
+            self.dlg.setWindowTitle(self.name)
+            if self.dlg.ui.isSpatial():
+                self.dlg.ui.updateRObjects()
+            #connect the slots
+            QObject.connect(self.dlg.ui.buttonBox, SIGNAL("accepted()"), self.start)
+            #self.helpString = QString(parameters[actionid][-1])
+            # show the dialog
+            self.dlg.show()
+            result = self.dlg.exec_() 
+            # See if OK was pressed
+            if result == 1: 
+                # do something useful (delete the line containing pass and
+                # substitute with your code
+                print "ok pressed"
+        #except Exception, e:
+            #self.parent.editor.commandError(e)
             
 class PluginsDialog(QDialog):
     def __init__(self, parent, interface): 

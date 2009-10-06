@@ -692,7 +692,8 @@ class RHighlighter(QSyntaxHighlighter):
                           MULTILINESINGLE),
                          (text.indexOf(self.multilineDoubleStringRe),
                           MULTILINEDOUBLE)):
-            if self.previousBlockState() == state:
+            if self.previousBlockState() == state and \
+            not text.startsWith(Config["beforeinput"]):
                 if i == -1:
                     i = text.length()
                     self.setCurrentBlockState(state)
@@ -1170,6 +1171,9 @@ class RConsole(QTextEdit):
             if e.key() == Qt.Key_C and (e.modifiers() == Qt.ControlModifier or \
                 e.modifiers() == Qt.MetaModifier) and not self.cursor.hasSelection():
                 self.runningCommand.clear()
+                block = self.cursor.block()
+                block.setUserState(0)
+                print block.userState()
                 self.switchPrompt(True)
                 self.displayPrompt()
                 MainWindow.Console.statusBar().clearMessage()
@@ -1248,6 +1252,8 @@ class RConsole(QTextEdit):
                 self.runningCommand = command
                 self.updateHistory(command)
             else:
+                block = self.cursor.block()
+                block.setUserState(0)
                 self.switchPrompt(True)
                 self.displayPrompt()
         if not self.checkBrackets(self.runningCommand):
@@ -1255,6 +1261,8 @@ class RConsole(QTextEdit):
             self.cursor.insertText("\n" + self.currentPrompt)
             self.runningCommand.append("\n")
         else:
+            block = self.cursor.block()
+            block.setUserState(0)
             if not self.runningCommand.isEmpty():
                 command=self.runningCommand
             self.execute(command)

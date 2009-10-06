@@ -40,6 +40,7 @@
         <file alias="mActionWorkspaceLoad.png">icons/mActionWorkspaceLoad.png</file>
         <file alias="mActionEditCopy.png">icons/mActionEditCopy.png</file>
         <file alias="mActionEditComment.png">icons/mActionEditComment.png</file>
+        <file alias="mActionQuestion.png">icons/mActionQuestion.png</file>
         <file alias="mActionEditRedo.png">icons/mActionEditRedo.png</file>
         <file alias="mActionFileSave.png">icons/mActionFileSave.png</file>
         <file alias="mActionEditReplaceNext.png">icons/mActionEditReplaceNext.png</file>

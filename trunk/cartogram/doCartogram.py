@@ -219,8 +219,9 @@ class Dialog(QDialog, Ui_Dialog):
             atMap = feat.attributeMap()
             lfeat.dValue = atMap[index].toInt()[0] # save 'area' value for this feature
             #QMessageBox.information(self, "Generate Centroids", unicode(lfeat.dValue))
-            dTotalValue = dTotalValue + lfeat.dValue
-            (cx, cy) = self.centroid(feat, area) # get centroid info
+            dTotalValue += lfeat.dValue
+            centroid = geom.centroid()
+            (cx, cy) = centroid.asPoint().x(), centroid.asPoint().y()# get centroid info
             lfeat.ptCenter_x = cx # save centroid x for this feature
             lfeat.ptCenter_y = cy # save centroid y for this feature
             aLocal.append(lfeat)
@@ -236,47 +237,17 @@ class Dialog(QDialog, Ui_Dialog):
             dDesired = dPolygonValue * dFraction # this is our 'desired' area...
             dRadius = math.sqrt(dPolygonArea / math.pi) # calculate radius, a zero area is zero radius
             lf.dRadius = dRadius
-            lf.dMass = math.sqrt(dDesired / math.pi) - dRadius #calculate area mass, don't think this should be negative
+            tmp = dDesired / math.pi
+            if tmp > 0:
+                lf.dMass = math.sqrt(dDesired / math.pi) - dRadius #calculate area mass, don't think this should be negative
+            else:
+                lf.dMass = 0
             #both radius and mass are being added to the feature list for later on...
             dSizeError = max(dPolygonArea, dDesired) / min(dPolygonArea, dDesired) #calculate size error...
             dSizeErrorTotal = dSizeErrorTotal + dSizeError #this is the total size error for all polygons
         dMean = dSizeErrorTotal / featCount # average error
         dForceReductionFactor = 1 / (dMean + 1) # need to read up more on why this is done
         return (dMean, aLocal, dForceReductionFactor, dAreaTotal, dTotalValue)
-
-# Compute polygon centroids
-    def centroid(self, feat, area):
-        geom = QgsGeometry(feat.geometry())
-        area = 0.00
-        bounding = geom.boundingBox()
-        xmin = bounding.xMinimum()
-        ymin = bounding.yMinimum() 
-        if geom.type() == 2:
-            cx = 0
-            cy = 0
-            factor = 0
-            if geom.isMultipart():
-                polygons = geom.asMultiPolygon()
-                for polygon in polygons:
-                    for line in polygon: 
-                        for i in range(0,len(line)-1):
-                          j = (i + 1) % len(line)
-                          factor=((line[i].x()-xmin)*(line[j].y()-ymin)-(line[j].x()-xmin)*(line[i].y()-ymin))
-                          cx+=((line[i].x()-xmin)+(line[j].x()-xmin))*factor
-                          cy+=((line[i].y()-ymin)+(line[j].y()-ymin))*factor
-                          area+=factor
-            else:
-                polygon = geom.asPolygon()
-                for line in polygon:
-                    for i in range(0,len(line)-1):
-                        j = (i + 1) % len(line)
-                        factor=((line[i].x()-xmin)*(line[j].y()-ymin)-(line[j].x()-xmin)*(line[i].y()-ymin))
-                        cx+=((line[i].x()-xmin)+(line[j].x()-xmin))*factor
-                        cy+=((line[i].y()-ymin)+(line[j].y()-ymin))*factor
-                        area+=factor
-            cx/=area*3.00
-            cy/=area*3.00
-        return (cx, cy)
 
 # Actually changes the x,y of each point
     def TransformGeometry(self, aLocal, dForceReductionFactor, geom, featCount):
@@ -343,10 +314,10 @@ class Dialog(QDialog, Ui_Dialog):
                     temp_lines.append(QgsPoint(x, y))
                 temp_polys.append(temp_lines)
                 temp_lines = []
-            newGeom = QgsGeometry.fromPolygon(temp_polys)        
+            newGeom = QgsGeometry.fromPolygon(temp_polys)
             temp_polys = []
                 # End: Loop through all the points
-        return newGeom            
+        return newGeom
             
 # Feature stores various pre-calculated values about each feature
 class Holder(object):

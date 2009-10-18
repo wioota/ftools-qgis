@@ -41,10 +41,10 @@ def description():
   return "Create continuous cartogram"
 
 def version():
-  return "0.02"
+  return "0.03"
   
 def qgisMinimumVersion():
-  return "1.0"
+  return "1.3"
 
 def classFactory(iface):
   from Cartogram import CartogramPlugin

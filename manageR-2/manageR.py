@@ -61,11 +61,12 @@ from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QAbstractItemView, QTextBlockUserData, QTextFormat, QClipboard)
 
 try:
-  import rpy2.robjects as robjects
+    import rpy2
+    import rpy2.robjects as robjects
 #  import rpy2.rinterface as rinterface
 except ImportError:
-  QMessageBox.warning(None , "manageR", "Unable to load manageR: Unable to load required package rpy2."
-  + "\nPlease ensure that both R, and the corresponding version of Rpy2 are correctly installed.")
+    QMessageBox.warning(None , "manageR", "Unable to load manageR: Unable to load required package rpy2."
+    + "\nPlease ensure that both R, and the corresponding version of Rpy2 are correctly installed.")
 
 __license__ = """<font color=green>\
 Copyright &copy; 2008-9 Carson J. Q. Farmer. All rights reserved.</font>
@@ -199,20 +200,26 @@ def addLibraryCommands(library):
         items = info.split('\n')
         for item in items:
             CAT.append(item)
-            
+
 def isLibraryLoaded(package="sp"):
     return robjects.r("require(%s)" % (package))[0]
-    
+
 # This is used whenever we check for sp objects in manageR
 def currentRObjects():
-    ls_ = robjects.conversion.ri2py(
-    robjects.rinterface.globalEnv.get('ls',wantFun=True))
-    class_ = robjects.conversion.ri2py(
-    robjects.rinterface.globalEnv.get('class',wantFun=True))
-    dev_list_ = robjects.conversion.ri2py(
-    robjects.rinterface.globalEnv.get('dev.list',wantFun=True))
-    getwd_ = robjects.conversion.ri2py(
-    robjects.rinterface.globalEnv.get('getwd',wantFun=True))
+    try:
+        ls_ = robjects.conversion.ri2py(
+        robjects.rinterface.globalEnv.get('ls',wantFun=True))
+        class_ = robjects.conversion.ri2py(
+        robjects.rinterface.globalEnv.get('class',wantFun=True))
+        dev_list_ = robjects.conversion.ri2py(
+        robjects.rinterface.globalEnv.get('dev.list',wantFun=True))
+        getwd_ = robjects.conversion.ri2py(
+        robjects.rinterface.globalEnv.get('getwd',wantFun=True))
+    except:
+        ls_ = robjects.r.get('ls', mode='function')
+        class_ = robjects.r.get('class', mode='function')
+        dev_list_ = robjects.r.get('dev.list' , mode='function')
+        getwd_ = robjects.r.get('getwd' , mode='function')
     layers = {}
     graphics = {}
     for item in ls_():
@@ -1550,14 +1557,19 @@ class RConsole(QTextEdit):
                 else:
                     output_text = QString()
                     if platform.system() == "Windows":
-                        tfile = robjects.conversion.ri2py(
-                        robjects.rinterface.globalEnv.get('tempfile', wantFun=True))
+                        try:
+                            tfile = robjects.conversion.ri2py(
+                            robjects.rinterface.globalEnv.get('tempfile', wantFun=True))
+                            temp = robjects.conversion.ri2py(
+                            robjects.rinterface.globalEnv.get('file', wantFun=True))
+                            sink = robjects.conversion.ri2py(
+                            robjects.rinterface.globalEnv.get('sink', wantFun=True))
+                        except:
+                            tfile = robjects.r.get('tempfile', mode='function')
+                            temp = robjects.r.get('file', mode='function')
+                            sink = robjects.r.get('sink', mode='function')
                         tfile = tfile()
-                        temp = robjects.conversion.ri2py(
-                        robjects.rinterface.globalEnv.get('file', wantFun=True))
                         temp = temp(tfile, open='w')
-                        sink = robjects.conversion.ri2py(
-                        robjects.rinterface.globalEnv.get('sink', wantFun=True))
                         sink(temp)
                     else:
                         def write(output):
@@ -1567,40 +1579,53 @@ class RConsole(QTextEdit):
                                 self.commandOutput(output_text)
                                 output_text.clear()
                             QApplication.processEvents()
-                        robjects.rinterface.setWriteConsole(write)
+                        robjects.rinterface.set_writeconsole(write)
                         def read(prompt): # TODO: This is a terrible workaround
                             input = "\n"  # and needs to be futher investigated...
                             return input
-                        robjects.rinterface.setReadConsole(read)
+                        robjects.rinterface.set_readconsole(read)
                     try:
-                        try_ = robjects.r["try"]
-                        parse_ = robjects.r["parse"]
-                        paste_ = robjects.r["paste"]
-                        seq_along_ = robjects.r["seq_along"]
-                        withVisible_ = robjects.r["withVisible"]
-                        class_ = robjects.r["class"]
+                        try_ = robjects.r.get("try", mode='function')
+                        parse_ = robjects.r.get("parse", mode='function')
+                        paste_ = robjects.r.get("paste", mode='function')
+                        seq_along_ = robjects.r.get("seq_along", mode='function')
+                        withVisible_ = robjects.r.get("withVisible", mode='function')
+                        class_ = robjects.r.get("class", mode='function')
                         result =  try_(parse_(text=paste_(unicode(text))), silent=True)
                         exprs = result
                         result = None
                         for i in list(seq_along_(exprs)):
                             ei = exprs[i-1]
                             try:
-                                result =  try_(withVisible_(ei), silent=True)
+                                result = try_(withVisible_(ei), silent=True)
                             except robjects.rinterface.RRuntimeError, rre:
                                 self.commandError(str(rre))
                                 self.commandComplete()
                                 return
-                            visible = result.r["visible"][0][0]
+                            try: # this was added to allow new rpy2 functionality
+                                visible = result.r["visible"][0][0]
+                            except:
+                                visible = result[1][0]
                             if visible:
-                                if class_(result.r["value"][0])[0] == "help_files_with_topic" or \
-                                    class_(result.r["value"][0])[0] == "hsearch":
-                                    self.helpTopic(result.r["value"][0], class_(result.r["value"][0])[0])
-                                elif not str(result.r["value"][0]) == "NULL":
-                                    robjects.r['print'](result.r["value"][0])
+                                try:
+                                    if class_(result.r["value"][0])[0] == "help_files_with_topic" or \
+                                        class_(result.r["value"][0])[0] == "hsearch":
+                                        self.helpTopic(result.r["value"][0], class_(result.r["value"][0])[0])
+                                    elif not str(result.r["value"][0]) == "NULL":
+                                        robjects.r['print'](result.r["value"][0])
+                                except:
+                                    if class_(result[0])[0] == "help_files_with_topic" or \
+                                        class_(result[0])[0] == "hsearch":
+                                        self.helpTopic(unicode(result[0]), class_(result[0])[0])
+                                    elif not str(result[0]) == "NULL":
+                                        robjects.r['print'](result[0])
                             else:
                                 try:
                                     if text.startsWith('library('):
-                                        library = result.r["value"][0][0]
+                                        try:
+                                            library = result.r["value"][0][0]
+                                        except:
+                                            library = result[0][0]
                                         if not library in Libraries:
                                             addLibraryCommands(library)
                                 except:
@@ -1610,20 +1635,26 @@ class RConsole(QTextEdit):
                         self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
                         self.commandComplete()
                         return
-                    if platform.system() == "Windows":
+                    if platform.system() == "Windows": #start changing the get functions below...
                         sink()
-                        close = robjects.conversion.ri2py(
-                        robjects.rinterface.globalEnv.get('close', wantFun=True))
+                        try:
+                            close = robjects.conversion.ri2py(
+                            robjects.rinterface.globalEnv.get('close', wantFun=True))
+                            temp = robjects.conversion.ri2py(
+                            robjects.rinterface.globalEnv.get('file', wantFun=True))
+                            s = robjects.conversion.ri2py(
+                            robjects.rinterface.globalEnv.get('readLines', wantFun=True))
+                            unlink = robjects.conversion.ri2py(
+                            robjects.rinterface.globalEnv.get('unlink', wantFun=True))
+                        except:
+                            close =robjects.r.get('close', mode='function')
+                            temp =robjects.r.get('temp', mode='function')
+                            s =robjects.r.get('readLines', mode='function')
+                            unlink =robjects.r.get('unlink', mode='function')
                         close(temp)
-                        temp = robjects.conversion.ri2py(
-                        robjects.rinterface.globalEnv.get('file', wantFun=True))
                         temp = temp(tfile, open='r')
-                        s = robjects.conversion.ri2py(
-                        robjects.rinterface.globalEnv.get('readLines', wantFun=True))
                         s = s(temp)
                         close(temp)
-                        unlink = robjects.conversion.ri2py(
-                        robjects.rinterface.globalEnv.get('unlink', wantFun=True))
                         unlink(tfile)
                         output_text = QString(str.join(os.linesep, s))
                     if not output_text.isEmpty():
@@ -1999,17 +2030,21 @@ class helpDialog(QDialog):
         grid = QGridLayout(self)
         grid.addWidget(display)
         self.setWindowTitle("manageR - Help")
-        try:
-            help_file = QFile(unicode(help_topic[0]))
-        except:
-            raise Exception, "Error: %s" % (unicode(help_topic))
-        help_file.open(QFile.ReadOnly)
-        stream = QTextStream(help_file)
-        help_string = QString(stream.readAll())
-        #workaround to remove the underline formatting that r uses
-        help_string.remove("_")
-        display.setPlainText(help_string)
-        help_file.close()
+        version = rpy2.__version_vector__[0]
+        if version[0] >= 2 and version[1] >= 1:
+            display.setPlainText(help_topic)
+        else:
+            try:
+                help_file = QFile(unicode(help_topic[0]))
+            except:
+                raise Exception, "Error: %s" % (unicode(help_topic))
+            help_file.open(QFile.ReadOnly)
+            stream = QTextStream(help_file)
+            help_string = QString(stream.readAll())
+            #workaround to remove the underline formatting that r uses
+            help_string.remove("_")            
+            display.setPlainText(help_string)
+            help_file.close()
         self.resize(650, 400)
 
 class searchDialog(QDialog):
@@ -3304,7 +3339,7 @@ class MainWindow(QMainWindow):
             rbuf = QString()
             def f(x):
                 rbuf.append(x)
-            robjects.rinterface.setWriteConsole(f)
+            robjects.rinterface.set_writeconsole(f)
             if not dataOnly and not isLibraryLoaded("sp"):
                 raise Exception(RLibraryError("sp"))
             if mlayer.type() == QgsMapLayer.VectorLayer:

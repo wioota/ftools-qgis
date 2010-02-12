@@ -833,7 +833,7 @@ class RCompleter(QObject):
 
     def suggest(self,minchars=3):
         text = self.getCurrentWord()
-        if text.contains(QRegExp("\\b.{%d,}" % (minchars))):
+        if text.contains(QRegExp(r"\b.{%d,}" % (minchars))):
             self.showCompletion(CAT.filter(QRegExp("^%s" % (text))))
         
     def getCurrentWord(self):
@@ -2163,6 +2163,7 @@ class RCommandList(QListWidget):
         
     def selectionChanged(self, sela, selb):
         self.emit(SIGNAL("selectionChanged()"))
+        QListWidget.selectionChanged(self, sela, selb)
             
 class RHistoryWidget(QWidget):
 

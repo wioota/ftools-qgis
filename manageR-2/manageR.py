@@ -32,15 +32,13 @@ manageR makes extensive use of rpy2 (Laurent Gautier) to communicate with R.
   Rpy2 may be used under the terms of the GNU General Public License.
 '''
 
-import base64
-import os, re, sys, platform
-
-from qgis.core import *
-
+import os, re, sys, platform, base64
+from xml.dom import minidom
 import resources
-from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
-from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter, RVectorLayerConverter
-from pluginManager import PluginManager
+#from GenericVerticalUI import GenericVerticalUI, SpListWidget, SpComboBox
+#from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
+#from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter, RVectorLayerConverter
+#from pluginManager import PluginManager
 
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
@@ -59,6 +57,11 @@ from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QPalette, QSplashScreen, QTreeWidget, QTreeWidgetItem, QFrame,
         QListView, QTableWidget, QTableWidgetItem, QHeaderView, QMenu, 
         QAbstractItemView, QTextBlockUserData, QTextFormat, QClipboard)
+
+try:
+    from qgis.core import *
+except ImportError:
+    pass
 
 try:
     import rpy2
@@ -234,6 +237,23 @@ def currentRObjects():
         graphics = {}
     cwd = getwd_()[0]
     return (layers, graphics, cwd)
+
+class OutputCatcher:
+  def __init__(self):
+    self.data = ''
+    
+  def write(self, stuff):
+    self.data += stuff
+    
+  def get_and_clean_data(self):
+    tmp = self.data
+    self.data = ''
+    return tmp
+    
+  def flush(self):
+    pass
+
+sys.stdout = OutputCatcher()
 
 class HelpForm(QDialog):
 
@@ -894,7 +914,7 @@ class REditor(QTextEdit):
                 return True
                 # Fall through to let the base class handle the movement
         return QTextEdit.event(self, event)
-        
+
     def positionChanged(self):
         self.highlight()
 
@@ -920,14 +940,15 @@ class REditor(QTextEdit):
         selection = QTextEdit.ExtraSelection()
         selection.format = format
         cursor = self.textCursor()
-        selection.cursor = cursor
         selection.cursor.clearSelection()
+        selection.cursor = cursor
         extraSelections.append(selection)
         self.setExtraSelections(extraSelections)
         
         format = QTextCharFormat()
         format.setForeground(QColor(Config["delimiterfontcolor"]))
         format.setBackground(QColor(Qt.yellow).lighter(160)) #QColor(Config["bracketcolor"])?
+        #format.setProperty(QTextFormat.BackgroundBrush, QVariant(QColor(Qt.red)))#.lighter(160))
         selection = QTextEdit.ExtraSelection()
         selection.format = format
 
@@ -971,17 +992,17 @@ class REditor(QTextEdit):
         elif ((brace == "(") or (brace == ")")):
             openBrace = "("
             closeBrace = ")"
-            
+
         if (brace == openBrace):
             cursor1 = doc.find(closeBrace, cursor)
             cursor2 = doc.find(openBrace, cursor)
             if (cursor2.isNull()):
-                selection.cursor = cursor
                 selection.cursor.clearSelection()
+                selection.cursor = cursor
                 extraSelections.append(selection)
                 self.setExtraSelections(extraSelections)
-                selection.cursor = cursor1
                 selection.cursor.clearSelection()
+                selection.cursor = cursor1
                 extraSelections.append(selection)
                 self.setExtraSelections(extraSelections)
             else:
@@ -990,12 +1011,12 @@ class REditor(QTextEdit):
                     cursor2 = doc.find(openBrace, cursor2)
                     if (cursor2.isNull()):
                         break
-                selection.cursor = cursor
                 selection.cursor.clearSelection()
+                selection.cursor = cursor
                 extraSelections.append(selection)
                 self.setExtraSelections(extraSelections)
-                selection.cursor = cursor1
                 selection.cursor.clearSelection()
+                selection.cursor = cursor1
                 extraSelections.append(selection)
                 self.setExtraSelections(extraSelections)
         else:
@@ -1003,12 +1024,12 @@ class REditor(QTextEdit):
                 cursor1 = doc.find(openBrace, cursor, QTextDocument.FindBackward)
                 cursor2 = doc.find(closeBrace, cursor, QTextDocument.FindBackward)
                 if (cursor2.isNull()):
-                    selection.cursor = cursor
                     selection.cursor.clearSelection()
+                    selection.cursor = cursor
                     extraSelections.append(selection)
                     self.setExtraSelections(extraSelections)
-                    selection.cursor = cursor1
                     selection.cursor.clearSelection()
+                    selection.cursor = cursor1
                     extraSelections.append(selection)
                     self.setExtraSelections(extraSelections)
                 else:
@@ -1017,12 +1038,12 @@ class REditor(QTextEdit):
                         cursor2 = doc.find(closeBrace, cursor2, QTextDocument.FindBackward)
                         if (cursor2.isNull()):
                             break
-                    selection.cursor = cursor
                     selection.cursor.clearSelection()
+                    selection.cursor = cursor
                     extraSelections.append(selection)
                     self.setExtraSelections(extraSelections)
-                    selection.cursor = cursor1
                     selection.cursor.clearSelection()
+                    selection.cursor = cursor1
                     extraSelections.append(selection)
                     self.setExtraSelections(extraSelections)
 
@@ -1032,6 +1053,9 @@ class REditor(QTextEdit):
             commands = cursor.selectedText().replace(u"\u2029", "\n")
         else:
             commands = self.toPlainText()
+        self.run(commands)
+
+    def run(self, commands):
         if not commands.isEmpty():
             mime = QMimeData()
             mime.setText(commands)
@@ -1043,6 +1067,11 @@ class REditor(QTextEdit):
             MainWindow.Console.editor.currentPrompt)
             MainWindow.Console.editor.insertFromMimeData(mime)
             MainWindow.Console.editor.entered()
+
+    def source(self):
+        self.parent.fileSave()
+        commands = QString('source("%s")' % self.parent.filename)
+        self.run(commands)
 
     def indentRegion(self):
         self._walkTheLines(True, " " * self.tabwidth)
@@ -1101,7 +1130,7 @@ class RConsole(QTextEdit):
         self.setPrompt(Config["beforeinput"]+" ", Config["afteroutput"]+" ")
         self.cursor = self.textCursor()
         self.connect(self, SIGNAL("cursorPositionChanged()"),
-        self.positionChanged)
+        self.highlight)
 
     def loadRHistory(self):
         success = True
@@ -1373,10 +1402,9 @@ class RConsole(QTextEdit):
         self.setExtraSelections(extraSelections)
         format = QTextCharFormat()
         format.setForeground(QColor(Config["delimiterfontcolor"]))
-        format.setBackground(QColor(Qt.yellow).lighter(160)) #QColor(Config["bracketcolor"])?
+        format.setBackground(QColor(Qt.yellow))#.lighter(160)) #QColor(Config["bracketcolor"])?
         selection = QTextEdit.ExtraSelection()
         selection.format = format
-
         doc = self.document()
         cursor = self.textCursor()
         beforeCursor = QTextCursor(cursor)
@@ -1403,7 +1431,7 @@ class RConsole(QTextEdit):
                 brace = cursor.selectedText();
             else:
                 return
-
+        
         #format = QTextCharFormat()
         #format.setForeground(Qt.red)
         #format.setFontWeight(QFont.Bold)
@@ -1417,17 +1445,17 @@ class RConsole(QTextEdit):
         elif ((brace == "(") or (brace == ")")):
             openBrace = "("
             closeBrace = ")"
-            
+
         if (brace == openBrace):
             cursor1 = doc.find(closeBrace, cursor)
             cursor2 = doc.find(openBrace, cursor)
             if (cursor2.isNull()):
-                selection.cursor = cursor
                 selection.cursor.clearSelection()
+                selection.cursor = cursor
                 extraSelections.append(selection)
                 self.setExtraSelections(extraSelections)
-                selection.cursor = cursor1
                 selection.cursor.clearSelection()
+                selection.cursor = cursor1
                 extraSelections.append(selection)
                 self.setExtraSelections(extraSelections)
             else:
@@ -1436,25 +1464,26 @@ class RConsole(QTextEdit):
                     cursor2 = doc.find(openBrace, cursor2)
                     if (cursor2.isNull()):
                         break
+                selection.cursor.clearSelection()
                 selection.cursor = cursor
-                selection.cursor.clearSelection()
                 extraSelections.append(selection)
                 self.setExtraSelections(extraSelections)
+                selection.cursor.clearSelection()
                 selection.cursor = cursor1
-                selection.cursor.clearSelection()
                 extraSelections.append(selection)
                 self.setExtraSelections(extraSelections)
+
         else:
             if (brace == closeBrace):
                 cursor1 = doc.find(openBrace, cursor, QTextDocument.FindBackward)
                 cursor2 = doc.find(closeBrace, cursor, QTextDocument.FindBackward)
                 if (cursor2.isNull()):
-                    selection.cursor = cursor
                     selection.cursor.clearSelection()
+                    selection.cursor = cursor
                     extraSelections.append(selection)
                     self.setExtraSelections(extraSelections)
-                    selection.cursor = cursor1
                     selection.cursor.clearSelection()
+                    selection.cursor = cursor1
                     extraSelections.append(selection)
                     self.setExtraSelections(extraSelections)
                 else:
@@ -1463,12 +1492,12 @@ class RConsole(QTextEdit):
                         cursor2 = doc.find(closeBrace, cursor2, QTextDocument.FindBackward)
                         if (cursor2.isNull()):
                             break
-                    selection.cursor = cursor
                     selection.cursor.clearSelection()
+                    selection.cursor = cursor
                     extraSelections.append(selection)
                     self.setExtraSelections(extraSelections)
-                    selection.cursor = cursor1
                     selection.cursor.clearSelection()
+                    selection.cursor = cursor1
                     extraSelections.append(selection)
                     self.setExtraSelections(extraSelections)
 
@@ -1579,7 +1608,7 @@ class RConsole(QTextEdit):
                                 self.commandOutput(output_text)
                                 output_text.clear()
                             QApplication.processEvents()
-                        robjects.rinterface.set_writeconsole(write)
+                        #robjects.rinterface.set_writeconsole(write)
                         def read(prompt): # TODO: This is a terrible workaround
                             input = "\n"  # and needs to be futher investigated...
                             return input
@@ -1608,17 +1637,17 @@ class RConsole(QTextEdit):
                                 visible = result[1][0]
                             if visible:
                                 try:
+                                    if not str(result.r["value"][0]) == "NULL":
+                                        robjects.r['print'](result.r["value"][0])
                                     if class_(result.r["value"][0])[0] == "help_files_with_topic" or \
                                         class_(result.r["value"][0])[0] == "hsearch":
-                                        self.helpTopic(result.r["value"][0], class_(result.r["value"][0])[0])
-                                    elif not str(result.r["value"][0]) == "NULL":
-                                        robjects.r['print'](result.r["value"][0])
+                                        self.helpTopic(class_(result.r["value"])[0])
                                 except:
+                                    if not str(result[0]) == "NULL":
+                                        robjects.r['print'](result[0])
                                     if class_(result[0])[0] == "help_files_with_topic" or \
                                         class_(result[0])[0] == "hsearch":
-                                        self.helpTopic(unicode(result[0]), class_(result[0])[0])
-                                    elif not str(result[0]) == "NULL":
-                                        robjects.r['print'](result[0])
+                                        self.helpTopic(class_(result[0])[0])
                             else:
                                 try:
                                     if text.startsWith('library('):
@@ -1657,8 +1686,11 @@ class RConsole(QTextEdit):
                         close(temp)
                         unlink(tfile)
                         output_text = QString(str.join(os.linesep, s))
-                    if not output_text.isEmpty():
-                        self.commandOutput(output_text)
+                        if not output_text.isEmpty():
+                          self.commandOutput(output_text)
+                    output = sys.stdout.get_and_clean_data()
+                    if output:
+                      self.commandOutput(output.decode('utf8'))
             except Exception, err:
                 self.commandError(str(err))
                 self.commandComplete()
@@ -1666,11 +1698,11 @@ class RConsole(QTextEdit):
             self.commandComplete()
         MainWindow.Console.statusBar().clearMessage()
 
-    def helpTopic(self, topic, search):
-        if search == "hsearch":
-            dialog = searchDialog(self, topic)
+    def helpTopic(self, topic):
+        if topic == "hsearch":
+            dialog = helpDialog(self, "Search")
         else:
-            dialog = helpDialog(self, topic)
+            dialog = helpDialog(self, "Help")
         dialog.setWindowModality(Qt.NonModal)
         dialog.setModal(False)
         dialog.show()
@@ -1678,7 +1710,7 @@ class RConsole(QTextEdit):
         return
 
     def commandError(self, error):
-        self.appendText(unicode(error))
+        self.appendText(error)
         # Emit a signal here?
                 
     def commandOutput(self, output):
@@ -1691,6 +1723,27 @@ class RConsole(QTextEdit):
         MainWindow.Console.statusBar().showMessage("Complete!", 5000)
         self.emit(SIGNAL("commandComplete()"))
 
+class helpDialog(QDialog):
+# options(htmlhelp=FALSE) this should probably be added somewhere to make sure the help is always the R help...
+    def __init__(self, parent, help_topic):
+        QDialog.__init__ (self, parent)
+        #initialise the display text edit
+        display = QTextEdit(self)
+        display.setReadOnly(True)
+        #set the font style of the help display
+        font = QFont(Config["fontfamily"], Config["fontsize"])
+        font.setFixedPitch(True)
+        display.setFont(font)
+        display.document().setDefaultFont(font)
+        #initialise grid layout for dialog
+        grid = QGridLayout(self)
+        grid.addWidget(display)
+        self.setWindowTitle("manageR - " + help_topic)
+        help_string = QString(sys.stdout.get_and_clean_data())
+        # woraround to remove non-ascii text and formatting
+        help_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
+        display.setPlainText(help_string)
+        self.resize(750, 400)
 
 class ConfigForm(QDialog):
 
@@ -2013,87 +2066,6 @@ class ConfigForm(QDialog):
             self.highlightingChanged = True
             Config["backgroundcolor"] = color
         QDialog.accept(self)
-
-class helpDialog(QDialog):
-
-    def __init__(self, parent, help_topic):
-        QDialog.__init__ (self, parent)
-        #initialise the display text edit
-        display = QTextEdit(self)
-        display.setReadOnly(True)
-        #set the font style of the help display
-        font = QFont(Config["fontfamily"], Config["fontsize"])
-        font.setFixedPitch(True)
-        display.setFont(font)
-        display.document().setDefaultFont(font)
-        #initialise grid layout for dialog
-        grid = QGridLayout(self)
-        grid.addWidget(display)
-        self.setWindowTitle("manageR - Help")
-        version = rpy2.__version_vector__[0]
-        if version[0] >= 2 and version[1] >= 1:
-            display.setPlainText(help_topic)
-        else:
-            try:
-                help_file = QFile(unicode(help_topic[0]))
-            except:
-                raise Exception, "Error: %s" % (unicode(help_topic))
-            help_file.open(QFile.ReadOnly)
-            stream = QTextStream(help_file)
-            help_string = QString(stream.readAll())
-            #workaround to remove the underline formatting that r uses
-            help_string.remove("_")            
-            display.setPlainText(help_string)
-            help_file.close()
-        self.resize(650, 400)
-
-class searchDialog(QDialog):
-
-  def __init__(self, parent, help_topic):
-      QDialog.__init__ (self, parent)
-      #initialise the display text edit
-      display = QTextEdit(self)
-      display.setReadOnly(True)
-      #set the font style of the help display
-      font = QFont(Config["fontfamily"], Config["fontsize"])
-      font.setFixedPitch(True)
-      display.setFont(font)
-      display.document().setDefaultFont(font)
-      #initialise grid layout for dialog
-      grid = QGridLayout(self)
-      grid.addWidget(display)
-      self.setWindowTitle("manageR - Search Help")
-      #get help output from r 
-      #note: help_topic should only contain the specific
-      #      help topic (i.e. no brackets etc.)
-      matches = help_topic.subset("matches")[0]
-      #print [matches]
-      fields = help_topic.subset("fields")[0]
-      pattern = help_topic.subset("pattern")[0]
-      fields_string = QString()
-      for i in fields:
-          fields_string.append(i + " or ")
-      fields_string.chop(3)
-      display_string = QString("Help files with " + fields_string)
-      display_string.append("matching '" + pattern[0] + "' using ")
-      display_string.append("regular expression matching:\n\n")
-      nrows = robjects.r.nrow(matches)[0]
-      ncols = robjects.r.ncol(matches)[0]
-      for i in range(1, nrows + 1):
-            row = QString()
-            pack = matches.subset(i, 3)[0]
-            row.append(pack)
-            row.append("::")
-            pack = matches.subset(i, 1)[0]
-            row.append(pack)
-            row.append("\t\t")
-            pack = matches.subset(i, 2)[0]
-            row.append(pack)
-            row.append("\n")
-            display_string.append(row)
-      display.setPlainText(display_string)
-      #help_file.close()
-      self.resize(650, 400)
 
 class RWDWidget(QWidget):
 
@@ -2947,6 +2919,9 @@ class MainWindow(QMainWindow):
             actionRunAction = self.createAction("E&xecute",
                     self.editor.execute, "Ctrl+Return", "mActionRun",
                     "Execute the (selected) text in the manageR console")
+            actionSourceAction = self.createAction("Run S&cript",
+                    self.editor.source,"", "mActionRun",
+                    "Run the current EditR script")
         else:
             actionShowPrevAction = self.createAction(
                     "Show Previous Command", self.editor.showNext,
@@ -3014,7 +2989,7 @@ class MainWindow(QMainWindow):
             self.addActions(editMenu, (None, editCompleteAction,))
         actionMenu = self.menuBar().addMenu("&Action")
         if not isConsole:
-            self.addActions(actionMenu, (actionRunAction,))
+            self.addActions(actionMenu, (actionRunAction, actionSourceAction))
         else:
             self.addActions(actionMenu, (actionShowPrevAction, actionShowNextAction,
             None, actionImportLayerAction, actionImportAttibutesAction,
@@ -3065,7 +3040,7 @@ class MainWindow(QMainWindow):
         self.actionToolbar.setObjectName("ActionToolbar")
         self.Toolbars[self.actionToolbar] = None
         if not isConsole:
-            self.addActions(self.actionToolbar, (actionRunAction,))
+            self.addActions(self.actionToolbar, (actionRunAction, actionSourceAction))
         else:
             self.addActions(self.actionToolbar, (None, actionShowPrevAction, 
                 actionShowNextAction, None, actionImportLayerAction, 
@@ -3331,39 +3306,39 @@ class MainWindow(QMainWindow):
         MainWindow.Console.editor.cursor.insertText(
         "%smanageR import function" % (MainWindow.Console.editor.currentPrompt))
         QApplication.processEvents()
-        try:
-            if mlayer is None:
+        #try:
+        if mlayer is None:
+            MainWindow.Console.editor.commandError(
+            "Error: No layer selected in layer list")
+            MainWindow.Console.editor.commandComplete()
+            return
+        rbuf = QString()
+        def f(x):
+            rbuf.append(x)
+        #robjects.rinterface.set_writeconsole(f)
+        if not dataOnly and not isLibraryLoaded("sp"):
+            raise Exception(RLibraryError("sp"))
+        if mlayer.type() == QgsMapLayer.VectorLayer:
+            layerCreator = QVectorLayerConverter(mlayer, dataOnly)
+        if mlayer.type() == QgsMapLayer.RasterLayer:
+            if dataOnly:
                 MainWindow.Console.editor.commandError(
-                "Error: No layer selected in layer list")
+                "Error: Cannot load raster layer attributes")
                 MainWindow.Console.editor.commandComplete()
                 return
-            rbuf = QString()
-            def f(x):
-                rbuf.append(x)
-            robjects.rinterface.set_writeconsole(f)
-            if not dataOnly and not isLibraryLoaded("sp"):
+            if not isLibraryLoaded("rgdal"):
                 raise Exception(RLibraryError("sp"))
-            if mlayer.type() == QgsMapLayer.VectorLayer:
-                layerCreator = QVectorLayerConverter(mlayer, dataOnly)
-            if mlayer.type() == QgsMapLayer.RasterLayer:
-                if dataOnly:
-                    MainWindow.Console.editor.commandError(
-                    "Error: Cannot load raster layer attributes")
-                    MainWindow.Console.editor.commandComplete()
-                    return
-                if not isLibraryLoaded("rgdal"):
-                    raise Exception(RLibraryError("sp"))
-                layerCreator = QRasterLayerConverter(mlayer)
-            MainWindow.Console.editor.commandOutput(rbuf)
-            rLayer, layerName, message = layerCreator.start()
-            robjects.globalEnv[str(layerName)] = rLayer
-            if not str(layerName) in CAT:
-                CAT.append(str(layerName))
-            #self.emit(SIGNAL("newObjectCreated(PyQt_PyObject)"), \
-            #self.updateRObjects())
-            MainWindow.Console.editor.commandOutput(message)
-        except Exception, e:
-            MainWindow.Console.editor.commandError(e)
+            layerCreator = QRasterLayerConverter(mlayer)
+        MainWindow.Console.editor.commandOutput(rbuf)
+        rLayer, layerName, message = layerCreator.start()
+        robjects.r.assign(str(layerName), rLayer)
+        if not str(layerName) in CAT:
+            CAT.append(str(layerName))
+        #self.emit(SIGNAL("newObjectCreated(PyQt_PyObject)"), \
+        #self.updateRObjects())
+        MainWindow.Console.editor.commandOutput(message)
+        #except Exception, e:
+        #    MainWindow.Console.editor.commandError(e)
         MainWindow.Console.editor.commandComplete()
         
     def exportToFile(self):
@@ -3852,6 +3827,879 @@ GIS by loosely coupling QGIS with the R statistical programming environment.
         dialog.setWindowTitle("manageR - About")
         dialog.exec_()
 
+class QVectorLayerConverter(QObject):
+
+  def __init__(self, mlayer, data_only):
+    QObject.__init__(self)
+    self.mlayer = mlayer
+    self.data_only = data_only
+    self.running = False
+
+    # variables are retrived by 'getting' them from the global environment,
+    # specifying that we want functions only, which avoids funtions being
+    # masked by variable names
+    try:
+      env = rinterface.globalEnv
+      self.as_character_ = robjects.conversion.ri2py(env.get('as.character',wantFun=True))
+      self.data_frame_ = robjects.conversion.ri2py(env.get('data.frame',wantFun=True))
+      self.matrix_ = robjects.conversion.ri2py(env.get('matrix',wantFun=True))
+      self.unlist_ = robjects.conversion.ri2py(env.get('unlist',wantFun=True))
+    except:
+      self.as_character_ = robjects.r.get('as.character', mode='function')
+      self.data_frame_ = robjects.r.get('data.frame', mode='function')
+      self.matrix_ = robjects.r.get('matrix', mode='function')
+      self.unlist_ = robjects.r.get('unlist', mode='function')
+    if not self.data_only:
+      # variables from package sp (only needed if featching geometries as well)
+      try:
+        self.CRS_ = robjects.conversion.ri2py(env.get('CRS',wantFun=True))
+        self.Polygon_ = robjects.conversion.ri2py(env.get('Polygon',wantFun=True))
+        self.Polygons_ = robjects.conversion.ri2py(env.get('Polygons',wantFun=True))
+        self.SpatialPolygons_ = robjects.conversion.ri2py(env.get('SpatialPolygons',wantFun=True))
+        self.Line_ = robjects.conversion.ri2py(env.get('Line',wantFun=True))
+        self.Lines_ = robjects.conversion.ri2py(env.get('Lines',wantFun=True))
+        self.SpatialLines_ = robjects.conversion.ri2py(env.get('SpatialLines',wantFun=True))
+        self.SpatialPoints_ = robjects.conversion.ri2py(env.get('SpatialPoints',wantFun=True))
+        self.SpatialPointsDataFrame_ = robjects.conversion.ri2py(env.get('SpatialPointsDataFrame',wantFun=True))
+        self.SpatialLinesDataFrame_ = robjects.conversion.ri2py(env.get('SpatialLinesDataFrame',wantFun=True))
+        self.SpatialPolygonsDataFrame_ = robjects.conversion.ri2py(env.get('SpatialPolygonsDataFrame',wantFun=True))
+      except:
+        self.CRS_ = robjects.r.get('CRS', mode='function')
+        self.Polygon_ = robjects.r.get('Polygon', mode='function')
+        self.Polygons_ = robjects.r.get('Polygons', mode='function')
+        self.SpatialPolygons_ = robjects.r.get('SpatialPolygons', mode='function')
+        self.Line_ = robjects.r.get('Line', mode='function')
+        self.Lines_ = robjects.r.get('Lines', mode='function')
+        self.SpatialLines_ = robjects.r.get('SpatialLines', mode='function')
+        self.SpatialPoints_ = robjects.r.get('SpatialPoints', mode='function')
+        self.SpatialPointsDataFrame_ = robjects.r.get('SpatialPointsDataFrame', mode='function')
+        self.SpatialLinesDataFrame_ = robjects.r.get('SpatialLinesDataFrame', mode='function')
+        self.SpatialPolygonsDataFrame_ = robjects.r.get('SpatialPolygonsDataFrame', mode='function')
+
+  def start( self ):
+    self.running = True
+    provider = self.mlayer.dataProvider()
+    extra = QString()
+    if not self.data_only:
+      sRs = provider.crs()
+      if not sRs.isValid():
+        projString = 'NA'
+        extra.append( "Unable to determine projection information\nPlease specify using:\n" )
+        extra.append( "e.g. layer@proj4string <- CRS('+proj=longlat +datum=NAD83')" )
+      else:
+        if not sRs.geographicFlag():
+          projString = str( sRs.toProj4() )
+        else:
+          # TODO: Find better way to handle geographic coordinate systems
+          # As far as I can tell, R does not like geographic coodinate systems input
+          # into it's proj4string argument...
+          projString = 'NA'
+          extra.append( "Unable to determine projection information\nPlease specify using:\n" )
+          extra.append( "layer@proj4string <- CRS('+proj=longlat +datum=NAD83') for example." )
+
+    attrIndex = provider.attributeIndexes()
+    provider.select(attrIndex)
+    fields = provider.fields()
+    if len(fields.keys()) <= 0:
+      raise Exception("Error: Attribute table must have at least one field")
+    df = {}
+    types = {}
+    order = []
+    for (id, field) in fields.iteritems():
+      # initial read in has correct ordering...
+      name = str(field.name())
+      df[ name ] = []
+      types[ name ] = int( field.type() )
+      order.append(name)
+    fid = {"fid": []}
+    Coords = []
+    if self.mlayer.selectedFeatureCount() > 0:
+      features = self.mlayer.selectedFeatures()
+      for feat in features:
+        for (key, value) in df.iteritems():
+          df[key].append(self.convertAttribute(feat.attributeMap()[provider.fieldNameIndex(key)]))
+        fid["fid"].append(feat.id())
+        if not self.data_only:
+          if not self.getNextGeometry( Coords, feat):
+            raise Exception("Error: Unable to convert layer geometry")
+    else:
+      feat = QgsFeature()
+      while provider.nextFeature(feat):
+        for key in df.keys():
+          attrib = self.convertAttribute(feat.attributeMap()[provider.fieldNameIndex(key)])
+          df[key].append(attrib)
+        fid["fid"].append(feat.id())
+        if not self.data_only:
+          if not self.getNextGeometry( Coords, feat):
+            raise Exception("Error: Unable to convert layer geometry")
+    try:
+      data_frame = rlike.container.ArgsDict()
+    except:
+      data_frame = rlike.container.OrdDict()
+    for key in order:
+      if types[key] == 10:
+        data_frame[key] = self.as_character_(robjects.StrVector(df[key]))
+      else:
+        data_frame[key] = robjects.FloatVector(df[key])
+    #fid[ "fid" ] = robjects.IntVector( fid["fid"] )
+    #data_frame = robjects.r(''' function( d ) data.frame( d ) ''')
+    #data = data_frame( df )
+    data_frame = self.data_frame_.rcall(data_frame.items(), robjects.rinterface.globalenv)
+    #data = data_frame( df )
+    #data['row.names'] = fid[ "fid" ]
+    if not self.data_only:
+      message = QString( "QGIS Vector Layer\n" )
+      spds = self.createSpatialDataset(feat.geometry().type(), Coords, data_frame, projString)
+    else:
+      message = QString("QGIS Attribute Table\n")
+      spds = data_frame
+    length = len(fid["fid"])
+    width = len(order)
+    name = self.mlayer.name()
+    source = self.mlayer.publicSource()
+    name = QFileInfo(name).baseName()
+
+    message.append(QString("Name: " + str(name) + "\nSource: " + str(source)))
+    message.append( QString("\nwith " + str(length) + " rows and " + str(width) + " columns"))
+    message.append("\n" + extra)
+    return (spds, name, message)
+
+  # Function to retrieve QgsGeometry (polygon) coordinates
+  # and convert to a format that can be used by R
+  # Return: Item of class Polygons (R class)
+  def getPolygonCoords(self, geom, fid):
+    if geom.isMultipart():
+      keeps = []
+      polygon = geom.asMultiPolygon() #multi_geom is a multipolygon
+      for lines in polygon:
+        for line in lines:
+          keeps.append(self.Polygon_(self.matrix_(self.unlist_([self.convertToXY(point) for point in line]),\
+          nrow=len([self.convertToXY(point) for point in line]), byrow=True)))
+      return self.Polygons_(keeps, fid)
+    else:
+      lines = geom.asPolygon() #multi_geom is a polygon
+      Polygon = [self.Polygon_(self.matrix_(self.unlist_([self.convertToXY(point) for point in line]),\
+      nrow=len([self.convertToXY(point) for point in line]), byrow=True)) for line in lines]
+      return self.Polygons_(Polygon, fid)
+
+  # Function to retrieve QgsGeometry (line) coordinates
+  # and convert to a format that can be used by R
+  # Return: Item of class Lines (R class)
+  def getLineCoords(self, geom, fid):
+    if geom.isMultipart():
+      keeps = []
+      lines = geom.asMultiPolyline() #multi_geom is a multipolyline
+      for line in lines:
+        for line in lines:
+          keeps.append(self.Line_(self.matrix_(self.unlist_([self.convertToXY(point) for point in line]), \
+          nrow=len([self.convertToXY(point) for point in line]), byrow=True)))
+      return self.Lines_(keeps, str(fid))
+    else:
+      line = geom.asPolyline() #multi_geom is a line
+      Line = self.Line_(self.matrix_(self.unlist_([self.convertToXY(point) for point in line]), \
+      nrow = len([self.convertToXY(point) for point in line]), byrow=True))
+      return self.Lines_(Line, str(fid))
+
+  # Function to retrieve QgsGeometry (point) coordinates
+  # and convert to a format that can be used by R
+  # Return: Item of class Matrix (R class)
+  def getPointCoords(self, geom, fid):
+    if geom.isMultipart():
+      points = geom.asMultiPoint() #multi_geom is a multipoint
+      return [self.convertToXY(point) for point in points]
+    else:
+      point = geom.asPoint() #multi_geom is a point
+      return self.convertToXY(point)
+
+  # Helper function to get coordinates of input geometry
+  # Does not require knowledge of input geometry type
+  # Return: Appends R type geometry to input list
+  def getNextGeometry(self, Coords, feat):
+    geom = feat.geometry()
+    if geom.type() == 0:
+      Coords.append(self.getPointCoords(geom, feat.id()))
+      return True
+    elif geom.type() == 1:
+      Coords.append(self.getLineCoords( geom, feat.id()))
+      return True
+    elif geom.type() == 2:
+      Coords.append(self.getPolygonCoords( geom, feat.id()))
+      return True
+    else:
+      return False
+
+  # Helper function to create Spatial*DataFrame from
+  # input spatial and attribute information
+  # Return: Object of class Spatial*DataFrame (R class)
+  def createSpatialDataset(self, vectType, Coords, data, projString):
+    if vectType == 0:
+      # For points, coordinates must be input as a matrix, hense the extra bits below...
+      # Not sure if this will work for multipoint features?
+      spatialData = self.SpatialPoints_(self.matrix_(self.unlist_(Coords), \
+      nrow = len(Coords), byrow = True), proj4string = self.CRS_(projString))
+      return self.SpatialPointsDataFrame_(spatialData, data)#, match_ID = True )
+        #kwargs = {'match.ID':"FALSE"}
+        #return SpatialPointsDataFrame( spatialData, data, **kwargs )
+    elif vectType == 1:
+      spatialData = self.SpatialLines_(Coords, proj4string = self.CRS_(projString))
+      kwargs = {'match.ID':"FALSE"}
+      return self.SpatialLinesDataFrame_(spatialData, data, **kwargs)
+    elif vectType == 2:
+      spatialData = self.SpatialPolygons_(Coords, proj4string = self.CRS_(projString))
+      kwargs = {'match.ID':"FALSE"}
+      return self.SpatialPolygonsDataFrame_(spatialData, data, **kwargs)
+    else:
+      return ""
+
+  # Function to convert QgsPoint to x, y coordinate
+  # Return: list
+  def convertToXY(self, inPoint):
+    return [inPoint.x(), inPoint.y()]
+
+  # Function to convert attribute to string or double
+  # for input into R object
+  # Return: Double or String
+  def convertAttribute(self, attribute):
+    Qtype = attribute.type()
+    if Qtype == 10:
+      return attribute.toString()
+    else:
+      return attribute.toDouble()[0]
+
+
+class QRasterLayerConverter(QObject):
+
+    def __init__(self, mlayer):
+        QObject.__init__(self)
+        self.running = False
+        self.mlayer = mlayer
+
+    def start(self):
+        dsn = unicode(self.mlayer.source())
+        layer = unicode(self.mlayer.name())
+        dsn.replace("\\", "/")
+        rcode = "readGDAL(fname = '" + dsn + "')"
+        rlayer = robjects.r(rcode)
+        try:
+          summary_ = robjects.conversion.ri2py(
+          rinterface.globalEnv.get('summary',wantFun=True))
+          slot_ = robjects.conversion.ri2py(
+          rinterface.globalEnv.get('@',wantFun=True))
+        except:
+          summary_ = robjects.r.get('summary', mode='function')
+          slot_ = robjects.r.get('@', mode='function')
+        message = QString("QGIS Raster Layer\n")
+        message.append("Name: " + str(self.mlayer.name())
+        + "\nSource: " + str(self.mlayer.source()) + "\n")
+        message.append(str(summary_(slot_(rlayer, 'grid'))))
+        return (rlayer, layer, message)
+
+class RVectorLayerWriter(QObject):
+
+    def __init__(self, layerName, outName, driver):
+        QObject.__init__(self)
+        self.driver = driver
+        self.outName = outName
+        self.layerName = layerName
+
+    def start(self):
+        error = False
+        filePath = QFileInfo(self.outName).absoluteFilePath()
+        filePath.replace("\\", "/")
+        file_name = QFileInfo(self.outName).baseName()
+        driver_list = self.driver.split("(")
+        self.driver = driver_list[0]
+        self.driver.chop(1)
+        extension = driver_list[1].right(5)
+        extension.chop(1)
+        if not filePath.endsWith(extension, Qt.CaseInsensitive):
+          filePath = filePath.append(extension)
+        if not file_name.isEmpty():
+          r_code = "writeOGR(obj=%s, dsn='%s', layer='%s', driver='%s')" % (unicode(self.layerName),
+          unicode(filePath), unicode(file_name), unicode(self.driver))
+        robjects.r(r_code)
+        vlayer = QgsVectorLayer(unicode(filePath), unicode(file_name), "ogr")
+        return vlayer
+
+class RRasterLayerWriter(QObject):
+
+    def __init__(self, layerName, outName, driver):
+        QObject.__init__(self)
+        self.driver = driver
+        self.layerName = layerName
+        self.outName = outName
+
+    def start(self):
+        filePath = QFileInfo(self.outName).absoluteFilePath()
+        filePath.replace("\\", "/")
+        file_name = QFileInfo(self.outName).baseName()
+        driver_list = self.driver.split("(")
+        self.driver = driver_list[0]
+        self.driver.chop(1)
+        extension = driver_list[1].right(5)
+        extension.chop(1)
+        if self.driver == "GeoTIFF": self.driver = "GTiff"
+        elif self.driver == "Erdas Imagine Images": self.driver = "HFA"
+        elif self.driver == "Arc/Info ASCII Grid": self.driver = "AAIGrid"
+        elif self.driver == "ENVI Header Labelled": self.driver = "ENVI"
+        elif self.driver == "JPEG-2000 part 1": self.driver = "JPEG2000"
+        elif self.driver == "Portable Network Graphics": self.driver = "PNG"
+        elif self.driver == "USGS Optional ASCII DEM": self.driver = "USGSDEM"
+        if not filePath.endsWith(extension, Qt.CaseInsensitive) and self.driver != "ENVI":
+            filePath = filePath.append(extension)
+        if not filePath.isEmpty():
+            if self.driver == "AAIGrid" or self.driver == "JPEG2000" or \
+            self.driver == "PNG" or self.driver == "USGSDEM":
+                r_code = "saveDataset(dataset=copyDataset(create2GDAL(dataset=%s, type='Float32'), driver='%s'), filename='%s')" % (unicode(self.layerName),
+                unicode(self.driver), unicode(filePath))
+                robjects.r(r_code)
+            else:
+                r_code = "writeGDAL(dataset=%s, fname='%s', drivername='%s', type='Float32')" % (unicode(self.layerName),
+                unicode(filePath), unicode(self.driver))
+        robjects.r(r_code)
+        rlayer = QgsRasterLayer(unicode(filePath), unicode(file_name))
+        return rlayer
+
+class RVectorLayerConverter(QObject):
+    '''
+    RVectorLayerConvert:
+    This aclass is used to convert an R
+    vector layer to a QgsVector layer for export
+    to the QGIS map canvas.
+    '''
+    def __init__(self, r_layer, layer_name):
+        QObject.__init__(self)
+        self.r_layer = r_layer
+        self.layer_name = layer_name
+        # define R functions as python variables
+        self.slot_ = robjects.r.get('@', mode='function')
+        self.get_row_ = robjects.r(''' function(d, i) d[i] ''')
+        self.get_full_row_ = robjects.r(''' function(d, i) data.frame(d[i,]) ''')
+        self.get_point_row_ = robjects.r(''' function(d, i) d[i,] ''')
+        self.class_ = robjects.r.get('class', mode='function')
+        self.names_ = robjects.r.get('names', mode='function')
+        self.dim_ = robjects.r.get('dim', mode='function')
+        self.as_character_ = robjects.r.get('as.character', mode='function')
+
+    #def run(self):
+    def start(self):
+        '''
+        Main working function
+        Emits threadSuccess when completed successfully
+        Emits threadError when errors occur
+        '''
+        self.running = True
+        error = False
+        vtype = self.checkIfRObject(self.r_layer)
+        vlayer = QgsVectorLayer(vtype, unicode(self.layer_name), "memory")
+        crs = QgsCoordinateReferenceSystem()
+        crs_string =  self.slot_(self.slot_(self.r_layer, "proj4string"), "projargs")[0]
+        # Figure out a better way to handle this problem:
+        # QGIS does not seem to like the proj4 string that R outputs when it
+        # contains +towgs84 as the final parameter
+        crs_string = crs_string.lstrip().partition(" +towgs84")[0]
+        if crs.createFromProj4(crs_string):
+            vlayer.setCrs(crs)
+        provider = vlayer.dataProvider()
+        fields = self.getAttributesList()
+        self.addAttributeSorted(fields, provider)
+        rowCount = self.getRowCount()
+        feat = QgsFeature()
+        for row in range(1, rowCount + 1):
+            if vtype == "Point": coords = self.getPointCoords(row)
+            elif vtype == "Polygon": coords = self.getPolygonCoords(row)
+            else: coords = self.getLineCoords(row)
+            attrs = self.getRowAttributes(provider, row)
+            feat.setGeometry(coords)
+            feat.setAttributeMap(attrs)
+            provider.addFeatures([feat])
+        vlayer.updateExtents()
+        return vlayer
+
+    def addAttributeSorted(self, attributeList, provider):
+        '''
+        Add attribute to memory provider in correct order
+        To preserve correct order they must be added one-by-one
+        '''
+        for (i, j) in attributeList.iteritems():
+            try:
+                provider.addAttributes({i : j})
+            except:
+                if j == "int": j = QVariant.Int
+                elif j == "double": j = QVariant.Double
+                else: j = QVariant.String
+                provider.addAttributes([QgsField(i, j)])
+
+    def getAttributesList(self):
+        '''
+        Get list of attributes for R layer
+        Return: Attribute list in format to be used by memory provider
+        '''
+        typeof_ = robjects.r.get('typeof', mode='function')
+        sapply_ = robjects.r.get('sapply', mode='function')
+        try:
+            in_types = sapply_(self.slot_(self.r_layer, "data"), typeof_)
+        except:
+            raise Exception("Error: R vector layer contains unsupported field type(s)")
+        in_names = self.names_(self.r_layer)
+        out_fields = dict()
+        for i in range(0, len(in_types)):
+            if in_types[i] == "double": out_fields[in_names[i]] = "double"
+            elif in_types[i] == "integer": out_fields[in_names[i]] = "int"
+            else: out_fields[in_names[i]] =  "string"
+        return out_fields
+
+    def checkIfRObject(self, layer):
+        '''
+        Check if the input layer is an sp vector layer
+        Return: True if it is, as well as the vector type
+        '''
+        check = self.class_(layer)[0]
+        if check == "SpatialPointsDataFrame": return "Point"
+        elif check == "SpatialPolygonsDataFrame": return "Polygon"
+        elif check == "SpatialLinesDataFrame": return "LineString"
+        else:
+            raise Exception("Error: R vector layer is not of type Spatial*DataFrame")
+
+    def getRowCount(self):
+        '''
+        Get the number of features in the R spatial layer
+        Return: Feature count
+        '''
+        return int(self.dim_(self.slot_(self.r_layer, "data"))[0])
+
+    def getRowAttributes(self, provider, row):
+        '''
+        Get attributes associated with a single R feature
+        Return: python dictionary containing key/value pairs,
+        where key = field index and value = attribute
+        '''
+        temp = self.get_full_row_(self.slot_(self.r_layer, "data"), row)
+        names = self.names_(self.r_layer)
+        out = {}
+        if not provider.fieldCount() > 1:
+            out = {0 : QVariant(temp[0])}
+        else:
+        #    return dict(zip([provider.fieldNameIndex(str(name)) for name in names],
+        #    [QVariant(item[0]) for item in temp]))
+            count = 0
+            for field in temp:
+                if self.class_(field)[0] == "factor":
+                    out[provider.fieldNameIndex(str(names[count]))] = QVariant(self.as_character_(field)[0])
+                else:
+                    out[provider.fieldNameIndex(str(names[count]))] = QVariant(field[0])
+                count += 1
+        return out
+
+    def getPointCoords(self, row):
+        '''
+        Get point coordinates of an R point feature
+        Return: QgsGeometry from a point
+        '''
+        coords = self.get_point_row_(self.slot_(self.r_layer, 'coords'), row)
+        return QgsGeometry.fromPoint(QgsPoint(coords[0], coords[1]))
+
+    def getPolygonCoords(self, row):
+        '''
+        Get polygon coordinates of an R polygon feature
+        Return: QgsGeometry from a polygon and multipolygon
+        '''
+        Polygons = self.get_row_(self.slot_(self.r_layer, "polygons"), row)
+        polygons_list = []
+        for Polygon in Polygons:
+            polygon_list = []
+            polygons = self.slot_(Polygon, "Polygons")
+            for polygon in polygons:
+                line_list = []
+                points_list = self.slot_(polygon, "coords")
+                y_value = len(points_list)  / 2
+                for j in range(0, y_value):
+                    line_list.append(self.convertToQgsPoints(
+                    (points_list[j], points_list[j + y_value])))
+                polygon_list.append(line_list)
+            polygons_list.append(polygon_list)
+        return QgsGeometry.fromMultiPolygon(polygons_list)
+
+    def getLineCoords(self, row):
+        '''
+        Get line coordinates of an R line feature
+        Return: QgsGeometry from a line or multiline
+        '''
+        Lines = self.get_row_(self.slot_(self.r_layer, 'lines'), row)
+        lines_list = []
+        for Line in Lines:
+            lines = self.slot_(Line, "Lines")
+            for line in lines:
+                line_list = []
+                points_list = self.slot_(line, "coords")
+                y_value = len(points_list)  / 2
+                for j in range(0, y_value):
+                    line_list.append(self.convertToQgsPoints((points_list[j], points_list[j + y_value])))
+            lines_list.append(line_list)
+        return QgsGeometry.fromMultiPolyline(lines_list)
+
+    def convertToQgsPoints(self, in_list):
+        '''
+        Function to convert x, y coordinates list to QgsPoint
+        Return: QgsPoint
+        '''
+        return QgsPoint(in_list[0], in_list[1])
+
+VECTORTYPES = ["SpatialPointsDataFrame",
+               "SpatialPolygonsDataFrame",
+               "SpatialLinesDataFrame"]
+RASTERTYPES = ["SpatialGridDataFrame",
+               "SpatialPixelsDataFrame"]
+
+"""Usage:
+from PyQt4 import QtCore, QtGui
+from GenericVerticalUI import GenericVerticalUI
+class GenericNewDialog(QDialog):
+    def __init__(self):
+        QDialog.__init__(self)
+        # Set up the user interface from Designer.
+        self.ui = GenericVerticalUI ()
+        interface=[["label combobox","comboBox","a;b;c;d","false"   ] , ["label spinbox","doubleSpinBox","10","false"   ] ]
+        self.ui.setupUi(self,interface)
+"""
+
+class SpComboBox(QComboBox):
+    def __init__(self, parent=None, types=QStringList()):
+        super(SpComboBox, self).__init__(parent)
+        self.types = types
+
+    def spTypes(self):
+        return self.types
+
+class SpListWidget(QListWidget):
+    def __init__(self, parent=None,
+        types=QStringList(), delimiter=','):
+        super(SpListWidget, self).__init__(parent)
+        self.types = types
+        self.delimiter = delimiter
+
+    def spTypes(self):
+        return self.types
+
+    def spDelimiter(self):
+        return self.delimiter
+
+class GenericVerticalUI(object):
+    """Generic class of user interface"""
+    def addGuiItem(self, ParentClass, parameters, width):
+        """Defines a new set of Label and a box that can be a
+        ComboBox, spComboBox, LineEdit, TextEdit or DoubleSpinBox."""
+        widgetType=parameters[1]
+        #check if there are default values:
+        if len(parameters)>2:
+            default=parameters[2]
+        else:
+            default=""
+        skip = False
+        notnull=parameters[3]
+        #setting the right type of widget
+        if widgetType=="comboBox":
+            widget = QComboBox(ParentClass)
+            widget.addItems(default.split(';'))
+            widget.setFixedHeight(26)
+        elif widgetType=="spComboBox":
+            widget = SpComboBox(ParentClass, default.split(';'))
+            widget.setFixedHeight(26)
+            self.hasSpComboBox = True
+            widget.setEditable(True)
+        elif widgetType=="spListWidget":
+            widget = SpListWidget(ParentClass,
+            default.split(';'), notnull)
+            widget.setMinimumHeight(116)
+            self.hasSpComboBox = True
+            widget.setSelectionMode(
+            QAbstractItemView.ExtendedSelection)
+        elif widgetType=="doubleSpinBox":
+            widget = QDoubleSpinBox(ParentClass)
+            widget.setValue(float(default))
+            widget.setFixedHeight(26)
+            widget.setMaximum(999999.9999)
+            widget.setDecimals(4)
+        elif widgetType=="textEdit":
+            widget = QTextEdit(ParentClass)
+            widget.setPlainText(default)
+            widget.setMinimumHeight(116)
+        elif widgetType=="helpString":
+            self.helpString = default
+            skip = True
+        else:
+            #if unknown assumes lineEdit
+            widget = QLineEdit(ParentClass)
+            widget.setText(default)
+            widget.setFixedHeight(26)
+        if not skip:
+            hbox = QHBoxLayout()
+            name="widget"+str(self.widgetCounter)
+            widget.setObjectName(name)
+            widget.setMinimumWidth(250)
+            self.widgets.append(widget)
+            name="label"+str(self.widgetCounter)
+            self.widgetCounter += 1
+            label = QLabel(ParentClass)
+            label.setObjectName(name)
+            label.setFixedWidth(width*8)
+            label.setText(parameters[0])
+            hbox.addWidget(label)
+            hbox.addWidget(widget)
+            self.vbox.addLayout(hbox)
+
+    def isSpatial(self):
+        return self.hasSpComboBox
+
+    def updateRObjects(self):
+        splayers = currentRObjects()
+        for widget in self.widgets:
+            if isinstance(widget, SpComboBox) \
+            or isinstance(widget, SpListWidget):
+                sptypes = widget.spTypes()
+                for sptype in sptypes:
+                    for layer in splayers.keys():
+                        if splayers[layer] == sptype.strip() \
+                        or sptype.strip() == "all":
+                            value = layer
+                            widget.addItem(value)
+                        if splayers[layer] in VECTORTYPES \
+                        and (sptype.strip() == "data.frame" \
+                        or sptype.strip() == "all"):
+                            value = layer+"@data"
+                            widget.addItem(value)
+                        if splayers[layer] in VECTORTYPES \
+                        or splayers[layer] == "data.frame":
+                            names =  robjects.r('names(%s)' % (layer))
+                            if not str(names) == 'NULL':
+                                for item in list(names):
+                                    if splayers[layer] == "data.frame":
+                                        value = layer+"$"+item
+                                    else:
+                                        value = layer+"@data$"+item
+                                    if str(robjects.r('class(%s)' % (value))[0]) == sptype.strip() \
+                                    or sptype.strip() == "all":
+                                        widget.addItem(value)
+
+
+
+    def setupUi(self, ParentClass, itemlist):
+        self.ParentClass = ParentClass
+        self.ParentClass.setObjectName("ParentClass")
+        self.exists={"spComboBox":0, "comboBox":0, "textEdit":0,
+                     "doubleSpinBox":0, "lineEdit":0,  "label":0}
+        self.helpString = "There is no help available for this plugin"
+        self.widgetCounter = 0
+        self.widgets = []
+        width = 0
+        self.hasSpComboBox = False
+        self.vbox = QVBoxLayout(self.ParentClass)
+        for item in itemlist:
+            if len(item[0]) > width:
+                width = len(item[0])
+        # Draw a label/widget pair for every item in the list
+        for item in itemlist:
+            self.addGuiItem(self.ParentClass, item, width)
+        self.showCommands = QCheckBox("Append commands to console",self.ParentClass)
+        self.buttonBox = QDialogButtonBox(self.ParentClass)
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(
+        QDialogButtonBox.Help|QDialogButtonBox.Close|QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName("buttonBox")
+        self.vbox.addWidget(self.showCommands)
+        self.vbox.addWidget(self.buttonBox)
+        # accept gets connected in the plugin manager
+        QObject.connect(self.buttonBox, SIGNAL("rejected()"), self.ParentClass.reject)
+        QObject.connect(self.buttonBox, SIGNAL("helpRequested()"), self.help)
+        QMetaObject.connectSlotsByName(self.ParentClass)
+
+    def help(self):
+        if QString(self.helpString).startsWith("topic:"):
+            topic = QString(self.helpString).remove("topic:")
+            self.ParentClass.parent().editor.moveToEnd()
+            self.ParentClass.parent().editor.cursor.movePosition(
+            QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+            self.ParentClass.parent().editor.cursor.removeSelectedText()
+            self.ParentClass.parent().editor.cursor.insertText(
+            "%shelp(%s)" % (
+            self.ParentClass.parent().editor.currentPrompt,
+            str(topic)))
+            self.ParentClass.parent().editor.execute(
+            QString("help('%s')" % (str(topic))))
+        else:
+            HelpForm(self.ParentClass, self.helpString).show()
+
+class HelpForm(QDialog):
+
+    def __init__(self, parent=None, text=""):
+        super(HelpForm, self).__init__(parent)
+        self.setAttribute(Qt.WA_GroupLeader)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(True)
+        browser.setHtml(text)
+        layout = QVBoxLayout()
+        layout.setMargin(0)
+        layout.addWidget(browser)
+        self.setLayout(layout)
+        self.resize(400, 200)
+        QShortcut(QKeySequence("Escape"), self, self.close)
+        self.setWindowTitle("R plugin - Help")
+
+class PluginManager:
+    def __init__(self, parent):#, iface):
+        ## Save reference to the QGIS interface
+        #self.iface = iface
+        self.tools= os.path.join(os.path.dirname( __file__ ),"tools.xml")
+        self.parent = parent
+
+    def makeCaller(self, n):
+        return lambda: self.run(n)
+
+    def createActions(self, pluginsMenu):
+        self.actionlist=[] #list of actions
+        self.callerlist=[] #list of funcions to call run() with id parameter
+        self.sublist=[]
+        #starting xml file reading
+        if not self.tools is None:
+            xmlfile=open(self.tools)
+            dom=minidom.parse(xmlfile)
+            tool=dom.firstChild.firstChild
+
+            #loads every tool in the file
+            while tool:
+                if isinstance(tool, minidom.Element):
+                    add = False
+                    name = tool.getAttribute("name")
+                    category = tool.getAttribute("category")
+                    if not category == "":
+                        sub = QMenu(category, self.parent)
+                        sub.setIcon(QIcon(":mActionAnalysisMenu.png"))
+                        add = True
+                    else:
+                        sub = pluginsMenu
+                        add = False
+                    for item in self.sublist:
+                        if category == item.title():
+                            sub = item
+                            add = False
+                            break
+                    if add:
+                        self.sublist.append(sub)
+                        pluginsMenu.addMenu(sub)
+                    # Create action that will start plugin configuration
+                    self.actionlist.append(QAction(
+                    QIcon(":mActionAnalysisTool"), name, self.parent))
+                    #create a new funcion that calls run() with the id parameter
+                    self.callerlist.append(self.makeCaller(len(self.actionlist)-1))
+                    # connect the action to the run method
+                    QObject.connect(self.actionlist[-1],
+                    SIGNAL("activated()"), self.callerlist[-1])
+                    # Add toolbar button and menu item
+                    self.parent.addActions(sub, (self.actionlist[-1],))
+                tool=tool.nextSibling
+            xmlfile.close()
+
+    def runCommand(self, command):
+        mime = QMimeData()
+        self.parent.editor.moveToEnd()
+        self.parent.editor.cursor.movePosition(
+        QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+        self.parent.editor.cursor.removeSelectedText()
+        self.parent.editor.cursor.insertText(
+        self.parent.editor.currentPrompt)
+        if self.dlg.ui.showCommands.isChecked():
+            mime.setText("# manageR '%s' tool\n%s" % (self.name,command))
+            self.parent.editor.insertFromMimeData(mime)
+            self.parent.editor.entered()
+        else:
+            mime.setText("# manageR '%s' tool" % (self.name))
+            self.parent.editor.insertFromMimeData(mime)
+            self.parent.editor.execute(QString(command))
+
+    def start(self):
+        #reads the info in the widgets and calls the sql command
+        command = self.command
+        for i,item in enumerate(self.dlg.ui.widgets):
+            if type(item)==type(QTextEdit()):
+                text=str(item.toPlainText())
+            elif type(item)==type(QLineEdit()):
+                text=str(item.text())
+            elif type(item)==type(QDoubleSpinBox()):
+                text=str(item.value())
+            elif type(item)==type(QComboBox()):
+                text=str(item.currentText())
+            elif isinstance(item, SpListWidget):
+                items=item.selectedItems()
+                text=QString()
+                for j in items:
+                    text.append(j.text()+item.spDelimiter())
+                text.remove(-1,1)
+            else:
+                try:
+                    text=str(item.currentText())
+                except:
+                    text="Error loading widget."
+            command = command.replace("|"+str(i+1)+"|",text)
+        self.runCommand(command)
+
+    def getTool(self,toolid):
+        """Reads the xml file looking for the tool with toolid
+        and returns it's commands and the parameters double list."""
+        xmlfile=open(self.tools)
+        dom=minidom.parse(xmlfile)
+        tools=dom.firstChild
+        count = 0
+        for tool in tools.childNodes:
+            if isinstance(tool, minidom.Element):
+                if count == toolid:
+                    break
+                count += 1
+        query=tool.getAttribute("query")
+        name= tool.getAttribute("name")
+        lines=[]
+        parm=tool.firstChild
+        while parm:
+            if isinstance(parm, minidom.Element):
+                line = [
+                parm.attributes.getNamedItem("label").value,
+                parm.attributes.getNamedItem("type").value,
+                parm.attributes.getNamedItem("default").value,
+                parm.attributes.getNamedItem("notnull").value]
+                lines.append(line)
+            parm=parm.nextSibling
+        xmlfile.close()
+        return name, query, lines
+
+    # run method that performs all the real work
+    def run(self, actionid):
+        #try:
+            #reads the xml file
+            self.name, self.command, parameters = self.getTool(actionid)
+            # create and show the dialog
+            self.dlg = PluginsDialog(self.parent, parameters)
+            self.dlg.setWindowTitle(self.name)
+            if self.dlg.ui.isSpatial():
+                self.dlg.ui.updateRObjects()
+            #connect the slots
+            QObject.connect(self.dlg.ui.buttonBox, SIGNAL("accepted()"), self.start)
+            #self.helpString = QString(parameters[actionid][-1])
+            # show the dialog
+            self.dlg.show()
+            result = self.dlg.exec_()
+            # See if OK was pressed
+            if result == 1:
+                # do something useful (delete the line containing pass and
+                # substitute with your code
+                print "ok pressed"
+        #except Exception, e:
+            #self.parent.editor.commandError(e)
+
+class PluginsDialog(QDialog):
+    def __init__(self, parent, interface):
+        QDialog.__init__(self, parent)
+        self.ui = GenericVerticalUI()
+        self.ui.setupUi(self, interface)
 
 def isAlive(qobj):
     import sip
@@ -3861,47 +4709,44 @@ def isAlive(qobj):
         return False
     return True
 
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    try:
+        import rpy2
+        import rpy2.robjects as robjects
+    #  import rpy2.rinterface as rinterface
+    except ImportError:
+        QMessageBox.warning(None , "manageR", "Unable to load manageR: Unable to load required package rpy2."
+        + "\nPlease ensure that both R, and the corresponding version of Rpy2 are correctly installed.")
 
-#def main():
-    #if not hasattr(sys, "ps1"):
-        #sys.ps1 = ">>> "
-    #if not hasattr(sys, "ps2"):
-        #sys.ps2 = "... "
-    #app = QApplication(sys.argv)
-    #if not sys.platform.startswith(("linux", "win")):
-        #app.setCursorFlashTime(0)
-    #app.setOrganizationName("manageR")
-    #app.setOrganizationDomain("ftools.ca")
-    #app.setApplicationName("manageR")
-    #app.setWindowIcon(QIcon(":mActionIcon.png"))
-    #loadConfig()
+    if not sys.platform.startswith(("linux", "win")):
+        app.setCursorFlashTime(0)
+    app.setOrganizationName("manageR")
+    app.setOrganizationDomain("ftools.ca")
+    app.setApplicationName("manageR")
+    app.setWindowIcon(QIcon(":mActionIcon.png"))
+    loadConfig()
 
-    #if len(sys.argv) > 1:
-        #args = sys.argv[1:]
-        #if args[0] in ("-h", "--help"):
-            #args.pop(0)
-            #print """usage: manageR.py [-n|filenames]
-#-n or --new means start with new file
-#filenames   means start with the given files (which must have .R suffixes);
-#otherwise starts with console.
-#manageR requires Python 2.5 and PyQt 4.2 (or later versions)
-#For more information run the program and click
-#Help->About and/or Help->Help"""
-            #return
-        #if args and args[0] in ("-n", "--new"):
-            #args.pop(0)
-            #MainWindow().show()
-        #dir = QDir()
-        #for fname in args:
-            #if fname.endswith(".R"):
-                #MainWindow(dir.cleanPath(
-                        #dir.absoluteFilePath((fname)))).show()
-    #if not MainWindow.Instances:
-        #MainWindow(isConsole=True).show()
-    #app.exec_()
-    #saveConfig()
+    if len(sys.argv) > 1:
+        args = sys.argv[1:]
+        if args[0] in ("-h", "--help"):
+            args.pop(0)
+            print """usage: manageR.py [-n|filenames]
+                -n or --new means start with new file
+                filenames   means start with the given files (which must have .R suffixes);
+                otherwise starts with console.
+                manageR requires Python 2.5 and PyQt 4.2 (or later versions)
+                For more information run the program and click
+                Help->About and/or Help->Help"""
+            sys.exit(0)
 
-#main()
+    if not MainWindow.Instances:
+        MainWindow(None, "0.99").show()
+    app.exec_()
+    saveConfig()
+
+
+  #main()
 
 ## TODO:
 ## Add tooltips to all ConfigForm editing widgets & improve validation

@@ -116,14 +116,14 @@ class RVectorLayerConverter(QObject):
         self.r_layer = r_layer
         self.layer_name = layer_name
         # define R functions as python variables
-        self.slot_ = robjects.r['@']
+        self.slot_ = robjects.r.get('@', mode='function')
         self.get_row_ = robjects.r(''' function(d, i) d[i] ''')
         self.get_full_row_ = robjects.r(''' function(d, i) data.frame(d[i,]) ''')
         self.get_point_row_ = robjects.r(''' function(d, i) d[i,] ''')
-        self.class_ = robjects.r['class']
-        self.names_ = robjects.r['names']
-        self.dim_ = robjects.r['dim']
-        self.as_character_ = robjects.r['as.character']
+        self.class_ = robjects.r.get('class', mode='function')
+        self.names_ = robjects.r.get('names', mode='function')
+        self.dim_ = robjects.r.get('dim', mode='function')
+        self.as_character_ = robjects.r.get('as.character', mode='function')
 
     #def run(self):
     def start(self):
@@ -179,8 +179,8 @@ class RVectorLayerConverter(QObject):
         Get list of attributes for R layer
         Return: Attribute list in format to be used by memory provider
         '''
-        typeof_ = robjects.r['typeof']
-        sapply_ = robjects.r['sapply']
+        typeof_ = robjects.r.get('typeof', mode='function')
+        sapply_ = robjects.r.get('sapply', mode='function')
         try:
             in_types = sapply_(self.slot_(self.r_layer, "data"), typeof_)
         except:

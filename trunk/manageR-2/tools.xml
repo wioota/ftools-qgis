@@ -61,11 +61,7 @@ function in the console." notnull="true"/>
 <RTool name="Quick plot" category= "Plotting" query=
 "local({&#xA;
 plot(|1|, type='|2|', main='|3|', sub='|4|', xlab='|5|', 
-ylab='|6|', bty='|7|', lab=c(|8|,|9|,7), las=|10|, |11|)&#xA;        
-if (|12|) {&#xA;
-tmp.fit &lt;- lm(|1| ~ |2|)&#xA;
-abline(tmp.fit, lty='|13|')&#xA;
-}&#xA;
+ylab='|6|', bty='|7|', lab=c(|8|,|9|,7), las=|10|)&#xA;
 })">
 <Parameter label="X values:" type="spComboBox" default="numeric" notnull="true"/>
 <Parameter label="Plot type:" type="comboBox" default=
@@ -79,7 +75,6 @@ abline(tmp.fit, lty='|13|')&#xA;
 <Parameter label="X axis ticks:" type="lineEdit" default="5" notnull="true"/>
 <Parameter label="Y axis ticks:" type="lineEdit" default="5" notnull="true"/>
 <Parameter label="Axis labels:" type="comboBox" default="1;2;3;0" notnull="true"/>
-<Parameter label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
 <Parameter label="help" type="helpString" default="topic:plot" notnull="true"/>
 </RTool>
 <RTool name="Scatterplot" category= "Plotting" query=
@@ -87,7 +82,7 @@ abline(tmp.fit, lty='|13|')&#xA;
 plot(x=|1|, y=|2|, type='p', main='|3|', sub='|4|', xlab='|5|', 
 ylab='|6|', bty='|7|', lab=c(|8|,|9|,7), las=|10|, |11|)&#xA;        
 if (|12|) {&#xA;
-tmp.fit &lt;- lm(|1| ~ |2|)&#xA;
+tmp.fit &lt;- lm(|2| ~ |1|)&#xA;
 abline(tmp.fit, lty='|13|')&#xA;
 }&#xA;
 })">

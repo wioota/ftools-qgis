@@ -39,35 +39,54 @@ import rpy2.robjects as robjects
 import rpy2.rinterface as rinterface
 import rpy2.rlike as rlike
 
-class QVectorLayerConverter( QObject ):
+class QVectorLayerConverter(QObject):
 
-  def __init__( self, mlayer, data_only ):
-    QObject.__init__( self )
+  def __init__(self, mlayer, data_only):
+    QObject.__init__(self)
     self.mlayer = mlayer
     self.data_only = data_only
     self.running = False
 
-    env = rinterface.globalEnv
     # variables are retrived by 'getting' them from the global environment,
     # specifying that we want functions only, which avoids funtions being
     # masked by variable names
-    self.as_character_ = robjects.conversion.ri2py(env.get('as.character',wantFun=True))
-    self.data_frame_ = robjects.conversion.ri2py(env.get('data.frame',wantFun=True))
-    self.matrix_ = robjects.conversion.ri2py(env.get('matrix',wantFun=True))
-    self.unlist_ = robjects.conversion.ri2py(env.get('unlist',wantFun=True))
+    try:
+      env = rinterface.globalEnv
+      self.as_character_ = robjects.conversion.ri2py(env.get('as.character',wantFun=True))
+      self.data_frame_ = robjects.conversion.ri2py(env.get('data.frame',wantFun=True))
+      self.matrix_ = robjects.conversion.ri2py(env.get('matrix',wantFun=True))
+      self.unlist_ = robjects.conversion.ri2py(env.get('unlist',wantFun=True))
+    except:
+      self.as_character_ = robjects.r.get('as.character', mode='function')
+      self.data_frame_ = robjects.r.get('data.frame', mode='function')
+      self.matrix_ = robjects.r.get('matrix', mode='function')
+      self.unlist_ = robjects.r.get('unlist', mode='function')
     if not self.data_only:
       # variables from package sp (only needed if featching geometries as well)
-      self.CRS_ = robjects.conversion.ri2py(env.get('CRS',wantFun=True))
-      self.Polygon_ = robjects.conversion.ri2py(env.get('Polygon',wantFun=True))
-      self.Polygons_ = robjects.conversion.ri2py(env.get('Polygons',wantFun=True))
-      self.SpatialPolygons_ = robjects.conversion.ri2py(env.get('SpatialPolygons',wantFun=True))
-      self.Line_ = robjects.conversion.ri2py(env.get('Line',wantFun=True))
-      self.Lines_ = robjects.conversion.ri2py(env.get('Lines',wantFun=True))
-      self.SpatialLines_ = robjects.conversion.ri2py(env.get('SpatialLines',wantFun=True))
-      self.SpatialPoints_ = robjects.conversion.ri2py(env.get('SpatialPoints',wantFun=True))
-      self.SpatialPointsDataFrame_ = robjects.conversion.ri2py(env.get('SpatialPointsDataFrame',wantFun=True))
-      self.SpatialLinesDataFrame_ = robjects.conversion.ri2py(env.get('SpatialLinesDataFrame',wantFun=True))
-      self.SpatialPolygonsDataFrame_ = robjects.conversion.ri2py(env.get('SpatialPolygonsDataFrame',wantFun=True))
+      try:
+        self.CRS_ = robjects.conversion.ri2py(env.get('CRS',wantFun=True))
+        self.Polygon_ = robjects.conversion.ri2py(env.get('Polygon',wantFun=True))
+        self.Polygons_ = robjects.conversion.ri2py(env.get('Polygons',wantFun=True))
+        self.SpatialPolygons_ = robjects.conversion.ri2py(env.get('SpatialPolygons',wantFun=True))
+        self.Line_ = robjects.conversion.ri2py(env.get('Line',wantFun=True))
+        self.Lines_ = robjects.conversion.ri2py(env.get('Lines',wantFun=True))
+        self.SpatialLines_ = robjects.conversion.ri2py(env.get('SpatialLines',wantFun=True))
+        self.SpatialPoints_ = robjects.conversion.ri2py(env.get('SpatialPoints',wantFun=True))
+        self.SpatialPointsDataFrame_ = robjects.conversion.ri2py(env.get('SpatialPointsDataFrame',wantFun=True))
+        self.SpatialLinesDataFrame_ = robjects.conversion.ri2py(env.get('SpatialLinesDataFrame',wantFun=True))
+        self.SpatialPolygonsDataFrame_ = robjects.conversion.ri2py(env.get('SpatialPolygonsDataFrame',wantFun=True))
+      except:
+        self.CRS_ = robjects.r.get('CRS', mode='function')
+        self.Polygon_ = robjects.r.get('Polygon', mode='function')
+        self.Polygons_ = robjects.r.get('Polygons', mode='function')
+        self.SpatialPolygons_ = robjects.r.get('SpatialPolygons', mode='function')
+        self.Line_ = robjects.r.get('Line', mode='function')
+        self.Lines_ = robjects.r.get('Lines', mode='function')
+        self.SpatialLines_ = robjects.r.get('SpatialLines', mode='function')
+        self.SpatialPoints_ = robjects.r.get('SpatialPoints', mode='function')
+        self.SpatialPointsDataFrame_ = robjects.r.get('SpatialPointsDataFrame', mode='function')
+        self.SpatialLinesDataFrame_ = robjects.r.get('SpatialLinesDataFrame', mode='function')
+        self.SpatialPolygonsDataFrame_ = robjects.r.get('SpatialPolygonsDataFrame', mode='function')
 
   def start( self ):
     self.running = True
@@ -125,16 +144,19 @@ class QVectorLayerConverter( QObject ):
         if not self.data_only:
           if not self.getNextGeometry( Coords, feat):
             raise Exception("Error: Unable to convert layer geometry")
-    data_frame = rlike.container.ArgsDict()
+    try:
+      data_frame = rlike.container.ArgsDict()
+    except:
+      data_frame = rlike.container.OrdDict()
     for key in order:
       if types[key] == 10:
-        data_frame[ key ] = self.as_character_( robjects.StrVector( df[ key ] ) )
+        data_frame[key] = self.as_character_(robjects.StrVector(df[key]))
       else:
-        data_frame[ key ] = robjects.FloatVector( df[ key ] )
+        data_frame[key] = robjects.FloatVector(df[key])
     #fid[ "fid" ] = robjects.IntVector( fid["fid"] )
     #data_frame = robjects.r(''' function( d ) data.frame( d ) ''')
     #data = data_frame( df )
-    data_frame = self.data_frame_.rcall( data_frame.items() )
+    data_frame = self.data_frame_.rcall(data_frame.items(), robjects.rinterface.globalenv)
     #data = data_frame( df )
     #data['row.names'] = fid[ "fid" ]
     if not self.data_only:
@@ -255,8 +277,8 @@ class QVectorLayerConverter( QObject ):
       return attribute.toString()
     else:
       return attribute.toDouble()[0]
-      
-      
+
+
 class QRasterLayerConverter(QObject):
 
     def __init__(self, mlayer):
@@ -270,13 +292,16 @@ class QRasterLayerConverter(QObject):
         dsn.replace("\\", "/")
         rcode = "readGDAL(fname = '" + dsn + "')"
         rlayer = robjects.r(rcode)
-        summary_ = robjects.conversion.ri2py(
-        rinterface.globalEnv.get('summary',wantFun=True))
-        slot_ = robjects.conversion.ri2py(
-        rinterface.globalEnv.get('@',wantFun=True))
+        try:
+          summary_ = robjects.conversion.ri2py(
+          rinterface.globalEnv.get('summary',wantFun=True))
+          slot_ = robjects.conversion.ri2py(
+          rinterface.globalEnv.get('@',wantFun=True))
+        except:
+          summary_ = robjects.r.get('summary', mode='function')
+          slot_ = robjects.r.get('@', mode='function')
         message = QString("QGIS Raster Layer\n")
         message.append("Name: " + str(self.mlayer.name()) 
         + "\nSource: " + str(self.mlayer.source()) + "\n")
         message.append(str(summary_(slot_(rlayer, 'grid'))))
         return (rlayer, layer, message)
-    

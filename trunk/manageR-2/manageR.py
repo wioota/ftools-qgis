@@ -255,10 +255,10 @@ class OutputCatcher:
 
 sys.stdout = OutputCatcher()
 
-class HelpForm(QDialog):
+class HelpDialog(QDialog):
 
     def __init__(self, version, parent=None):
-        super(HelpForm, self).__init__(parent)
+        super(HelpDialog, self).__init__(parent)
         self.setAttribute(Qt.WA_GroupLeader)
         self.setAttribute(Qt.WA_DeleteOnClose)
         browser = QTextBrowser()
@@ -465,6 +465,27 @@ Thanks to Agustin Lobo for extensive testing and bug reporting.
 Press <tt>Esc</tt> to close this window.
 """ % (version, Config["delay"], str(os.path.dirname( __file__ )),
       Config["tabwidth"], Config["tabwidth"]))
+        layout = QVBoxLayout()
+        layout.setMargin(0)
+        layout.addWidget(browser)
+        self.setLayout(layout)
+        self.resize(500, 500)
+        QShortcut(QKeySequence("Escape"), self, self.close)
+        self.setWindowTitle("manageR - Help")
+
+class HelpBrowser(QDialog):
+
+    def __init__(self, version, parent=None):
+        super(HelpBrowser, self).__init__(parent)
+        self.setAttribute(Qt.WA_GroupLeader)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(True)
+        # this will only work for locally available R html help
+        url = "%s/html/index.html" % robjects.r('R.home("doc")')[0]
+        if not browser.setSource(QUrl(url)):
+            url = "http://127.0.0.1:%s/doc/html/index.html" % robjects.r('tools:::httpdPort')[0]
+            browser.setSource(QUrl(url))
         layout = QVBoxLayout()
         layout.setMargin(0)
         layout.addWidget(browser)
@@ -1628,7 +1649,10 @@ class RConsole(QTextEdit):
                             try:
                                 result = try_(withVisible_(ei), silent=True)
                             except robjects.rinterface.RRuntimeError, rre:
-                                self.commandError(str(rre))
+                                #self.commandError(str(rre))
+                                output = sys.stdout.get_and_clean_data()
+                                if output:
+                                    self.commandError(output.decode('utf8'))
                                 self.commandComplete()
                                 return
                             try: # this was added to allow new rpy2 functionality
@@ -1661,7 +1685,10 @@ class RConsole(QTextEdit):
                                     pass
                     except robjects.rinterface.RRuntimeError, rre:
                         # this fixes error output to look more like R's output
-                        self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
+                        #self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
+                        output = sys.stdout.get_and_clean_data()
+                        if output:
+                            self.commandError(output.decode('utf8'))
                         self.commandComplete()
                         return
                     if platform.system() == "Windows": #start changing the get functions below...
@@ -1688,13 +1715,19 @@ class RConsole(QTextEdit):
                         output_text = QString(str.join(os.linesep, s))
                         if not output_text.isEmpty():
                           self.commandOutput(output_text)
-                    output = sys.stdout.get_and_clean_data()
-                    if output:
-                      self.commandOutput(output.decode('utf8'))
+                    #output = sys.stdout.get_and_clean_data()
+                    #if output:
+                      #self.commandOutput(output.decode('utf8'))
             except Exception, err:
-                self.commandError(str(err))
+                #self.commandError(str(err))
+                output = sys.stdout.get_and_clean_data()
+                if output:
+                    self.commandOutput(output.decode('utf8'))
                 self.commandComplete()
                 return
+            output = sys.stdout.get_and_clean_data()
+            if output:
+                self.commandOutput(output.decode('utf8'))
             self.commandComplete()
         MainWindow.Console.statusBar().clearMessage()
 
@@ -2620,6 +2653,15 @@ class RGraphicsWidget(QWidget):
         self.saveButton.setDefaultAction(self.saveAction)
         self.saveButton.setAutoRaise(True)
 
+        self.activeButton = QToolButton(self)
+        self.activeAction = QAction("Set a&ctive", self)
+        self.activeAction.setToolTip("Set active device")
+        self.activeAction.setWhatsThis("Set active device")
+        self.activeAction.setIcon(QIcon(":mActionGraphicActive.png"))
+        self.activeAction.setEnabled(False)
+        self.activeButton.setDefaultAction(self.activeAction)
+        self.activeButton.setAutoRaise(True)
+
         self.newButton = QToolButton(self)
         self.newAction = QAction("&New device", self)
         self.newAction.setToolTip("Open new graphics device")
@@ -2643,6 +2685,7 @@ class RGraphicsWidget(QWidget):
         horiz.addWidget(self.refreshButton)
         horiz.addWidget(self.rmButton)
         horiz.addWidget(self.exportButton)
+        horiz.addWidget(self.activeButton)
         horiz.addWidget(self.saveButton)
         horiz.addWidget(self.newButton)
         horiz.addStretch()
@@ -2655,6 +2698,7 @@ class RGraphicsWidget(QWidget):
         self.connect(self.saveAction, SIGNAL("triggered()"), self.saveGraphic)
         self.connect(self.newAction, SIGNAL("triggered()"), self.newGraphic)
         self.connect(self.refreshAction, SIGNAL("triggered()"), self.refreshGraphics)
+        self.connect(self.activeAction, SIGNAL("triggered()"), self.activeGraphic)
         self.connect(self.graphicsTable, \
         SIGNAL("itemSelectionChanged()"), self.selectionChanged)
         
@@ -2664,6 +2708,7 @@ class RGraphicsWidget(QWidget):
         menu.addSeparator()
         menu.addAction(self.rmAction)
         menu.addAction(self.exportAction)
+        menu.addAction(self.activeAction)
         menu.addAction(self.saveAction)
         menu.addAction(self.newAction)
         menu.exec_(event.globalPos())
@@ -2700,11 +2745,20 @@ class RGraphicsWidget(QWidget):
             self.saveAction.setEnabled(False)
             self.rmAction.setEnabled(False)
             self.exportAction.setEnabled(False)
+            self.activeAction.setEnabled(False)
         else:
             itemName, itemType = self.getGraphicInfo(row)
             self.saveAction.setEnabled(True)
             self.rmAction.setEnabled(True)
             self.exportAction.setEnabled(True)
+            self.activeAction.setEnabled(True)
+
+    def activeGraphic(self):
+        row = self.graphicsTable.currentRow()
+        if row < 0:
+            return False
+        itemID, itemDevice = self.getGraphicInfo(row)
+        self.sendCommands(QString('dev.set(%s)' % (itemID)))
 
     def removeGraphic(self):
         row = self.graphicsTable.currentRow()
@@ -2738,7 +2792,7 @@ class RGraphicsWidget(QWidget):
         suffix = suffix.mid(index1, index2-index1)
         if not selectedFile.endsWith(suffix):
             selectedFile.append(suffix)
-        command = QString('dev.set(' + itemID + ')')
+        command = QString('dev.set(%s)' % itemID)
         self.sendCommands(command)
         command = QString('dev.copy(%s, filename = "%s", ' % (suffix.remove("."), selectedFile))
         command.append('width = dev.size("px")[1], height = dev.size("px")[2], ')
@@ -2920,7 +2974,7 @@ class MainWindow(QMainWindow):
                     self.editor.execute, "Ctrl+Return", "mActionRun",
                     "Execute the (selected) text in the manageR console")
             actionSourceAction = self.createAction("Run S&cript",
-                    self.editor.source,"", "mActionRun",
+                    self.editor.source,"", "mActionSource",
                     "Run the current EditR script")
         else:
             actionShowPrevAction = self.createAction(
@@ -2959,6 +3013,9 @@ class MainWindow(QMainWindow):
         helpHelpAction = self.createAction("&Help", self.helpHelp,
                 QKeySequence.HelpContents, icon="mActionHelpHelp",
                 tip="Commands help")
+        helpBrowserAction = self.createAction("&R help", self.helpBrowser,
+                "Ctrl+H", icon="mActionHelpHelp",
+                tip="General R help")
         helpAboutAction = self.createAction("&About", self.helpAbout,
                 icon="mActionIcon", tip="About manageR")
 
@@ -3016,7 +3073,7 @@ class MainWindow(QMainWindow):
         self.connect(self.windowMenu, SIGNAL("aboutToShow()"),
                      self.updateWindowMenu)
         helpMenu = self.menuBar().addMenu("&Help")
-        self.addActions(helpMenu, (helpHelpAction, helpAboutAction,))
+        self.addActions(helpMenu, (helpBrowserAction, helpHelpAction, helpAboutAction,))
 
         self.fileToolbar = self.addToolBar("File Toolbar")
         self.fileToolbar.setObjectName("FileToolbar")
@@ -3168,6 +3225,11 @@ class MainWindow(QMainWindow):
                 for library in robjects.r('.packages()'):
                     addLibraryCommands(library)
             self.createConsoleWidgets()
+            splash.showMessage("Attempting to start/build R html help", \
+            (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
+            QApplication.processEvents()
+            robjects.r['help.start'](update = True,
+            browser=robjects.r('function(url) return(url)'))
             splash.showMessage("manageR ready!", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             splash.finish(self)
@@ -3768,7 +3830,10 @@ class MainWindow(QMainWindow):
                 break
 
     def helpHelp(self):
-        HelpForm(self.version, self).show()
+        HelpDialog(self.version, self).show()
+
+    def helpBrowser(self):
+        HelpBrowser(self).show()
 
     def helpAbout(self):
         iconLabel = QLabel()
@@ -4504,7 +4569,7 @@ class GenericVerticalUI(object):
         self.buttonBox = QDialogButtonBox(self.ParentClass)
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(
-        QDialogButtonBox.Help|QDialogButtonBox.Close|QDialogButtonBox.Ok)
+        QDialogButtonBox.Help|QDialogButtonBox.Close|QDialogButtonBox.Apply)
         self.buttonBox.setObjectName("buttonBox")
         self.vbox.addWidget(self.showCommands)
         self.vbox.addWidget(self.buttonBox)
@@ -4532,7 +4597,7 @@ class GenericVerticalUI(object):
 class HelpForm(QDialog):
 
     def __init__(self, parent=None, text=""):
-        super(HelpForm, self).__init__(parent)
+        #super(HelpForm, self).__init__(parent)
         self.setAttribute(Qt.WA_GroupLeader)
         self.setAttribute(Qt.WA_DeleteOnClose)
         browser = QTextBrowser()

@@ -1,8 +1,6 @@
 [Dolphin]
 AdditionalInfo=35
 ShowPreview=true
-Timestamp=2009,8,26,1,7,8
+SortOrder=1
+Timestamp=2010,2,16,22,41,35
 ViewMode=1
-
-[Settings]
-ShowDotFiles=true

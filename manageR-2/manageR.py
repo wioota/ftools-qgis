@@ -42,7 +42,7 @@ import resources
 
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
-        QSettings, QString, QT_VERSION_STR, QTextStream, QThread,
+        QSettings, QString, QT_VERSION_STR, QTextStream, QThread, #QMetaObject,
         QTimer, QUrl, QVariant, Qt, SIGNAL, QStringList, QMimeData)
 from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QColor, QColorDialog, QComboBox, QCursor, QDesktopServices,
@@ -56,7 +56,8 @@ from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QWidget, QDockWidget, QToolButton, QSpacerItem, QSizePolicy,
         QPalette, QSplashScreen, QTreeWidget, QTreeWidgetItem, QFrame,
         QListView, QTableWidget, QTableWidgetItem, QHeaderView, QMenu, 
-        QAbstractItemView, QTextBlockUserData, QTextFormat, QClipboard)
+        QAbstractItemView, QTextBlockUserData, QTextFormat, QClipboard,
+        QDoubleSpinBox)
 
 try:
     from qgis.core import *
@@ -463,7 +464,7 @@ Hold down <tt>Shift</tt> when pressing movement keys to select the text moved ov
 <br>
 Thanks to Agustin Lobo for extensive testing and bug reporting.
 Press <tt>Esc</tt> to close this window.
-""" % (version, Config["delay"], str(os.path.dirname( __file__ )),
+""" % (version, Config["delay"], str(os.path.abspath( os.path.dirname(__file__) )),
       Config["tabwidth"], Config["tabwidth"]))
         layout = QVBoxLayout()
         layout.setMargin(0)
@@ -790,13 +791,13 @@ class RCompleter(QObject):
         self.popup.setFocusPolicy(Qt.NoFocus)
         self.popup.setFocusProxy(self.editor)
         self.timer = QTimer(self)
-        self.timer.setSingleShot(True)
+        #self.timer.setSingleShot(True)
         if isinstance(delay,int):
             self.timer.setInterval(delay)
         else:
             self.timer.setInterval(500)
         self.connect(self.timer, SIGNAL("timeout()"), self.suggest, Config["minimumchars"])
-        self.connect(self.editor, SIGNAL("textChanged()"), self.startTimer)
+        #self.connect(self.editor, SIGNAL("textChanged()"), self.startTimer)
 
     def startTimer(self):
         self.timer.start()
@@ -1080,6 +1081,7 @@ class REditor(QTextEdit):
             commands = cursor.selectedText().replace(u"\u2029", "\n")
         else:
             commands = self.toPlainText()
+        commands.append("\n")
         self.run(commands)
 
     def run(self, commands):
@@ -1093,7 +1095,7 @@ class REditor(QTextEdit):
             MainWindow.Console.editor.cursor.insertText(
             MainWindow.Console.editor.currentPrompt)
             MainWindow.Console.editor.insertFromMimeData(mime)
-            MainWindow.Console.editor.entered()
+            MainWindow.Console.editor.entered(False)
 
     def source(self):
         self.parent.fileSave()
@@ -1308,11 +1310,11 @@ class RConsole(QTextEdit):
             self.setTextCursor(self.cursor)
         self.ensureCursorVisible()
         
-    def entered(self):
+    def entered(self, checkbrakets=True):
         command = self.currentCommand()
         check = self.runningCommand.split("\n").last()
         if not self.runningCommand.isEmpty():
-            if not command == check:
+            if not command == check and not command == "\n":
                 self.runningCommand.append(command)
                 self.updateHistory(command)
         else:
@@ -1324,7 +1326,7 @@ class RConsole(QTextEdit):
                 block.setUserState(0)
                 self.switchPrompt(True)
                 self.displayPrompt()
-        if not self.checkBrackets(self.runningCommand):
+        if checkbrakets and not self.checkBrackets(self.runningCommand):
             self.switchPrompt(False)
             self.cursor.movePosition(QTextCursor.End,
             QTextCursor.MoveAnchor)
@@ -1636,11 +1638,17 @@ class RConsole(QTextEdit):
                                 self.commandOutput(output_text)
                                 output_text.clear()
                             QApplication.processEvents()
-                        #robjects.rinterface.set_writeconsole(write)
+                        #try:
+                          #robjects.rinterface.setWriteConsole(write)
+                        #except:
+                          #robjects.rinterface.set_writeconsole(write)
                         def read(prompt): # TODO: This is a terrible workaround
                             input = "\n"  # and needs to be futher investigated...
                             return input
-                        robjects.rinterface.set_readconsole(read)
+                        try:
+                          robjects.rinterface.setReadConsole(read)
+                        except:
+                          robjects.rinterface.set_readconsole(read)
                     try:
                         try_ = robjects.r.get("try", mode='function')
                         parse_ = robjects.r.get("parse", mode='function')
@@ -1662,7 +1670,7 @@ class RConsole(QTextEdit):
                                     self.commandError(output.decode('utf8'))
                                 self.commandComplete()
                                 return
-                            try: # this was added to allow new rpy2 functionality
+                            try:
                                 visible = result.r["visible"][0][0]
                             except:
                                 visible = result[1][0]
@@ -1682,15 +1690,15 @@ class RConsole(QTextEdit):
                                         self.helpTopic()
                             else:
                                 try:
-                                    if text.startsWith('library('):
+                                    if QString(str(ei)).startsWith('library('):
                                         try:
                                             library = result.r["value"][0][0]
                                         except:
                                             library = result[0][0]
                                         if not library in Libraries:
                                             addLibraryCommands(library)
-                                except:
-                                    pass
+                                except Exception, err:
+                                    print err
                     except robjects.rinterface.RRuntimeError, rre:
                         # this fixes error output to look more like R's output
                         #self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
@@ -1881,9 +1889,9 @@ class ConfigForm(QDialog):
         timeoutLabel.setBuddy(self.timeoutSpinBox)
         self.mincharsSpinBox = QSpinBox()
         self.mincharsSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
-        self.mincharsSpinBox.setRange(1, 4)
+        self.mincharsSpinBox.setRange(1, 100)
         self.mincharsSpinBox.setFont(monofont)
-        self.mincharsSpinBox.setSuffix(" characters")
+        self.mincharsSpinBox.setSuffix(" chars")
         self.mincharsSpinBox.setValue(Config["minimumchars"])
         self.mincharsSpinBox.setToolTip("<p>Specify the minimum number of characters "
                 "that must be typed before displaying the autocomplete popup when a "
@@ -4441,12 +4449,6 @@ class RVectorLayerConverter(QObject):
         '''
         return QgsPoint(in_list[0], in_list[1])
 
-VECTORTYPES = ["SpatialPointsDataFrame",
-               "SpatialPolygonsDataFrame",
-               "SpatialLinesDataFrame"]
-RASTERTYPES = ["SpatialGridDataFrame",
-               "SpatialPixelsDataFrame"]
-
 """Usage:
 from PyQt4 import QtCore, QtGui
 from GenericVerticalUI import GenericVerticalUI
@@ -4548,7 +4550,7 @@ class GenericVerticalUI(object):
         return self.hasSpComboBox
 
     def updateRObjects(self):
-        splayers = currentRObjects()
+        splayers = currentRObjects()[0]
         for widget in self.widgets:
             if isinstance(widget, SpComboBox) \
             or isinstance(widget, SpListWidget):
@@ -4600,14 +4602,14 @@ class GenericVerticalUI(object):
         self.buttonBox = QDialogButtonBox(self.ParentClass)
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setStandardButtons(
-        QDialogButtonBox.Help|QDialogButtonBox.Close|QDialogButtonBox.Apply)
+        QDialogButtonBox.Help|QDialogButtonBox.Close|QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
         self.vbox.addWidget(self.showCommands)
         self.vbox.addWidget(self.buttonBox)
         # accept gets connected in the plugin manager
         QObject.connect(self.buttonBox, SIGNAL("rejected()"), self.ParentClass.reject)
         QObject.connect(self.buttonBox, SIGNAL("helpRequested()"), self.help)
-        QMetaObject.connectSlotsByName(self.ParentClass)
+        #QMetaObject.connectSlotsByName(self.ParentClass)
 
     def help(self):
         if QString(self.helpString).startsWith("topic:"):
@@ -4646,7 +4648,7 @@ class PluginManager:
     def __init__(self, parent):#, iface):
         ## Save reference to the QGIS interface
         #self.iface = iface
-        self.tools= os.path.join(os.path.dirname( __file__ ),"tools.xml")
+        self.tools= os.path.join(str(os.path.abspath(os.path.dirname(__file__))),"tools.xml")
         self.parent = parent
 
     def makeCaller(self, n):
@@ -4661,7 +4663,6 @@ class PluginManager:
             xmlfile=open(self.tools)
             dom=minidom.parse(xmlfile)
             tool=dom.firstChild.firstChild
-
             #loads every tool in the file
             while tool:
                 if isinstance(tool, minidom.Element):
@@ -4738,6 +4739,7 @@ class PluginManager:
                     text="Error loading widget."
             command = command.replace("|"+str(i+1)+"|",text)
         self.runCommand(command)
+        self.dlg.close()
 
     def getTool(self,toolid):
         """Reads the xml file looking for the tool with toolid
@@ -4769,7 +4771,6 @@ class PluginManager:
 
     # run method that performs all the real work
     def run(self, actionid):
-        #try:
             #reads the xml file
             self.name, self.command, parameters = self.getTool(actionid)
             # create and show the dialog
@@ -4782,14 +4783,6 @@ class PluginManager:
             #self.helpString = QString(parameters[actionid][-1])
             # show the dialog
             self.dlg.show()
-            result = self.dlg.exec_()
-            # See if OK was pressed
-            if result == 1:
-                # do something useful (delete the line containing pass and
-                # substitute with your code
-                print "ok pressed"
-        #except Exception, e:
-            #self.parent.editor.commandError(e)
 
 class PluginsDialog(QDialog):
     def __init__(self, parent, interface):
@@ -4822,7 +4815,6 @@ if __name__ == '__main__':
     app.setApplicationName("manageR")
     app.setWindowIcon(QIcon(":mActionIcon.png"))
     loadConfig()
-
     if len(sys.argv) > 1:
         args = sys.argv[1:]
         if args[0] in ("-h", "--help"):

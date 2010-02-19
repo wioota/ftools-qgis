@@ -251,4 +251,4 @@ def currentRObjects():
     for item in ls_():
         check = class_(robjects.r[item])[0]
         layers[unicode(item)] = check
-    return layers
+    return (layers)

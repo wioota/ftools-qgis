@@ -88,7 +88,7 @@ License</a> for more details."""
 KEYWORDS = ["break", "else", "for", "if", "in", "next", "repeat", 
             "return", "switch", "try", "while", "print", "return",
             "not", "library", "attach", "detach", "ls", "as", "summary",
-            "plot", "hist", "lines", "points"]
+            "plot", "hist", "lines", "points", "require", "load"]
 
 BUILTINS = ["array", "character", "complex", "data.frame", "double", 
             "factor", "function", "integer", "list", "logical", 
@@ -666,11 +666,15 @@ class RHighlighter(QSyntaxHighlighter):
         self.initializeFormats()
         self.isConsole = isConsole
         RHighlighter.Rules.append((QRegExp(
+                r"[a-zA-Z_]+[a-zA-Z_\.0-9]*(?=[\s]*[(])"), "keyword"))
+        RHighlighter.Rules.append((QRegExp(
                 "|".join([r"\b%s\b" % keyword for keyword in KEYWORDS])),
                 "keyword"))
         RHighlighter.Rules.append((QRegExp(
                 "|".join([r"\b%s\b" % builtin for builtin in BUILTINS])),
                 "builtin"))
+        RHighlighter.Rules.append((QRegExp(
+                "[a-zA-Z_\.][0-9a-zA-Z_\.]*[\s]*=(?=([^=]|$))"), "constant"))
         RHighlighter.Rules.append((QRegExp(
                 "|".join([r"\b%s\b" % constant
                 for constant in CONSTANTS])), "constant"))
@@ -680,9 +684,11 @@ class RHighlighter(QSyntaxHighlighter):
                 r"|\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b"),
                 "number"))
         RHighlighter.Rules.append((QRegExp(
-                r"(<){1,2}-"
-                r"$"
-                r"@"), "assignment"))
+        r"[<]{1,2}\-"
+        r"|\-[>]{1,2}"
+        r"|=(?!=)"
+        r"|\$"
+        r"|\@"), "assignment"))
         RHighlighter.Rules.append((QRegExp(r"[\)\(]+|[\{\}]+|[][]+"),
                 "delimiter"))
         RHighlighter.Rules.append((QRegExp(r"#.*"), "comment"))
@@ -1320,6 +1326,8 @@ class RConsole(QTextEdit):
                 self.displayPrompt()
         if not self.checkBrackets(self.runningCommand):
             self.switchPrompt(False)
+            self.cursor.movePosition(QTextCursor.End,
+            QTextCursor.MoveAnchor)
             self.cursor.insertText("\n" + self.currentPrompt)
             self.runningCommand.append("\n")
         else:
@@ -1331,8 +1339,6 @@ class RConsole(QTextEdit):
             self.runningCommand.clear()
             self.switchPrompt(True)
         #self.displayPrompt()
-        self.cursor.movePosition(QTextCursor.End, 
-        QTextCursor.MoveAnchor)
         self.moveToEnd()
 
     def showPrevious(self):

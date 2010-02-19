@@ -1340,6 +1340,7 @@ class RConsole(QTextEdit):
             self.switchPrompt(True)
         #self.displayPrompt()
         self.moveToEnd()
+        self.emit(SIGNAL("cursorPositionChanged()"))
 
     def showPrevious(self):
         if self.historyIndex < len(self.history) and not self.history.isEmpty():
@@ -1673,11 +1674,12 @@ class RConsole(QTextEdit):
                                         class_(result.r["value"][0])[0] == "hsearch":
                                         self.helpTopic(class_(result.r["value"])[0])
                                 except:
-                                    if not str(result[0]) == "NULL":
-                                        robjects.r['print'](result[0])
-                                    if class_(result[0])[0] == "help_files_with_topic" or \
-                                        class_(result[0])[0] == "hsearch":
-                                        self.helpTopic(class_(result[0])[0])
+                                    tmpclass = class_(result[0])[0]
+                                    if not str(result[0]) == "NULL" and not \
+                                    tmpclass in ("help_files_with_topic", "hsearch"):
+                                        print result[0]
+                                    elif tmpclass in ("help_files_with_topic", "hsearch"):
+                                        self.helpTopic()
                             else:
                                 try:
                                     if text.startsWith('library('):
@@ -1737,11 +1739,8 @@ class RConsole(QTextEdit):
             self.commandComplete()
         MainWindow.Console.statusBar().clearMessage()
 
-    def helpTopic(self, topic):
-        if topic == "hsearch":
-            dialog = helpDialog(self, "Search")
-        else:
-            dialog = helpDialog(self, "Help")
+    def helpTopic(self):
+        dialog = helpDialog(self)
         dialog.setWindowModality(Qt.NonModal)
         dialog.setModal(False)
         dialog.show()
@@ -1764,7 +1763,7 @@ class RConsole(QTextEdit):
 
 class helpDialog(QDialog):
 # options(htmlhelp=FALSE) this should probably be added somewhere to make sure the help is always the R help...
-    def __init__(self, parent, help_topic):
+    def __init__(self, parent):
         QDialog.__init__ (self, parent)
         #initialise the display text edit
         display = QTextEdit(self)
@@ -1777,7 +1776,7 @@ class helpDialog(QDialog):
         #initialise grid layout for dialog
         grid = QGridLayout(self)
         grid.addWidget(display)
-        self.setWindowTitle("manageR - " + help_topic)
+        self.setWindowTitle("manageR - Help")
         help_string = QString(sys.stdout.get_and_clean_data())
         # woraround to remove non-ascii text and formatting
         help_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
@@ -1836,6 +1835,7 @@ class ConfigForm(QDialog):
         outputPromptLabel = QLabel("&Continuation prompt:")
         outputPromptLabel.setBuddy(self.outputLineEdit)
         self.cwdLineEdit = QLineEdit(Config["setwd"])
+        self.cwdLineEdit.setFont(monofont)
         cwdLabel = QLabel("&Default working directory:")
         cwdLabel.setBuddy(self.cwdLineEdit)
         self.cwdLineEdit.setToolTip("<p>Specify the default working "
@@ -1846,6 +1846,7 @@ class ConfigForm(QDialog):
         self.tabWidthSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
         self.tabWidthSpinBox.setRange(2, 20)
         self.tabWidthSpinBox.setSuffix(" spaces")
+        self.tabWidthSpinBox.setFont(monofont)
         self.tabWidthSpinBox.setValue(Config["tabwidth"])
         self.tabWidthSpinBox.setToolTip("<p>Specify the number of "
                 "spaces that a single tab should span.</p>")
@@ -1853,6 +1854,7 @@ class ConfigForm(QDialog):
         tabWidthLabel.setBuddy(self.tabWidthSpinBox)
         self.fontComboBox = QFontComboBox()
         self.fontComboBox.setCurrentFont(monofont)
+        self.fontComboBox.setFont(monofont)
         self.fontComboBox.setToolTip("<p>Specify the font family for "
                 "the manageR console and all EditR windows.</p>")
         fontLabel = QLabel("&Font:")
@@ -1861,12 +1863,14 @@ class ConfigForm(QDialog):
         self.fontSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
         self.fontSpinBox.setRange(6, 20)
         self.fontSpinBox.setSuffix(" pt")
+        self.fontSpinBox.setFont(monofont)
         self.fontSpinBox.setValue(Config["fontsize"])
         self.fontSpinBox.setToolTip("<p>Specify the font size for  "
                 "the manageR console, and all EditR windows.</p>")
         self.timeoutSpinBox = QSpinBox()
         self.timeoutSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
         self.timeoutSpinBox.setRange(0, 20000)
+        self.timeoutSpinBox.setFont(monofont)
         self.timeoutSpinBox.setSingleStep(100)
         self.timeoutSpinBox.setSuffix(" ms")
         self.timeoutSpinBox.setValue(Config["delay"])
@@ -1878,6 +1882,7 @@ class ConfigForm(QDialog):
         self.mincharsSpinBox = QSpinBox()
         self.mincharsSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
         self.mincharsSpinBox.setRange(1, 4)
+        self.mincharsSpinBox.setFont(monofont)
         self.mincharsSpinBox.setSuffix(" characters")
         self.mincharsSpinBox.setValue(Config["minimumchars"])
         self.mincharsSpinBox.setToolTip("<p>Specify the minimum number of characters "
@@ -2165,7 +2170,8 @@ class RWDWidget(QWidget):
 class RCommandList(QListWidget):
     def __init__(self, parent):
         QListWidget.__init__(self, parent)
- 
+        
+        
     def mousePressEvent(self, event):
         item = self.itemAt(event.globalPos())
         if not item and event.button() == Qt.LeftButton:
@@ -2860,6 +2866,7 @@ class MainWindow(QMainWindow):
 
     NextId = 1
     Instances = set()
+    Widgets = set()
     Console = None
 
     def __init__(self, iface, version, filename=QString(),
@@ -3236,6 +3243,7 @@ class MainWindow(QMainWindow):
             QApplication.processEvents()
             robjects.r['help.start'](update = True,
             browser=robjects.r('function(url) return(url)'))
+            sys.stdout.get_and_clean_data()
             splash.showMessage("manageR ready!", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             splash.finish(self)
@@ -3251,6 +3259,7 @@ class MainWindow(QMainWindow):
         graphicDockWidget.setAllowedAreas(Qt.LeftDockWidgetArea|Qt.RightDockWidgetArea)
         graphicDockWidget.setWidget(graphicWidget)
         self.addDockWidget(Qt.RightDockWidgetArea, graphicDockWidget)
+        MainWindow.Widgets.add(graphicWidget)
         
         variableWidget = RVariableWidget(self)
         variableWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"),
@@ -3260,6 +3269,7 @@ class MainWindow(QMainWindow):
         variableDockWidget.setAllowedAreas(Qt.RightDockWidgetArea|Qt.LeftDockWidgetArea)
         variableDockWidget.setWidget(variableWidget)
         self.addDockWidget(Qt.RightDockWidgetArea, variableDockWidget)
+        MainWindow.Widgets.add(variableWidget)
         
         historyWidget = RHistoryWidget(self, self.editor)
         historyWidget.connect(self.editor, SIGNAL("updateHistory(PyQt_PyObject)"),
@@ -3269,6 +3279,7 @@ class MainWindow(QMainWindow):
         historyDockWidget.setAllowedAreas(Qt.LeftDockWidgetArea|Qt.RightDockWidgetArea)
         historyDockWidget.setWidget(historyWidget)
         self.addDockWidget(Qt.RightDockWidgetArea, historyDockWidget)
+        MainWindow.Widgets.add(historyWidget)
         
         cwdWidget = RWDWidget(self,robjects.r('getwd()')[0])
         cwdWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"), cwdWidget.displayWorkingDir)
@@ -3277,10 +3288,19 @@ class MainWindow(QMainWindow):
         cwdDockWidget.setAllowedAreas(Qt.TopDockWidgetArea|Qt.BottomDockWidgetArea)
         cwdDockWidget.setWidget(cwdWidget)
         self.addDockWidget(Qt.TopDockWidgetArea, cwdDockWidget)
+        MainWindow.Widgets.add(cwdWidget)
         
         self.tabifyDockWidget(variableDockWidget, graphicDockWidget)
         self.tabifyDockWidget(graphicDockWidget, historyDockWidget)
 
+        if Config["enablehighlighting"]:
+            palette = QPalette(QColor(Config["backgroundcolor"]))
+            palette.setColor(QPalette.Active, QPalette.Base, QColor(Config["backgroundcolor"]))
+            graphicWidget.setPalette(palette)
+            variableWidget.setPalette(palette)
+            historyWidget.setPalette(palette)
+            cwdWidget.setPalette(palette)
+            
         for widget in [cwdDockWidget, variableDockWidget, 
                        graphicDockWidget, historyDockWidget,]:
             action = widget.toggleViewAction()
@@ -3667,6 +3687,11 @@ class MainWindow(QMainWindow):
                         QPalette.Base, QColor(Config["backgroundcolor"]))
                         window.editor.setPalette(palette)
                         window.statusBar().clearMessage()
+                for widget in MainWindow.Widgets:
+                        palette = QPalette(QColor(Config["backgroundcolor"]))
+                        palette.setColor(QPalette.Active,
+                        QPalette.Base, QColor(Config["backgroundcolor"]))
+                        widget.setPalette(palette)
             saveConfig()
 
 

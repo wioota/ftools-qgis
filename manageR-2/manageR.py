@@ -3240,7 +3240,8 @@ class MainWindow(QMainWindow):
                 else:
                     load_text = QString("[R history file ")
                 QApplication.processEvents()
-            self.editor.append("%srestored]\n\n" % load_text)
+            if not load_text.isEmpty():
+                self.editor.append("%srestored]\n\n" % load_text)
             self.editor.displayPrompt()
             # If requested, execute startup commands
             if not QString(Config["consolestartup"]).isEmpty():

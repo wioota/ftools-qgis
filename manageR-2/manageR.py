@@ -42,7 +42,7 @@ import resources
 
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
-        QSettings, QString, QT_VERSION_STR, QTextStream, QThread, #QMetaObject,
+        QSettings, QString, QT_VERSION_STR, QTextStream, QThread,
         QTimer, QUrl, QVariant, Qt, SIGNAL, QStringList, QMimeData)
 from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QColor, QColorDialog, QComboBox, QCursor, QDesktopServices,
@@ -198,12 +198,15 @@ def saveConfig():
 
 def addLibraryCommands(library):
     if not library in Libraries:
-        Libraries.append(library)
-        info = robjects.r('lsf.str("package:%s")' % (library))
-        info = QString(str(info)).replace(", \n    ", ", ")
-        items = info.split('\n')
-        for item in items:
-            CAT.append(item)
+        #try:
+            Libraries.append(library)
+            info = robjects.r('lsf.str("package:%s")' % (library))
+            info = QString(str(info)).replace(", \n    ", ", ")
+            items = info.split('\n')
+            for item in items:
+                CAT.append(item)
+        #except:
+        #    pass # no biggie, probably hasn't been loaded yet...
 
 def isLibraryLoaded(package="sp"):
     return robjects.r("require(%s)" % (package))[0]
@@ -1081,7 +1084,6 @@ class REditor(QTextEdit):
             commands = cursor.selectedText().replace(u"\u2029", "\n")
         else:
             commands = self.toPlainText()
-        commands.append("\n")
         self.run(commands)
 
     def run(self, commands):
@@ -1095,7 +1097,7 @@ class REditor(QTextEdit):
             MainWindow.Console.editor.cursor.insertText(
             MainWindow.Console.editor.currentPrompt)
             MainWindow.Console.editor.insertFromMimeData(mime)
-            MainWindow.Console.editor.entered(False)
+            MainWindow.Console.editor.entered()
 
     def source(self):
         self.parent.fileSave()
@@ -1310,11 +1312,11 @@ class RConsole(QTextEdit):
             self.setTextCursor(self.cursor)
         self.ensureCursorVisible()
         
-    def entered(self, checkbrakets=True):
+    def entered(self):
         command = self.currentCommand()
         check = self.runningCommand.split("\n").last()
         if not self.runningCommand.isEmpty():
-            if not command == check and not command == "\n":
+            if not command == check:
                 self.runningCommand.append(command)
                 self.updateHistory(command)
         else:
@@ -1326,7 +1328,7 @@ class RConsole(QTextEdit):
                 block.setUserState(0)
                 self.switchPrompt(True)
                 self.displayPrompt()
-        if checkbrakets and not self.checkBrackets(self.runningCommand):
+        if not self.checkBrackets(self.runningCommand):
             self.switchPrompt(False)
             self.cursor.movePosition(QTextCursor.End,
             QTextCursor.MoveAnchor)
@@ -1609,11 +1611,12 @@ class RConsole(QTextEdit):
         QApplication.processEvents()
         if not text.trimmed() == "":
             try:
-                if (text.startsWith('quit(') or text.startsWith('q(')) \
-                and text.count(")") == 1:
+                regexp = QRegExp(r"(quit\(.*\)|q\(.*\))")
+                if text.contains(regexp):
                     self.commandError(
                     "Error: System exit from manageR not allowed, close dialog manually")
                 else:
+                    pos = 0 # this is used later when checking if new libraries have been loaded
                     output_text = QString()
                     if platform.system() == "Windows":
                         try:
@@ -1639,16 +1642,16 @@ class RConsole(QTextEdit):
                                 output_text.clear()
                             QApplication.processEvents()
                         #try:
-                          #robjects.rinterface.setWriteConsole(write)
+                            #robjects.rinterface.set_writeconsole(write)
                         #except:
-                          #robjects.rinterface.set_writeconsole(write)
+                            #robjects.rinterface.setWriteConsole(write)
                         def read(prompt): # TODO: This is a terrible workaround
                             input = "\n"  # and needs to be futher investigated...
                             return input
                         try:
-                          robjects.rinterface.setReadConsole(read)
-                        except:
                           robjects.rinterface.set_readconsole(read)
+                        except:
+                          robjects.rinterface.setReadConsole(read)
                     try:
                         try_ = robjects.r.get("try", mode='function')
                         parse_ = robjects.r.get("parse", mode='function')
@@ -1670,7 +1673,7 @@ class RConsole(QTextEdit):
                                     self.commandError(output.decode('utf8'))
                                 self.commandComplete()
                                 return
-                            try:
+                            try: # this was added to allow new rpy2 functionality
                                 visible = result.r["visible"][0][0]
                             except:
                                 visible = result[1][0]
@@ -1683,22 +1686,25 @@ class RConsole(QTextEdit):
                                         self.helpTopic(class_(result.r["value"])[0])
                                 except:
                                     tmpclass = class_(result[0])[0]
-                                    if not str(result[0]) == "NULL" and not \
-                                    tmpclass in ("help_files_with_topic", "hsearch"):
+                                    if not tmpclass in ("NULL"):#, "help_files_with_topic", "hsearch"):
                                         print result[0]
-                                    elif tmpclass in ("help_files_with_topic", "hsearch"):
+                                    if tmpclass in ("help_files_with_topic", "hsearch"):
                                         self.helpTopic()
                             else:
-                                try:
-                                    if QString(str(ei)).startsWith('library('):
-                                        try:
-                                            library = result.r["value"][0][0]
-                                        except:
-                                            library = result[0][0]
-                                        if not library in Libraries:
-                                            addLibraryCommands(library)
-                                except Exception, err:
-                                    print err
+                                tmpclass = class_(result[0])[0]
+                                if tmpclass == "NULL":
+                                    self.helpTopic() # so far, the only reason this happends is if
+                                                     # something like ?plot() is used (*with* brackets)
+                        if not visible:
+                            try:
+                                regexp = QRegExp(r"library\(([\w\d]*)\)")
+                                while not (regexp.indexIn(text, pos) == -1):
+                                    library = regexp.cap(1)
+                                    pos += regexp.matchedLength()
+                                    if not library in Libraries:
+                                        addLibraryCommands(library)
+                            except Exception, err:
+                                print err
                     except robjects.rinterface.RRuntimeError, rre:
                         # this fixes error output to look more like R's output
                         #self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
@@ -3217,16 +3223,24 @@ class MainWindow(QMainWindow):
             QApplication.processEvents()
             workspace = QFileInfo()
             workspace.setFile(QDir(robjects.r['getwd']()[0]), ".RData")
+            load_text = QString("")
+            load_check = False
             if workspace.exists():
-                if self.loadRWorkspace(workspace.absoluteFilePath()):
-                    self.editor.append("[Previously saved workspace restored]\n\n")
+                load_check = self.loadRWorkspace(workspace.absoluteFilePath())
+                if load_check:
+                    load_text = QString("[Previously saved workspace ")
                 else:
                     self.editor.append("Error: Unable to load previously saved workspace:"
-                                     "\nCreating new workspace...\n\n")
+                                     "\nCreating new workspace...")
             splash.showMessage("Checking for history file", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             if self.editor.loadRHistory():
+                if load_check:
+                    load_text.append("and R history file ")
+                else:
+                    load_text = QString("[R history file ")
                 QApplication.processEvents()
+            self.editor.append("%srestored]\n\n" % load_text)
             self.editor.displayPrompt()
             # If requested, execute startup commands
             if not QString(Config["consolestartup"]).isEmpty():
@@ -3381,7 +3395,8 @@ class MainWindow(QMainWindow):
             if workspace.length() == 0:
                 return False
         try:
-            if not workspace.isEmpty():
+            if not QString(workspace).isEmpty():
+                print "to here"
                 robjects.r['save.image'](unicode(workspace))
         except Exception, e: 
             return False
@@ -3621,8 +3636,10 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
             elif ask_save == QMessageBox.Yes:
-                self.saveRWorkspace(".RData")
-                self.editor.saveRHistory()
+                if not self.saveRWorkspace(".RData"):
+                    QMessageBox.warning(self, "manageR - Quit", "Unable to save workspace image: Error writing to disk!")
+                if not self.editor.saveRHistory():
+                    QMessageBox.warning(self, "manageR - Quit", "Unable to save history: Error writing to disk!")
                 robjects.r('rm(list=ls(all=T))')
                 robjects.r('gc()')
                 try:
@@ -4648,7 +4665,7 @@ class PluginManager:
     def __init__(self, parent):#, iface):
         ## Save reference to the QGIS interface
         #self.iface = iface
-        self.tools= os.path.join(str(os.path.abspath(os.path.dirname(__file__))),"tools.xml")
+        self.tools = os.path.join(str(os.path.abspath(os.path.dirname(__file__))),"tools.xml")
         self.parent = parent
 
     def makeCaller(self, n):
@@ -4663,6 +4680,7 @@ class PluginManager:
             xmlfile=open(self.tools)
             dom=minidom.parse(xmlfile)
             tool=dom.firstChild.firstChild
+
             #loads every tool in the file
             while tool:
                 if isinstance(tool, minidom.Element):
@@ -4771,18 +4789,17 @@ class PluginManager:
 
     # run method that performs all the real work
     def run(self, actionid):
-            #reads the xml file
-            self.name, self.command, parameters = self.getTool(actionid)
-            # create and show the dialog
-            self.dlg = PluginsDialog(self.parent, parameters)
-            self.dlg.setWindowTitle(self.name)
-            if self.dlg.ui.isSpatial():
-                self.dlg.ui.updateRObjects()
-            #connect the slots
-            QObject.connect(self.dlg.ui.buttonBox, SIGNAL("accepted()"), self.start)
-            #self.helpString = QString(parameters[actionid][-1])
-            # show the dialog
-            self.dlg.show()
+        #reads the xml file
+        self.name, self.command, parameters = self.getTool(actionid)
+        # create and show the dialog
+        self.dlg = PluginsDialog(self.parent, parameters)
+        self.dlg.setWindowTitle(self.name)
+        if self.dlg.ui.isSpatial():
+            self.dlg.ui.updateRObjects()
+        #connect the slots
+        QObject.connect(self.dlg.ui.buttonBox, SIGNAL("accepted()"), self.start)
+        # show the dialog
+        self.dlg.show()
 
 class PluginsDialog(QDialog):
     def __init__(self, parent, interface):
@@ -4815,6 +4832,7 @@ if __name__ == '__main__':
     app.setApplicationName("manageR")
     app.setWindowIcon(QIcon(":mActionIcon.png"))
     loadConfig()
+
     if len(sys.argv) > 1:
         args = sys.argv[1:]
         if args[0] in ("-h", "--help"):

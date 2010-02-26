@@ -58,4 +58,4 @@ class Plugin:
         from manageR import MainWindow, loadConfig, saveConfig
         loadConfig()
         if not MainWindow.Instances:
-            MainWindow(self.iface, self.version,isConsole=True).show()
+            MainWindow(self.iface, self.version,isConsole=True, isStandalone=False).show()

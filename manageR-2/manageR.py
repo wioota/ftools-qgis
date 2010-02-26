@@ -2366,12 +2366,12 @@ class RHistoryWidget(QWidget):
             
 class RVariableWidget(QWidget):
 
-    def __init__(self, parent):
+    def __init__(self, parent, isStandalone):
         QWidget.__init__(self, parent)
         # initialise standard settings
         self.setMinimumSize(30,30)
         self.parent = parent
-        
+        self.isStandalone = isStandalone
         self.variableTable = QTableWidget(0, 2, self)
         labels = QStringList()
         labels.append("Name")
@@ -2400,14 +2400,15 @@ class RVariableWidget(QWidget):
         self.exportAction.setEnabled(False)
         self.export.setAutoRaise(True)
         
-        self.canvas = QToolButton(self)
-        self.canvasAction = QAction("Export to &canvas", self)
-        self.canvasAction.setToolTip("Export layer to canvas")
-        self.canvasAction.setWhatsThis("Export layer to canvas")
-        self.canvasAction.setIcon(QIcon(":mActionActionExport.png"))
-        self.canvas.setDefaultAction(self.canvasAction)
-        self.canvasAction.setEnabled(False)
-        self.canvas.setAutoRaise(True)
+        if not self.isStandalone:
+            self.canvas = QToolButton(self)
+            self.canvasAction = QAction("Export to &canvas", self)
+            self.canvasAction.setToolTip("Export layer to canvas")
+            self.canvasAction.setWhatsThis("Export layer to canvas")
+            self.canvasAction.setIcon(QIcon(":mActionActionExport.png"))
+            self.canvas.setDefaultAction(self.canvasAction)
+            self.canvasAction.setEnabled(False)
+            self.canvas.setAutoRaise(True)
 
         #self.layer = QToolButton(self)
         #self.layer.setText("layer")
@@ -2449,7 +2450,8 @@ class RVariableWidget(QWidget):
         horiz.addWidget(self.rm)
         horiz.addWidget(self.export)
         #horiz.addWidget(self.layer)
-        horiz.addWidget(self.canvas)
+        if not self.isStandalone:
+            horiz.addWidget(self.canvas)
         horiz.addWidget(self.save)
         horiz.addWidget(self.load)
         horiz.addWidget(self.method)
@@ -2461,7 +2463,8 @@ class RVariableWidget(QWidget):
         self.connect(self.rmAction, SIGNAL("triggered()"), self.removeVariable)
         self.connect(self.exportAction, SIGNAL("triggered()"), self.exportVariable)
         self.connect(self.saveAction, SIGNAL("triggered()"), self.saveVariable)
-        self.connect(self.canvasAction, SIGNAL("triggered()"), self.exportToCanvas)
+        if not self.isStandalone:
+            self.connect(self.canvasAction, SIGNAL("triggered()"), self.exportToCanvas)
         self.connect(self.loadAction, SIGNAL("triggered()"), self.loadRVariable)
         self.connect(self.methodAction, SIGNAL("triggered()"), self.printRMethods)
         #self.connect(self.layer, SIGNAL("clicked()"), self.importFromCanvas)
@@ -2473,7 +2476,8 @@ class RVariableWidget(QWidget):
         menu.addAction(self.rmAction)
         menu.addSeparator()
         menu.addAction(self.exportAction)
-        menu.addAction(self.canvasAction)
+        if not self.isStandalone:
+            menu.addAction(self.canvasAction)
         menu.addAction(self.saveAction)
         menu.addAction(self.loadAction)
         menu.addAction(self.methodAction)
@@ -2507,19 +2511,21 @@ class RVariableWidget(QWidget):
         self.variableTable.rowCount() < 1:
             self.saveAction.setEnabled(False)
             self.rmAction.setEnabled(False)
-            self.canvasAction.setEnabled(False)
+            if not self.isStandalone:
+                self.canvasAction.setEnabled(False)
             self.exportAction.setEnabled(False)
         else:
             itemName, itemType = self.getVariableInfo(row)
             self.saveAction.setEnabled(True)
             self.rmAction.setEnabled(True)
             self.exportAction.setEnabled(True)
-            if itemType in VECTORTYPES:
-                #self.canvas.setEnabled(True)
-                self.canvasAction.setEnabled(True)
-            else:
-                #self.canvas.setEnabled(False)
-                self.canvasAction.setEnabled(False)
+            if not self.isStandalone:
+                if itemType in VECTORTYPES:
+                    #self.canvas.setEnabled(True)
+                    self.canvasAction.setEnabled(True)
+                else:
+                    #self.canvas.setEnabled(False)
+                    self.canvasAction.setEnabled(False)
 
     def printRMethods(self):
         row = self.variableTable.currentRow()
@@ -2884,7 +2890,7 @@ class MainWindow(QMainWindow):
     Console = None
 
     def __init__(self, iface, version, filename=QString(),
-                isConsole=True, parent=None):
+                isConsole=True, isStandalone=True, parent=None):
         super(MainWindow, self).__init__(parent)
         self.Toolbars = {}
         MainWindow.Instances.add(self)
@@ -3012,26 +3018,27 @@ class MainWindow(QMainWindow):
                     "Show Next Command", self.editor.showPrevious,
                     "Down", "mActionNext",
                     ("Show next command"))
-            actionImportAttibutesAction = self.createAction(
-                    "Import layer attributes", self.importLayerAttributes,
-                    "Ctrl+T", "mActionActionTable",
-                    ("Import layer attributes"))
-            actionImportLayerAction = self.createAction(
-                    "Import layer from canvas", self.importRObjects,
-                    "Ctrl+L", "mActionActionImport",
-                    ("Import layer from canvas"))
-            actionExportCanvasAction = self.createAction(
-                    "Export layer to canvas", self.exportRObjects,
-                    "Ctrl+M", "mActionActionExport",
-                    ("Export layer to canvas"))
-            actionExportFileAction = self.createAction(
-                    "Export layer to file", self.exportToFile,
-                    "Ctrl+D", "mActionActionFile",
-                    ("Export layer to file"))
+            if not isStandalone:
+                actionImportAttibutesAction = self.createAction(
+                        "Import layer attributes", self.importLayerAttributes,
+                        "Ctrl+T", "mActionActionTable",
+                        ("Import layer attributes"))
+                actionImportLayerAction = self.createAction(
+                        "Import layer from canvas", self.importRObjects,
+                        "Ctrl+L", "mActionActionImport",
+                        ("Import layer from canvas"))
+                actionExportCanvasAction = self.createAction(
+                        "Export layer to canvas", self.exportRObjects,
+                        "Ctrl+M", "mActionActionExport",
+                        ("Export layer to canvas"))
+                actionExportFileAction = self.createAction(
+                        "Export layer to file", self.exportToFile,
+                        "Ctrl+D", "mActionActionFile",
+                        ("Export layer to file"))
             workspaceLoadAction = self.createAction(
-                    "Load R workspace", self.loadRWorkspace,
-                    "Ctrl+Shift+W", "mActionWorkspaceLoad",
-                    ("Load R workspace"))
+                "Load R workspace", self.loadRWorkspace,
+                "Ctrl+Shift+W", "mActionWorkspaceLoad",
+                ("Load R workspace"))
             workspaceSaveAction = self.createAction(
                     "Save R workspace", self.saveRWorkspace,
                     "Ctrl+W", "mActionWorkspaceSave",
@@ -3075,9 +3082,10 @@ class MainWindow(QMainWindow):
         if not isConsole:
             self.addActions(actionMenu, (actionRunAction, actionSourceAction))
         else:
-            self.addActions(actionMenu, (actionShowPrevAction, actionShowNextAction,
-            None, actionImportLayerAction, actionImportAttibutesAction,
-            actionExportCanvasAction, actionExportFileAction,))
+            self.addActions(actionMenu, (actionShowPrevAction, actionShowNextAction))
+            if not isStandalone:
+                self.addActions(actionMenu, (None, actionImportLayerAction, actionImportAttibutesAction,
+                actionExportCanvasAction, actionExportFileAction,))
             workspaceMenu = self.menuBar().addMenu("Wo&rkspace")
             self.addActions(workspaceMenu, (workspaceLoadAction, 
             workspaceSaveAction))
@@ -3126,8 +3134,9 @@ class MainWindow(QMainWindow):
         if not isConsole:
             self.addActions(self.actionToolbar, (actionRunAction, actionSourceAction))
         else:
-            self.addActions(self.actionToolbar, (None, actionShowPrevAction, 
-                actionShowNextAction, None, actionImportLayerAction, 
+            self.addActions(self.actionToolbar, (None, actionShowPrevAction, actionShowNextAction))
+            if not isStandalone:
+                self.addActions(self.actionToolbar, (None, actionImportLayerAction,
                 actionImportAttibutesAction, actionExportCanvasAction,
                 actionExportFileAction,))
         if isConsole:
@@ -3260,7 +3269,7 @@ class MainWindow(QMainWindow):
                 QApplication.processEvents()
                 for library in robjects.r('.packages()'):
                     addLibraryCommands(library)
-            self.createConsoleWidgets()
+            self.createConsoleWidgets(isStandalone)
             splash.showMessage("Attempting to start/build R html help", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             QApplication.processEvents()
@@ -3273,7 +3282,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, self.updateToolbars)
         self.startTimer(50)
         
-    def createConsoleWidgets(self):
+    def createConsoleWidgets(self, isStandalone):
         graphicWidget = RGraphicsWidget(self)
         graphicWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"),
         graphicWidget.updateGraphics)
@@ -3284,7 +3293,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.RightDockWidgetArea, graphicDockWidget)
         MainWindow.Widgets.add(graphicWidget)
         
-        variableWidget = RVariableWidget(self)
+        variableWidget = RVariableWidget(self, isStandalone)
         variableWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"),
         variableWidget.updateVariables)
         variableDockWidget = QDockWidget("Workspace Manager", self)          
@@ -3728,7 +3737,7 @@ class MainWindow(QMainWindow):
                 del window
 
     def fileNew(self):
-        window = MainWindow(self.iface, self.version, isConsole=False)
+        window = MainWindow(self.iface, self.version, isConsole=False, isStandalone=True)
         window.show()
 
     def fileOpen(self):
@@ -3753,7 +3762,7 @@ class MainWindow(QMainWindow):
                 self.filename = filename
                 self.loadFile()
             else:
-                MainWindow(self.iface, self.version, filename, isConsole=False).show()
+                MainWindow(self.iface, self.version, filename, isConsole=False, isStandalone=True).show()
 
 
     def loadFile(self):

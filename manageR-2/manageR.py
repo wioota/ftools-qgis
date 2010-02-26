@@ -111,7 +111,7 @@ Libraries = []
 def welcomeString(version):
     string = """Welcome to manageR %s
 QGIS interface to the R statistical analysis program
-Copyright (C) 2009  Carson Farmer 
+Copyright (C) 2009-2010  Carson J. Q. Farmer 
 Licensed under the terms of GNU GPL 2\nmanageR is free software; 
 you can redistribute it and/or modify it under the terms of 
 the GNU General Public License as published by the Free Software Foundation; 
@@ -197,16 +197,14 @@ def saveConfig():
         settings.setValue("manageR/%s" % (key), QVariant(value))
 
 def addLibraryCommands(library):
-    if not library in Libraries:
-        #try:
+    if Config["enableautocomplete"]:
+        if not library in Libraries:
             Libraries.append(library)
             info = robjects.r('lsf.str("package:%s")' % (library))
             info = QString(str(info)).replace(", \n    ", ", ")
             items = info.split('\n')
             for item in items:
                 CAT.append(item)
-        #except:
-        #    pass # no biggie, probably hasn't been loaded yet...
 
 def isLibraryLoaded(package="sp"):
     return robjects.r("require(%s)" % (package))[0]

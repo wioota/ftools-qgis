@@ -1683,18 +1683,26 @@ class RConsole(QTextEdit):
                                         robjects.r['print'](result.r["value"][0])
                                     if class_(result.r["value"][0])[0] == "help_files_with_topic" or \
                                         class_(result.r["value"][0])[0] == "hsearch":
-                                        self.helpTopic(class_(result.r["value"])[0])
+                                        self.helpTopic(result.r["value"])[0]
                                 except:
                                     tmpclass = class_(result[0])[0]
                                     if not tmpclass in ("NULL"):#, "help_files_with_topic", "hsearch"):
                                         print result[0]
                                     if tmpclass in ("help_files_with_topic", "hsearch"):
-                                        self.helpTopic()
+                                        help_string = QString(sys.stdout.get_and_clean_data())
+                                        # woraround to remove non-ascii text and formatting
+                                        help_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
+                                        self.helpTopic(help_string)
                             else:
                                 tmpclass = class_(result[0])[0]
                                 if tmpclass == "NULL":
-                                    self.helpTopic() # so far, the only reason this happends is if
-                                                     # something like ?plot() is used (*with* brackets)
+                                    out_string = QString(sys.stdout.get_and_clean_data())
+                                    if not out_string.isEmpty():
+                                        if out_string.trimmed() == "R History":
+                                            out_string = self.history.join("\n")
+                                        # woraround to remove non-ascii text and formatting
+                                        out_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
+                                        self.helpTopic(out_string)
                         if not visible:
                             try:
                                 regexp = QRegExp(r"library\(([\w\d]*)\)")
@@ -1753,8 +1761,8 @@ class RConsole(QTextEdit):
             self.commandComplete()
         MainWindow.Console.statusBar().clearMessage()
 
-    def helpTopic(self):
-        dialog = helpDialog(self)
+    def helpTopic(self, text):
+        dialog = textDialog(self, text)
         dialog.setWindowModality(Qt.NonModal)
         dialog.setModal(False)
         dialog.show()
@@ -1775,9 +1783,9 @@ class RConsole(QTextEdit):
         MainWindow.Console.statusBar().showMessage("Complete!", 5000)
         self.emit(SIGNAL("commandComplete()"))
 
-class helpDialog(QDialog):
+class textDialog(QDialog):
 # options(htmlhelp=FALSE) this should probably be added somewhere to make sure the help is always the R help...
-    def __init__(self, parent):
+    def __init__(self, parent, text):
         QDialog.__init__ (self, parent)
         #initialise the display text edit
         display = QTextEdit(self)
@@ -1791,10 +1799,7 @@ class helpDialog(QDialog):
         grid = QGridLayout(self)
         grid.addWidget(display)
         self.setWindowTitle("manageR - Help")
-        help_string = QString(sys.stdout.get_and_clean_data())
-        # woraround to remove non-ascii text and formatting
-        help_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
-        display.setPlainText(help_string)
+        display.setPlainText(text)
         self.resize(750, 400)
 
 class ConfigForm(QDialog):
@@ -3249,8 +3254,7 @@ class MainWindow(QMainWindow):
                 else:
                     load_text = QString("[R history file ")
                 QApplication.processEvents()
-            if not load_text.isEmpty():
-                self.editor.append("%srestored]\n\n" % load_text)
+            self.editor.append("%srestored]\n\n" % load_text)
             self.editor.displayPrompt()
             # If requested, execute startup commands
             if not QString(Config["consolestartup"]).isEmpty():
@@ -3640,7 +3644,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self == MainWindow.Console:
-            ask_save = QMessageBox.question(self, "manageR - Quit", "Save workspace image?", 
+            ask_save = QMessageBox.question(self, "manageR - Quit", "Save workspace image and history?", 
             QMessageBox.Yes, QMessageBox.No, QMessageBox.Cancel)
             if ask_save == QMessageBox.Cancel:
                 event.ignore()

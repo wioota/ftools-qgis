@@ -39,10 +39,11 @@ import resources
 #from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
 #from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter, RVectorLayerConverter
 #from pluginManager import PluginManager
+import pdb
 
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
-        QSettings, QString, QT_VERSION_STR, QTextStream, QThread,
+        QSettings, QString, QT_VERSION_STR, QTextStream, QThread, QRect,
         QTimer, QUrl, QVariant, Qt, SIGNAL, QStringList, QMimeData)
 from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QColor, QColorDialog, QComboBox, QCursor, QDesktopServices,
@@ -52,7 +53,8 @@ from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QMessageBox, QPixmap, QPushButton, QRadioButton, QGroupBox,
         QRegExpValidator, QShortcut, QSpinBox, QSplitter, QDirModel,
         QSyntaxHighlighter, QTabWidget, QTextBrowser, QTextCharFormat,
-        QTextCursor, QTextDocument, QTextEdit, QToolTip, QVBoxLayout,
+        QTextCursor, QTextDocument, QTextEdit, QPlainTextEdit, QToolTip,
+        QVBoxLayout, QPainter,
         QWidget, QDockWidget, QToolButton, QSpacerItem, QSizePolicy,
         QPalette, QSplashScreen, QTreeWidget, QTreeWidgetItem, QFrame,
         QListView, QTableWidget, QTableWidgetItem, QHeaderView, QMenu, 
@@ -173,11 +175,16 @@ def loadConfig():
             ("string", "#808000", False, False),
             ("number", "#924900", False, False),
             ("error", "#FF0000", False, False),
-            ("assignment", "#50621A", False, False)):
+            ("assignment", "#50621A", False, False),
+            ("syntax", "#FF0000", False, True)):
         Config["%sfontcolor" % name] = settings.value(
                 "manageR/%sfontcolor" % name, QVariant(color)).toString()
-        Config["%sfontbold" % name] = settings.value(
-                "manageR/%sfontbold" % name, QVariant(bold)).toBool()
+        if name == "syntax":
+            Config["%sfontunderline" % name] = settings.value(
+                    "manageR/%sfontunderline" % name, QVariant(bold)).toBool()
+        else:
+            Config["%sfontbold" % name] = settings.value(
+                    "manageR/%sfontbold" % name, QVariant(bold)).toBool()
         Config["%sfontitalic" % name] = settings.value(
                 "manageR/%sfontitalic" % name, QVariant(italic)).toBool()
     Config["backgroundcolor"] = settings.value("manageR/backgroundcolor",
@@ -233,6 +240,7 @@ def currentRObjects():
         if not unicode(item) in CAT:
             CAT.append(unicode(item))
     try:
+        # this is throwing exceptions...
         graphics = dict(zip(list(dev_list_()),
         list(dev_list_().names)))
     except:
@@ -240,7 +248,9 @@ def currentRObjects():
     cwd = getwd_()[0]
     return (layers, graphics, cwd)
 
-class OutputCatcher:
+original = sys.stdout
+
+class OutputCatcher():
   def __init__(self):
     self.data = ''
     
@@ -255,7 +265,7 @@ class OutputCatcher:
   def flush(self):
     pass
 
-sys.stdout = OutputCatcher()
+#sys.stdout = OutputCatcher()
 
 class HelpDialog(QDialog):
 
@@ -656,7 +666,6 @@ class RFinder(QWidget):
         if e.key() == Qt.Key_Escape:
             self.document.setFocus()
 
-
 class RHighlighter(QSyntaxHighlighter):
 
     Rules = []
@@ -665,6 +674,8 @@ class RHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None, isConsole=False):
         super(RHighlighter, self).__init__(parent)
         self.parent = parent
+        if isinstance(self.parent, QPlainTextEdit):
+            self.setDocument(self.parent.document())
         self.initializeFormats()
         self.isConsole = isConsole
         RHighlighter.Rules.append((QRegExp(
@@ -675,8 +686,8 @@ class RHighlighter(QSyntaxHighlighter):
         RHighlighter.Rules.append((QRegExp(
                 "|".join([r"\b%s\b" % builtin for builtin in BUILTINS])),
                 "builtin"))
-        RHighlighter.Rules.append((QRegExp(
-                "[a-zA-Z_\.][0-9a-zA-Z_\.]*[\s]*=(?=([^=]|$))"), "constant"))
+        #RHighlighter.Rules.append((QRegExp(
+                #r"[a-zA-Z_\.][0-9a-zA-Z_\.]*[\s]*=(?=([^=]|$))"), "inbrackets"))
         RHighlighter.Rules.append((QRegExp(
                 "|".join([r"\b%s\b" % constant
                 for constant in CONSTANTS])), "constant"))
@@ -685,20 +696,31 @@ class RHighlighter(QSyntaxHighlighter):
                 r"|\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b"
                 r"|\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b"),
                 "number"))
-        RHighlighter.Rules.append((QRegExp(
-        r"[<]{1,2}\-"
-        r"|\-[>]{1,2}"
-        r"|=(?!=)"
-        r"|\$"
-        r"|\@"), "assignment"))
         RHighlighter.Rules.append((QRegExp(r"[\)\(]+|[\{\}]+|[][]+"),
                 "delimiter"))
-        RHighlighter.Rules.append((QRegExp(r"#.*"), "comment"))
+        RHighlighter.Rules.append((QRegExp(
+                r"[<]{1,2}\-"
+                r"|\-[>]{1,2}"
+                r"|=(?!=)"
+                r"|\$"
+                r"|\@"), "assignment"))
+        RHighlighter.Rules.append((QRegExp(
+                r"([\+\-\*/\^\:\$~!&\|=>@^])([<]{1,2}\-|\-[>]{1,2})"
+                r"|([<]{1,2}\-|\-[>]{1,2})([\+\-\*/\^\:\$~!&\|=<@])"
+                r"|([<]{3}|[>]{3})"
+                r"|([\+\-\*/\^\:\$~&\|@^])="
+                r"|=([\+\-\*/\^\:\$~!<>&\|@^])"
+                r"|(\+|\-|\*|/|<=|>=|={1,2}|\!=|\|{1,2}|&{1,2}|:{1,3}|\^|@|\$|~){2,}"),
+                "syntax"))
         self.stringRe = QRegExp("(\'[^\']*\'|\"[^\"]*\")")
         self.stringRe.setMinimal(True)
         RHighlighter.Rules.append((self.stringRe, "string"))
+        RHighlighter.Rules.append((QRegExp(r"#.*"), "comment"))
         self.multilineSingleStringRe = QRegExp(r"""'(?!")""")
         self.multilineDoubleStringRe = QRegExp(r'''"(?!')''')
+        self.bracketBothExpression = QRegExp(r"[\(\)]")
+        self.bracketStartExpression = QRegExp(r"\(")
+        self.bracketEndExpression = QRegExp(r"\)")
 
     @staticmethod
     def initializeFormats():
@@ -707,18 +729,30 @@ class RHighlighter(QSyntaxHighlighter):
         baseFormat.setFontPointSize(Config["fontsize"])
         for name in ("normal", "keyword", "builtin", "constant",
                 "delimiter", "comment", "string", "number", "error",
-                "assignment"):
+                "assignment", "syntax"):
             format = QTextCharFormat(baseFormat)
             format.setForeground(
                             QColor(Config["%sfontcolor" % name]))
-            if Config["%sfontbold" % name]:
-                format.setFontWeight(QFont.Bold)
+            if name == "syntax":
+                format.setFontUnderline(Config["%sfontunderline" % name])
+            else:
+                if Config["%sfontbold" % name]:
+                    format.setFontWeight(QFont.Bold)
             format.setFontItalic(Config["%sfontitalic" % name])
             RHighlighter.Formats[name] = format
 
+        format = QTextCharFormat(baseFormat)
+        if Config["assignmentfontbold"]:
+            format.setFontWeight(QFont.Bold)
+        format.setForeground(
+                QColor(Config["assignmentfontcolor"]))
+        format.setFontItalic(Config["%sfontitalic" % name])
+        RHighlighter.Formats["inbrackets"] = format
+
     def highlightBlock(self, text):
         NORMAL, MULTILINESINGLE, MULTILINEDOUBLE, ERROR = range(4)
-
+        INBRACKETS, INBRACKETSSINGLE, INBRACKETSDOUBLE = range(4,7)
+        
         textLength = text.length()
         prevState = self.previousBlockState()
 
@@ -741,17 +775,73 @@ class RHighlighter(QSyntaxHighlighter):
                 length = regex.matchedLength()
                 self.setFormat(i, length, RHighlighter.Formats[format])
                 i = regex.indexIn(text, i + length)
-            
+                
         self.setCurrentBlockState(NORMAL)
-
+        
+        startIndex = 0
+        startCount = 0
+        endCount = 0
+        endIndex = 0
+        if not self.previousBlockState() >= 4:
+            startIndex = self.bracketStartExpression.indexIn(text)
+        #if startIndex == -1:
+            #regex = QRegExp(r"[\)\]\}]")
+            #format = "syntax"
+            #i = regex.indexIn(text)
+            #while i >= 0:
+                #bracketLength = regex.matchedLength()
+                #self.setFormat(startIndex + i+1, bracketLength, RHighlighter.Formats[format])
+                #i = regex.indexIn(text, i + bracketLength)
+        while startIndex >= 0:
+            startCount += 1
+            endIndex = self.bracketBothExpression.indexIn(text, startIndex+1)
+            #endIndex = self.bracketEndExpression.indexIn(text, startIndex)
+            bracket = self.bracketBothExpression.cap()
+            if endIndex == -1 or bracket == "(":
+                self.setCurrentBlockState(self.currentBlockState() + 4)
+                length = text.length() - startIndex
+            elif bracket == ")":
+                endCount += 1
+                tmpEndIndex = endIndex
+                while tmpEndIndex >= 0:
+                    tmpLength = self.bracketBothExpression.matchedLength()
+                    #tmpLength = self.bracketEndExpression.matchedLength()
+                    tmpEndIndex = self.bracketBothExpression.indexIn(text, tmpEndIndex + tmpLength)
+                    #tmpEndIndex = self.bracketEndExpression.indexIn(text, tmpEndIndex + tmpLength)
+                    bracket = self.bracketBothExpression.cap()
+                    if tmpEndIndex >= 0:
+                        if bracket == ")":
+                            endIndex = tmpEndIndex
+                            endCount += 1
+                            #if endCount > startCount:
+                                #self.setFormat(endIndex, tmpLength, RHighlighter.Formats["syntax"])
+                        else:
+                            startCount += 1
+                if startCount > endCount:
+                    self.setCurrentBlockState(self.currentBlockState() + 4)
+                length = endIndex - startIndex + self.bracketBothExpression.matchedLength() + 1 
+                
+            bracketText = text.mid(startIndex, length+1)
+            regex = QRegExp(r"[a-zA-Z_\.][0-9a-zA-Z_\.]*[\s]*=(?=([^=]|$))")
+            format = "inbrackets"
+            i = regex.indexIn(bracketText)
+            while i >= 0:
+                bracketLength = regex.matchedLength()
+                self.setFormat(startIndex + i, bracketLength, RHighlighter.Formats[format])
+                length = length + bracketLength
+                i = regex.indexIn(bracketText, i + bracketLength)
+            startIndex = self.bracketStartExpression.indexIn(text, startIndex + length)
+                
         if text.indexOf(self.stringRe) != -1:
             return
         for i, state in ((text.indexOf(self.multilineSingleStringRe),
                           MULTILINESINGLE),
                          (text.indexOf(self.multilineDoubleStringRe),
                           MULTILINEDOUBLE)):
-            if self.previousBlockState() == state and \
-            not text.startsWith(Config["beforeinput"]):
+            if (self.previousBlockState() == state or \
+            self.previousBlockState() == state + 4) and \
+            not text.startsWith(Config["beforeinput"]) and \
+            not text.contains("#"):
                 if i == -1:
                     i = text.length()
                     self.setCurrentBlockState(state)
@@ -760,7 +850,7 @@ class RHighlighter(QSyntaxHighlighter):
                     RHighlighter.Formats["string"])
                 else:
                     self.setFormat(0, i + 1, RHighlighter.Formats["string"])
-            elif i > -1:
+            elif i > -1 and not text.contains("#"):
                 self.setCurrentBlockState(state)
                 self.setFormat(i, text.length(), RHighlighter.Formats["string"])
 
@@ -897,16 +987,16 @@ class RCompleter(QObject):
         textCursor.movePosition(QTextCursor.StartOfWord, QTextCursor.KeepAnchor)
         textCursor.insertText(word)
 
-
-class REditor(QTextEdit):
+class Editor(QPlainTextEdit):
     def __init__(self, parent, tabwidth=4):
-        super(REditor, self).__init__(parent)
-        self.setLineWrapMode(QTextEdit.NoWrap)
+        super(Editor, self).__init__(parent)
+        self.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.indent = 0
         self.tabwidth = tabwidth
         self.parent = parent
         self.oldfrmt = QTextCharFormat()
         self.oldpos = None
+        self.setFrameShape(QTextEdit.NoFrame)
         self.connect(self, SIGNAL("cursorPositionChanged()"),
         self.positionChanged)
 
@@ -923,7 +1013,7 @@ class REditor(QTextEdit):
                     return True
                 # else leave for base class to handle
             elif event.key() in (Qt.Key_Enter,
-                                 Qt.Key_Return):
+                                Qt.Key_Return):
                 userCursor = self.textCursor()
                 cursor = QTextCursor(userCursor)
                 cursor.movePosition(QTextCursor.End)
@@ -942,7 +1032,7 @@ class REditor(QTextEdit):
                 userCursor.insertText(insert)
                 return True
                 # Fall through to let the base class handle the movement
-        return QTextEdit.event(self, event)
+        return QPlainTextEdit.event(self, event)
 
     def positionChanged(self):
         self.highlight()
@@ -964,26 +1054,22 @@ class REditor(QTextEdit):
         extraSelections = []
         self.setExtraSelections(extraSelections)
         format = QTextCharFormat()
-        format.setBackground(QColor(Config["backgroundcolor"]).darker(110))
-        format.setProperty(QTextFormat.FullWidthSelection, QVariant(True))
-        selection = QTextEdit.ExtraSelection()
-        selection.format = format
-        cursor = self.textCursor()
-        selection.cursor.clearSelection()
-        selection.cursor = cursor
-        extraSelections.append(selection)
-        self.setExtraSelections(extraSelections)
-        
-        format = QTextCharFormat()
         format.setForeground(QColor(Config["delimiterfontcolor"]))
-        format.setBackground(QColor(Qt.yellow).lighter(160)) #QColor(Config["bracketcolor"])?
-        #format.setProperty(QTextFormat.BackgroundBrush, QVariant(QColor(Qt.red)))#.lighter(160))
-        selection = QTextEdit.ExtraSelection()
-        selection.format = format
-
+        format.setBackground(QColor(Qt.yellow))#.lighter(160)) #QColor(Config["bracketcolor"])?
+        firstselection = QTextEdit.ExtraSelection()
+        firstselection.format = format
+        secondselection = QTextEdit.ExtraSelection()
+        secondselection.format = format
         doc = self.document()
         cursor = self.textCursor()
         beforeCursor = QTextCursor(cursor)
+
+        ## if we find bracket errors
+        #syntaxformat = QTextCharFormat()
+        #syntaxformat.setForeground(QColor(Config["syntaxfontcolor"]))
+        #syntaxformat.setFontUnderline(Config["syntaxfontunderline"])
+        #synstaxselection = QTextEdit.ExtraSelection()
+        #synstaxselection.format = syntaxformat
 
         cursor.movePosition(QTextCursor.NextCharacter, QTextCursor.KeepAnchor)
         brace = cursor.selectedText()
@@ -1026,13 +1112,14 @@ class REditor(QTextEdit):
             cursor1 = doc.find(closeBrace, cursor)
             cursor2 = doc.find(openBrace, cursor)
             if (cursor2.isNull()):
-                selection.cursor.clearSelection()
-                selection.cursor = cursor
-                extraSelections.append(selection)
-                self.setExtraSelections(extraSelections)
-                selection.cursor.clearSelection()
-                selection.cursor = cursor1
-                extraSelections.append(selection)
+                firstselection.cursor.clearSelection()
+                firstselection.cursor = cursor
+                if (not cursor1.isNull()):
+                    extraSelections.append(firstselection)
+                #self.setExtraSelections(extraSelections)
+                secondselection.cursor.clearSelection()
+                secondselection.cursor = cursor1
+                extraSelections.append(secondselection)
                 self.setExtraSelections(extraSelections)
             else:
                 while (cursor1.position() > cursor2.position()):
@@ -1040,26 +1127,31 @@ class REditor(QTextEdit):
                     cursor2 = doc.find(openBrace, cursor2)
                     if (cursor2.isNull()):
                         break
-                selection.cursor.clearSelection()
-                selection.cursor = cursor
-                extraSelections.append(selection)
+                firstselection.cursor.clearSelection()
+                firstselection.cursor = cursor
+                if (not cursor1.isNull()):
+                    extraSelections.append(firstselection)
+                #self.setExtraSelections(extraSelections)
+                secondselection.cursor.clearSelection()
+                secondselection.cursor = cursor1
+                extraSelections.append(secondselection)
                 self.setExtraSelections(extraSelections)
-                selection.cursor.clearSelection()
-                selection.cursor = cursor1
-                extraSelections.append(selection)
-                self.setExtraSelections(extraSelections)
+
         else:
             if (brace == closeBrace):
                 cursor1 = doc.find(openBrace, cursor, QTextDocument.FindBackward)
                 cursor2 = doc.find(closeBrace, cursor, QTextDocument.FindBackward)
                 if (cursor2.isNull()):
-                    selection.cursor.clearSelection()
-                    selection.cursor = cursor
-                    extraSelections.append(selection)
-                    self.setExtraSelections(extraSelections)
-                    selection.cursor.clearSelection()
-                    selection.cursor = cursor1
-                    extraSelections.append(selection)
+                    firstselection.cursor.clearSelection()
+                    firstselection.cursor = cursor
+                    if (not cursor1.isNull()):
+                        #cursor.mergeCharFormat(syntaxformat)
+                    #else:
+                        extraSelections.append(firstselection)
+                   # self.setExtraSelections(extraSelections)
+                    secondselection.cursor.clearSelection()
+                    secondselection.cursor = cursor1
+                    extraSelections.append(secondselection)
                     self.setExtraSelections(extraSelections)
                 else:
                     while (cursor1.position() < cursor2.position()):
@@ -1067,13 +1159,16 @@ class REditor(QTextEdit):
                         cursor2 = doc.find(closeBrace, cursor2, QTextDocument.FindBackward)
                         if (cursor2.isNull()):
                             break
-                    selection.cursor.clearSelection()
-                    selection.cursor = cursor
-                    extraSelections.append(selection)
-                    self.setExtraSelections(extraSelections)
-                    selection.cursor.clearSelection()
-                    selection.cursor = cursor1
-                    extraSelections.append(selection)
+                    firstselection.cursor.clearSelection()
+                    firstselection.cursor = cursor
+                    if (not cursor1.isNull()):
+                        #cursor.mergeCharFormat(syntaxformat)
+                    #else:
+                        extraSelections.append(firstselection)
+                    #self.setExtraSelections(extraSelections)
+                    secondselection.cursor.clearSelection()
+                    secondselection.cursor = cursor1
+                    extraSelections.append(secondselection)
                     self.setExtraSelections(extraSelections)
 
     def execute(self):
@@ -1138,6 +1233,96 @@ class REditor(QTextEdit):
                 break
         userCursor.endEditBlock()
 
+    def updateNumbers(self, numbers, event):
+        metrics = self.fontMetrics()
+        line = self.document().findBlock(
+        self.textCursor().position()).blockNumber() + 1
+
+        block = self.firstVisibleBlock()
+        count = block.blockNumber()
+        painter = QPainter(numbers)
+        painter.fillRect(event.rect(), self.palette().base())
+
+        # Iterate over all visible text blocks in the document.
+        while block.isValid():
+            count += 1
+            top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
+            # Check if the position of the block is out side of the visible
+            # area.
+            if not block.isVisible() or top >= event.rect().bottom():
+                break
+            # Draw the line number right justified at the position of the line.
+            rect = QRect(0, top, numbers.width(), metrics.height())
+            painter.drawText(rect, Qt.AlignRight, unicode(count))
+            block = block.next()
+        painter.end()
+
+class REditor(QFrame):
+
+    class NumberBar(QWidget):
+
+        def __init__(self, edit):
+            QWidget.__init__(self, edit)
+
+            self.edit = edit
+            self.adjustWidth(1)
+
+        def paintEvent(self, event):
+            self.edit.updateNumbers(self, event)
+            QWidget.paintEvent(self, event)
+
+        def adjustWidth(self, count):
+            width = self.fontMetrics().width(unicode(count))
+            if self.width() != width:
+                self.setFixedWidth(width)
+
+        def updateContents(self, rect, scroll):
+            if scroll:
+                self.scroll(0, scroll)
+            else:
+                # It would be nice to do
+                # self.update(0, rect.y(), self.width(), rect.height())
+                # But we can't because it will not remove the bold on the
+                # current line if word wrap is enabled and a new block is
+                # selected.
+                self.update()
+
+    def __init__(self, parent, tabwidth=4):
+        super(REditor, self).__init__(parent)
+
+        self.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
+        
+        monofont = QFont(Config["fontfamily"], Config["fontsize"])
+        self.edit = Editor(parent, tabwidth)
+        self.edit.setFont(monofont)
+        self.number_bar = self.NumberBar(self.edit)
+        self.number_bar.setFont(monofont)
+
+        hbox = QHBoxLayout(self)
+        hbox.setSpacing(2)
+        hbox.setMargin(0)
+        hbox.addWidget(self.number_bar)
+        hbox.addWidget(self.edit)
+
+        self.edit.blockCountChanged.connect(self.number_bar.adjustWidth)
+        self.edit.updateRequest.connect(self.number_bar.updateContents)
+
+    def getText(self):
+        return unicode(self.edit.toPlainText())
+
+    def setText(self, text):
+        self.edit.setPlainText(text)
+
+    def isModified(self):
+        return self.edit.document().isModified()
+
+    def setModified(self, modified):
+        self.edit.document().setModified(modified)
+
+    def setLineWrapMode(self, mode):
+        self.edit.setLineWrapMode(mode)
+
+
 class RConsole(QTextEdit):
     def __init__(self, parent):
         super(RConsole, self).__init__(parent)
@@ -1150,6 +1335,7 @@ class RConsole(QTextEdit):
         self.setAcceptRichText(False)
         monofont = QFont(Config["fontfamily"], Config["fontsize"])
         self.setFont(monofont)
+        self.setFrameShape(QTextEdit.NoFrame)
         # initialise required variables
         self.history = QStringList()
         self.historyIndex = 0
@@ -1242,8 +1428,8 @@ class RConsole(QTextEdit):
                 if e.key() == Qt.Key_C and (e.modifiers() == Qt.ControlModifier or \
                     e.modifiers() == Qt.MetaModifier) and not self.cursor.hasSelection():
                     self.runningCommand.clear()
-                    block = self.cursor.block()
-                    block.setUserState(0)
+                    #block = self.cursor.block()
+                    #block.setUserState(0)
                     self.switchPrompt(True)
                     self.displayPrompt()
                     MainWindow.Console.statusBar().clearMessage()
@@ -1433,12 +1619,21 @@ class RConsole(QTextEdit):
         format = QTextCharFormat()
         format.setForeground(QColor(Config["delimiterfontcolor"]))
         format.setBackground(QColor(Qt.yellow))#.lighter(160)) #QColor(Config["bracketcolor"])?
-        selection = QTextEdit.ExtraSelection()
-        selection.format = format
+        firstselection = QTextEdit.ExtraSelection()
+        firstselection.format = format
+        secondselection = QTextEdit.ExtraSelection()
+        secondselection.format = format
         doc = self.document()
         cursor = self.textCursor()
         beforeCursor = QTextCursor(cursor)
 
+        ## if we find bracket errors
+        #syntaxformat = QTextCharFormat()
+        #syntaxformat.setForeground(QColor(Config["syntaxfontcolor"]))
+        #syntaxformat.setFontUnderline(Config["syntaxfontunderline"])
+        #synstaxselection = QTextEdit.ExtraSelection()
+        #synstaxselection.format = syntaxformat
+        
         cursor.movePosition(QTextCursor.NextCharacter, QTextCursor.KeepAnchor)
         brace = cursor.selectedText()
 
@@ -1480,13 +1675,14 @@ class RConsole(QTextEdit):
             cursor1 = doc.find(closeBrace, cursor)
             cursor2 = doc.find(openBrace, cursor)
             if (cursor2.isNull()):
-                selection.cursor.clearSelection()
-                selection.cursor = cursor
-                extraSelections.append(selection)
-                self.setExtraSelections(extraSelections)
-                selection.cursor.clearSelection()
-                selection.cursor = cursor1
-                extraSelections.append(selection)
+                firstselection.cursor.clearSelection()
+                firstselection.cursor = cursor
+                if (not cursor1.isNull()):
+                    extraSelections.append(firstselection)
+                #self.setExtraSelections(extraSelections)
+                secondselection.cursor.clearSelection()
+                secondselection.cursor = cursor1
+                extraSelections.append(secondselection)
                 self.setExtraSelections(extraSelections)
             else:
                 while (cursor1.position() > cursor2.position()):
@@ -1494,13 +1690,14 @@ class RConsole(QTextEdit):
                     cursor2 = doc.find(openBrace, cursor2)
                     if (cursor2.isNull()):
                         break
-                selection.cursor.clearSelection()
-                selection.cursor = cursor
-                extraSelections.append(selection)
-                self.setExtraSelections(extraSelections)
-                selection.cursor.clearSelection()
-                selection.cursor = cursor1
-                extraSelections.append(selection)
+                firstselection.cursor.clearSelection()
+                firstselection.cursor = cursor
+                if (not cursor1.isNull()):
+                    extraSelections.append(firstselection)
+                #self.setExtraSelections(extraSelections)
+                secondselection.cursor.clearSelection()
+                secondselection.cursor = cursor1
+                extraSelections.append(secondselection)
                 self.setExtraSelections(extraSelections)
 
         else:
@@ -1508,13 +1705,16 @@ class RConsole(QTextEdit):
                 cursor1 = doc.find(openBrace, cursor, QTextDocument.FindBackward)
                 cursor2 = doc.find(closeBrace, cursor, QTextDocument.FindBackward)
                 if (cursor2.isNull()):
-                    selection.cursor.clearSelection()
-                    selection.cursor = cursor
-                    extraSelections.append(selection)
-                    self.setExtraSelections(extraSelections)
-                    selection.cursor.clearSelection()
-                    selection.cursor = cursor1
-                    extraSelections.append(selection)
+                    firstselection.cursor.clearSelection()
+                    firstselection.cursor = cursor
+                    if (not cursor1.isNull()):
+                        #cursor.mergeCharFormat(syntaxformat)
+                    #else:
+                        extraSelections.append(firstselection)
+                   # self.setExtraSelections(extraSelections)
+                    secondselection.cursor.clearSelection()
+                    secondselection.cursor = cursor1
+                    extraSelections.append(secondselection)
                     self.setExtraSelections(extraSelections)
                 else:
                     while (cursor1.position() < cursor2.position()):
@@ -1522,14 +1722,18 @@ class RConsole(QTextEdit):
                         cursor2 = doc.find(closeBrace, cursor2, QTextDocument.FindBackward)
                         if (cursor2.isNull()):
                             break
-                    selection.cursor.clearSelection()
-                    selection.cursor = cursor
-                    extraSelections.append(selection)
+                    firstselection.cursor.clearSelection()
+                    firstselection.cursor = cursor
+                    if (not cursor1.isNull()):
+                        #cursor.mergeCharFormat(syntaxformat)
+                    #else:
+                        extraSelections.append(firstselection)
+                    #self.setExtraSelections(extraSelections)
+                    secondselection.cursor.clearSelection()
+                    secondselection.cursor = cursor1
+                    extraSelections.append(secondselection)
                     self.setExtraSelections(extraSelections)
-                    selection.cursor.clearSelection()
-                    selection.cursor = cursor1
-                    extraSelections.append(selection)
-                    self.setExtraSelections(extraSelections)
+
 
     def insertFromMimeData(self, source):
         self.cursor = self.textCursor()
@@ -1635,7 +1839,7 @@ class RConsole(QTextEdit):
                         def write(output):
                             if not QString(output).startsWith("Error"):
                                 output_text.append(unicode(output, 'utf-8'))
-                            if output_text.length() >= 50000 and output_text[-1] == "\n":
+                            #if output_text.length() >= 50000 and output_text[-1] == "\n":
                                 self.commandOutput(output_text)
                                 output_text.clear()
                             QApplication.processEvents()
@@ -1666,9 +1870,9 @@ class RConsole(QTextEdit):
                                 result = try_(withVisible_(ei), silent=True)
                             except robjects.rinterface.RRuntimeError, rre:
                                 #self.commandError(str(rre))
-                                output = sys.stdout.get_and_clean_data()
-                                if output:
-                                    self.commandError(output.decode('utf8'))
+                                #output = sys.stdout.get_and_clean_data()
+                                #if output:
+                                    #self.commandError(output.decode('utf8'))
                                 self.commandComplete()
                                 return
                             try: # this was added to allow new rpy2 functionality
@@ -1714,9 +1918,9 @@ class RConsole(QTextEdit):
                     except robjects.rinterface.RRuntimeError, rre:
                         # this fixes error output to look more like R's output
                         #self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
-                        output = sys.stdout.get_and_clean_data()
-                        if output:
-                            self.commandError(output.decode('utf8'))
+                        #output = sys.stdout.get_and_clean_data()
+                        #if output:
+                            #self.commandError(output.decode('utf8'))
                         self.commandComplete()
                         return
                     if platform.system() == "Windows": #start changing the get functions below...
@@ -1743,19 +1947,16 @@ class RConsole(QTextEdit):
                         output_text = QString(str.join(os.linesep, s))
                         if not output_text.isEmpty():
                           self.commandOutput(output_text)
-                    #output = sys.stdout.get_and_clean_data()
-                    #if output:
-                      #self.commandOutput(output.decode('utf8'))
             except Exception, err:
                 #self.commandError(str(err))
-                output = sys.stdout.get_and_clean_data()
-                if output:
-                    self.commandOutput(output.decode('utf8'))
+                #output = sys.stdout.get_and_clean_data()
+                #if output:
+                    #self.commandOutput(output.decode('utf8'))
                 self.commandComplete()
                 return
-            output = sys.stdout.get_and_clean_data()
-            if output:
-                self.commandOutput(output.decode('utf8'))
+            #output = sys.stdout.get_and_clean_data()
+            #if output:
+                #self.commandOutput(output.decode('utf8'))
             self.commandComplete()
         MainWindow.Console.statusBar().clearMessage()
 
@@ -1992,11 +2193,15 @@ class ConfigForm(QDialog):
                 ("constant", "Constants:"), ("delimiter", "Delimiters:"),
                 ("comment", "Comments:"), ("string", "Strings:"),
                 ("number", "Numbers:"), ("error", "Errors:"),
-                ("assignment", "Assignment operator:")):
+                ("assignment", "Assignment operator:"), ("syntax", "Syntax errors:")):
             label = QLabel(labelText)
             labels.append(label)
-            boldCheckBox = QCheckBox("Bold")
-            boldCheckBox.setChecked(Config["%sfontbold" % name])
+            if name == "syntax":
+                boldCheckBox = QCheckBox("Underline")
+                boldCheckBox.setChecked(Config["%sfontunderline" % name])
+            else:
+                boldCheckBox = QCheckBox("Bold")
+                boldCheckBox.setChecked(Config["%sfontbold" % name])
             self.boldCheckBoxes[name] = boldCheckBox
             italicCheckBox = QCheckBox("Italic")
             italicCheckBox.setChecked(Config["%sfontitalic" % name])
@@ -2006,7 +2211,9 @@ class ConfigForm(QDialog):
             if count <= 9:
                 colorButton = QPushButton("&%d Color..." % count)
             elif name == "assignment":
-                colorButton = QPushButton("&Q Color...")
+                colorButton = QPushButton("&A Color...")
+            elif name == "syntax":
+                colorButton = QPushButton("&S Color...")
             else:
                 colorButton = QPushButton("Color...")
             count += 1
@@ -2109,11 +2316,17 @@ class ConfigForm(QDialog):
             Config["fontsize"] = size
         for name in ("normal", "keyword", "builtin", "constant",
                 "delimiter", "comment", "string", "number", "error",
-                "assignment"):
-            bold = self.boldCheckBoxes[name].isChecked()
-            if Config["%sfontbold" % name] != bold:
-                self.highlightingChanged = True
-                Config["%sfontbold" % name] = bold
+                "assignment", "syntax"):
+            if name == "syntax":
+                underline = self.boldCheckBoxes[name].isChecked()
+                if Config["syntaxfontunderline"] != underline:
+                    self.highlightingChanged = True
+                    Config["syntaxfontunderline"] = underline
+            else:
+                bold = self.boldCheckBoxes[name].isChecked()
+                if Config["%sfontbold" % name] != bold:
+                    self.highlightingChanged = True
+                    Config["%sfontbold" % name] = bold
             italic = self.italicCheckBoxes[name].isChecked()
             if Config["%sfontitalic" % name] != italic:
                 self.highlightingChanged = True
@@ -2913,20 +3126,16 @@ class MainWindow(QMainWindow):
             MainWindow.Console = self
             self.editor.append(welcomeString(self.version))
             self.editor.setFocus(Qt.ActiveWindowFocusReason)
+            self.setCentralWidget(self.editor)
             self.connect(self.editor, SIGNAL("commandComplete()"),self.updateWidgets)
         else:
             self.setAttribute(Qt.WA_DeleteOnClose)
-            self.editor = REditor(self, int(Config["tabwidth"]))
-        self.setCentralWidget(self.editor)
+            editor = REditor(self, int(Config["tabwidth"]))
+            self.setCentralWidget(editor)
+            self.editor = editor.edit
         if Config["enableautocomplete"]:
             self.completer = RCompleter(self.editor,
             delay=Config["delay"])
-        if Config["enablehighlighting"]:                
-            self.highlighter = RHighlighter(self.editor, isConsole)
-            palette = QPalette(QColor(Config["backgroundcolor"]))
-            palette.setColor(QPalette.Active, QPalette.Base, QColor(Config["backgroundcolor"]))
-            self.editor.setPalette(palette)
-            #self.editor.setTextColor(QColor(Config["normalfontcolor"]))
         self.finder = RFinder(self, self.editor)
         self.finderDockWidget = QDockWidget("Find and Replace Toolbar", self)          
         self.finderDockWidget.setObjectName("findReplace")
@@ -3175,9 +3384,9 @@ class MainWindow(QMainWindow):
         status.setSizeGripEnabled(False)
         status.showMessage("Ready", 5000)
         if not isConsole:
-            self.columnCountLabel = QLabel("(empty)")
+            self.columnCountLabel = QLabel("Column 1")
             status.addPermanentWidget(self.columnCountLabel)
-            self.lineCountLabel = QLabel("(empty)")
+            self.lineCountLabel = QLabel("Line 1 of 1")
             status.addPermanentWidget(self.lineCountLabel)
             self.connect(self.editor,
                          SIGNAL("cursorPositionChanged()"),
@@ -3207,7 +3416,7 @@ class MainWindow(QMainWindow):
                     MainWindow.NextId += 1
                 self.filename = QString("untitled%d.R" %
                                                MainWindow.NextId)
-                self.editor.setText(Config["newfile"])
+                self.editor.appendPlainText(Config["newfile"])
                 self.editor.moveCursor(QTextCursor.End)
                 self.editor.document().setModified(False)
                 self.setWindowModified(False)
@@ -3277,10 +3486,18 @@ class MainWindow(QMainWindow):
             QApplication.processEvents()
             robjects.r['help.start'](update = True,
             browser=robjects.r('function(url) return(url)'))
-            sys.stdout.get_and_clean_data()
+            #sys.stdout.get_and_clean_data()
             splash.showMessage("manageR ready!", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             splash.finish(self)
+
+        # we do this last to avoid highlighting things before we start
+        if Config["enablehighlighting"]:
+            self.highlighter = RHighlighter(self.editor, isConsole)
+            palette = QPalette(QColor(Config["backgroundcolor"]))
+            palette.setColor(QPalette.Active, QPalette.Base, QColor(Config["backgroundcolor"]))
+            self.editor.setPalette(palette)
+            #self.editor.setTextColor(QColor(Config["normalfontcolor"]))
         QTimer.singleShot(0, self.updateToolbars)
         self.startTimer(50)
         

@@ -1243,7 +1243,7 @@ class LibrarySplitter(QSplitter):
     def __init__(self, parent):
         super(LibrarySplitter, self).__init__(parent)
 
-        #self.setOrientation(Qt.Horizontal)
+        self.setOrientation(Qt.Vertical)
         #self.setFrameStyle(QFrame.StyledPanel|QFrame.Sunken)
         monofont = QFont(Config["fontfamily"], Config["fontsize"])
         robjects.r("""make.packages.html()""")
@@ -1252,21 +1252,23 @@ class LibrarySplitter(QSplitter):
         labels = QStringList()
         labels.append("Loaded")
         labels.append("Package")
-        labels.append("Path")
         labels.append("Title")
+        labels.append("Path")
         self.table.setHorizontalHeaderLabels(labels)
-        self.table.horizontalHeader().setResizeMode(1, QHeaderView.Stretch)
         self.table.setShowGrid(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.host = "http://127.0.0.1"
+        self.host = "localhost"
         self.port = robjects.r('tools:::httpdPort')[0]
-        home_url = "/doc/html/packages.html"
+        home_url = QUrl("/doc/html/packages.html")
         self.viewer = QTextBrowser(self)
+        self.viewer.setOpenLinks(True)
         self.http = QHttp()
         self.http.setHost(self.host, self.port)
-        self.connect(self.http,SIGNAL("requestFinished(int,bool)"),self.httpData)
-        self.update_viewer("%s:%s%s" %(self.host, self.port, home_url))
+        self.connect(self.http, SIGNAL("requestFinished(int,bool)"), self.http_data)
+        self.connect(self.viewer, SIGNAL("anchorClicked(QUrl)"), self.update_viewer)
+        self.connect(self.table, SIGNAL("itemActivated(QTableWidgetItem)"), self.update_item)
+        self.update_viewer(home_url)
         self.update_packages()
 
     def update_packages(self):
@@ -1290,23 +1292,29 @@ class LibrarySplitter(QSplitter):
             self.table.setItem(i, 0, item)
             item = QTableWidgetItem(str(packages[i]))
             self.table.setItem(i, 1, item)
-            item = QTableWidgetItem(str(packages[i+(length/3)]))
-            self.table.setItem(i, 2, item)
             item = QTableWidgetItem(str(packages[i+(2*(length/3))]))
+            self.table.setItem(i, 2, item)
+            item = QTableWidgetItem(str(packages[i+(length/3)]))
             self.table.setItem(i, 3, item)
         self.table.resizeColumnsToContents()
 
     def update_viewer(self, url):
-        tmp = url
-        print tmp
-        self.http.get(tmp)
+        url = url.path()
+        url = url.remove(QString("../"))
+        if not url.startsWith("/"):
+            url = url.prepend("/")
+        self.http.get(url)
 
-    def httpData(self, id, error):
+    def http_data(self, id, error):
         if error:
             self.viewer.setText(self.http.errorString())
         else:
             html = self.http.readAll()
-            self.viewer.setText(str(html))
+            self.viewer.setHtml(str(html))
+            
+    def update_item(self, item):
+        print item
+        print item.checkedState()
             
 class LibraryBrowser(QDialog):
 
@@ -1321,6 +1329,7 @@ class LibraryBrowser(QDialog):
         self.setLayout(layout)
         QShortcut(QKeySequence("Escape"), self, self.close)
         self.setWindowTitle("manageR - Library browser")
+        self.resize(500, 500)
 
 class REditor(QFrame):
 
@@ -1878,7 +1887,7 @@ class RConsole(QTextEdit):
         QApplication.processEvents()
         if not text.trimmed() == "":
             try:
-                regexp = QRegExp(r"(quit\(.*\)|q\(.*\))")
+                regexp = QRegExp(r"(\bquit\(.*\)|\bq\(.*\))")
                 if text.contains(regexp):
                     self.commandError(
                     "Error: System exit from manageR not allowed, close dialog manually")
@@ -3526,7 +3535,9 @@ class MainWindow(QMainWindow):
                 else:
                     load_text = QString("[R history file ")
                 QApplication.processEvents()
-            self.editor.append("%srestored]\n\n" % load_text)
+            if not load_text.isEmpty():
+                load_text.append("restored]")
+                self.editor.appendText(load_text)
             self.editor.displayPrompt()
             # If requested, execute startup commands
             if not QString(Config["consolestartup"]).isEmpty():
@@ -3564,7 +3575,7 @@ class MainWindow(QMainWindow):
             self.editor.setPalette(palette)
             #self.editor.setTextColor(QColor(Config["normalfontcolor"]))
         QTimer.singleShot(0, self.updateToolbars)
-        self.startTimer(50)
+        self.startTimer(30)
         
     def createConsoleWidgets(self, isStandalone):
         graphicWidget = RGraphicsWidget(self)

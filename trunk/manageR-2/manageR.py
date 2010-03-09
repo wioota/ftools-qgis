@@ -45,6 +45,7 @@ from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
         QSettings, QString, QT_VERSION_STR, QTextStream, QThread, QRect,
         QTimer, QUrl, QVariant, Qt, SIGNAL, QStringList, QMimeData)
+from PyQt4.QtNetwork import QHttp
 from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QColor, QColorDialog, QComboBox, QCursor, QDesktopServices,
         QDialog, QDialogButtonBox, QFileDialog, QFont, QFontComboBox,
@@ -477,27 +478,6 @@ Thanks to Agustin Lobo for extensive testing and bug reporting.
 Press <tt>Esc</tt> to close this window.
 """ % (version, Config["delay"], str(os.path.abspath( os.path.dirname(__file__) )),
       Config["tabwidth"], Config["tabwidth"]))
-        layout = QVBoxLayout()
-        layout.setMargin(0)
-        layout.addWidget(browser)
-        self.setLayout(layout)
-        self.resize(500, 500)
-        QShortcut(QKeySequence("Escape"), self, self.close)
-        self.setWindowTitle("manageR - Help")
-
-class HelpBrowser(QDialog):
-
-    def __init__(self, version, parent=None):
-        super(HelpBrowser, self).__init__(parent)
-        self.setAttribute(Qt.WA_GroupLeader)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        browser = QTextBrowser()
-        browser.setOpenExternalLinks(True)
-        # this will only work for locally available R html help
-        url = "%s/html/index.html" % robjects.r('R.home("doc")')[0]
-        if not browser.setSource(QUrl(url)):
-            url = "http://127.0.0.1:%s/doc/html/index.html" % robjects.r('tools:::httpdPort')[0]
-            browser.setSource(QUrl(url))
         layout = QVBoxLayout()
         layout.setMargin(0)
         layout.addWidget(browser)
@@ -1256,6 +1236,91 @@ class Editor(QPlainTextEdit):
             painter.drawText(rect, Qt.AlignRight, unicode(count))
             block = block.next()
         painter.end()
+
+
+class LibrarySplitter(QSplitter):
+
+    def __init__(self, parent):
+        super(LibrarySplitter, self).__init__(parent)
+
+        #self.setOrientation(Qt.Horizontal)
+        #self.setFrameStyle(QFrame.StyledPanel|QFrame.Sunken)
+        monofont = QFont(Config["fontfamily"], Config["fontsize"])
+        robjects.r("""make.packages.html()""")
+        self.table = QTableWidget(0, 4, self)
+        self.table.setFont(monofont)
+        labels = QStringList()
+        labels.append("Loaded")
+        labels.append("Package")
+        labels.append("Path")
+        labels.append("Title")
+        self.table.setHorizontalHeaderLabels(labels)
+        self.table.horizontalHeader().setResizeMode(1, QHeaderView.Stretch)
+        self.table.setShowGrid(True)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.host = "http://127.0.0.1"
+        self.port = robjects.r('tools:::httpdPort')[0]
+        home_url = "/doc/html/packages.html"
+        self.viewer = QTextBrowser(self)
+        self.http = QHttp()
+        self.http.setHost(self.host, self.port)
+        self.connect(self.http,SIGNAL("requestFinished(int,bool)"),self.httpData)
+        self.update_viewer("%s:%s%s" %(self.host, self.port, home_url))
+        self.update_packages()
+
+    def update_packages(self):
+        library_ = robjects.r.get('library', mode='function')
+        packages_ = robjects.r.get('.packages', mode='function')
+        loaded = list(packages_())
+        packages = list(library_()[1])
+        length = len(packages)
+        self.table.clearContents()
+        self.table.setRowCount(length/3)
+        
+        for i in range(length/3):
+            package = str(packages[i])
+            item = QTableWidgetItem("Loaded")
+            item.setFlags(
+            Qt.ItemIsUserCheckable|Qt.ItemIsEnabled|Qt.ItemIsSelectable)
+            if package in loaded:
+                item.setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Unchecked)
+            self.table.setItem(i, 0, item)
+            item = QTableWidgetItem(str(packages[i]))
+            self.table.setItem(i, 1, item)
+            item = QTableWidgetItem(str(packages[i+(length/3)]))
+            self.table.setItem(i, 2, item)
+            item = QTableWidgetItem(str(packages[i+(2*(length/3))]))
+            self.table.setItem(i, 3, item)
+        self.table.resizeColumnsToContents()
+
+    def update_viewer(self, url):
+        tmp = url
+        print tmp
+        self.http.get(tmp)
+
+    def httpData(self, id, error):
+        if error:
+            self.viewer.setText(self.http.errorString())
+        else:
+            html = self.http.readAll()
+            self.viewer.setText(str(html))
+            
+class LibraryBrowser(QDialog):
+
+    def __init__(self, parent=None):
+        super(LibraryBrowser, self).__init__(parent)
+        #self.setAttribute(Qt.WA_GroupLeader)
+        #self.setAttribute(Qt.WA_DeleteOnClose)
+        layout = QVBoxLayout()
+        layout.setMargin(0)
+        splitter = LibrarySplitter(self)
+        layout.addWidget(splitter)
+        self.setLayout(layout)
+        QShortcut(QKeySequence("Escape"), self, self.close)
+        self.setWindowTitle("manageR - Library browser")
 
 class REditor(QFrame):
 
@@ -3259,9 +3324,9 @@ class MainWindow(QMainWindow):
         helpHelpAction = self.createAction("&Help", self.helpHelp,
                 QKeySequence.HelpContents, icon="mActionHelpHelp",
                 tip="Commands help")
-        helpBrowserAction = self.createAction("&R help", self.helpBrowser,
+        libraryBrowserAction = self.createAction("&Library browser", self.libraryBrowser,
                 "Ctrl+H", icon="mActionHelpHelp",
-                tip="General R help")
+                tip="Library browser")
         helpAboutAction = self.createAction("&About", self.helpAbout,
                 icon="mActionIcon", tip="About manageR")
 
@@ -3320,7 +3385,7 @@ class MainWindow(QMainWindow):
         self.connect(self.windowMenu, SIGNAL("aboutToShow()"),
                      self.updateWindowMenu)
         helpMenu = self.menuBar().addMenu("&Help")
-        self.addActions(helpMenu, (helpBrowserAction, helpHelpAction, helpAboutAction,))
+        self.addActions(helpMenu, (libraryBrowserAction, helpHelpAction, helpAboutAction,))
 
         self.fileToolbar = self.addToolBar("File Toolbar")
         self.fileToolbar.setObjectName("FileToolbar")
@@ -4117,8 +4182,8 @@ class MainWindow(QMainWindow):
     def helpHelp(self):
         HelpDialog(self.version, self).show()
 
-    def helpBrowser(self):
-        HelpBrowser(self).show()
+    def libraryBrowser(self):
+        LibraryBrowser(self).show()
 
     def helpAbout(self):
         iconLabel = QLabel()

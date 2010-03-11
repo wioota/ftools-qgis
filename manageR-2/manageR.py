@@ -44,7 +44,7 @@ import pdb
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
         QSettings, QString, QT_VERSION_STR, QTextStream, QThread, QRect,
-        QTimer, QUrl, QVariant, Qt, SIGNAL, QStringList, QMimeData)
+        QTimer, QUrl, QVariant, Qt, SIGNAL, QStringList, QMimeData, QEventLoop)
 from PyQt4.QtNetwork import QHttp
 from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QColor, QColorDialog, QComboBox, QCursor, QDesktopServices,
@@ -1260,15 +1260,16 @@ class LibrarySplitter(QSplitter):
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.host = "localhost"
         self.port = robjects.r('tools:::httpdPort')[0]
-        home_url = QUrl("/doc/html/packages.html")
-        self.viewer = QTextBrowser(self)
+        home_url = "/doc/html/packages.html"
+        self.viewer = PBrowser(self, self.host, self.port, home_url)
         self.viewer.setOpenLinks(True)
-        self.http = QHttp()
-        self.http.setHost(self.host, self.port)
-        self.connect(self.http, SIGNAL("requestFinished(int,bool)"), self.http_data)
-        self.connect(self.viewer, SIGNAL("anchorClicked(QUrl)"), self.update_viewer)
+        self.viewer.setSource(QUrl(home_url))
+        #self.http = QHttp()
+        #self.http.setHost(self.host, self.port)
+        #self.connect(self.http, SIGNAL("requestFinished(int,bool)"), self.http_data)
+        #self.connect(self.viewer, SIGNAL("anchorClicked(QUrl)"), self.update_viewer)
         self.connect(self.table, SIGNAL("itemActivated(QTableWidgetItem)"), self.update_item)
-        self.update_viewer(home_url)
+        #self.update_viewer(home_url)
         self.update_packages()
 
     def update_packages(self):
@@ -1298,19 +1299,19 @@ class LibrarySplitter(QSplitter):
             self.table.setItem(i, 3, item)
         self.table.resizeColumnsToContents()
 
-    def update_viewer(self, url):
-        url = url.path()
-        url = url.remove(QString("../"))
-        if not url.startsWith("/"):
-            url = url.prepend("/")
-        self.http.get(url)
+    #def update_viewer(self, url):
+        #url = url.path()
+        #url = url.remove(QString("../"))
+        #if not url.startsWith("/"):
+            #url = url.prepend("/")
+        #self.http.get(url)
 
-    def http_data(self, id, error):
-        if error:
-            self.viewer.setText(self.http.errorString())
-        else:
-            html = self.http.readAll()
-            self.viewer.setHtml(str(html))
+    #def http_data(self, id, error):
+        #if error:
+            #self.viewer.setText(self.http.errorString())
+        #else:
+            #html = self.http.readAll()
+            #self.viewer.setHtml(str(html))
             
     def update_item(self, item):
         print item
@@ -1330,6 +1331,49 @@ class LibraryBrowser(QDialog):
         QShortcut(QKeySequence("Escape"), self, self.close)
         self.setWindowTitle("manageR - Library browser")
         self.resize(500, 500)
+        
+class PBrowser(QTextBrowser):
+  
+    def __init__(self, parent, host, port, home):
+        QTextBrowser.__init__(self, parent)
+        self.http = QHttp()
+        self.http.setHost(host, port)
+        self.home = QUrl(home)
+        self.base = self.home
+        self.html = QString()
+        self.setOpenLinks(True)
+        self.path = str(os.path.abspath(os.path.dirname(__file__)))
+        self.setSearchPaths(QStringList(self.path))
+        self.connect(self.http, SIGNAL(
+        "requestFinished(int,bool)"), self.http_data)
+        #self.loop = QEventLoop()
+        
+    def loadResource(self, type, name):
+        ret=QVariant()
+        if type == QTextDocument.HtmlResource:
+            regex = QRegExp(r"#(.*)")
+            if regex.indexIn(name.toString()) > -1:
+                url = self.base
+                self.anchor = regex.cap()[1]
+                print self.anchor
+            else:
+                url = self.base.resolved(QUrl(name))
+            self.base = url
+            self.http.get(url.toString())
+            data = QString(self.html)
+            return QVariant(data)
+        else:
+            QTextBrowser.loadResource(self, type, name)
+        
+    def http_data(self, id, error):
+        if error:
+            self.html = self.http.errorString()
+        else:
+            self.html = self.http.readAll()
+        if not self.anchor.isEmpty():
+            self.scrollToAnchor(self.anchor)
+        else:
+            self.setHtml(QString(self.html))
 
 class REditor(QFrame):
 
@@ -5155,11 +5199,4 @@ if __name__ == '__main__':
         MainWindow(None, "0.99").show()
     app.exec_()
     saveConfig()
-
-
-  #main()
-
-## TODO:
-## Add tooltips to all ConfigForm editing widgets & improve validation
-## Add tooltips to all main window actions that don't have any.
 

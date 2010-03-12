@@ -122,6 +122,8 @@ either version 2 of the License, or (at your option) any later version.
 Currently running %s""" % (version,robjects.r.version[12][0])
     return string
 
+CURRENTDIR = str(os.path.abspath( os.path.dirname(__file__)))
+
 def loadConfig():
     def setDefaultString(name, default):
         value = settings.value("manageR/%s" % (name)).toString()
@@ -476,7 +478,7 @@ Hold down <tt>Shift</tt> when pressing movement keys to select the text moved ov
 <br>
 Thanks to Agustin Lobo for extensive testing and bug reporting.
 Press <tt>Esc</tt> to close this window.
-""" % (version, Config["delay"], str(os.path.abspath( os.path.dirname(__file__) )),
+""" % (version, Config["delay"], CURRENTDIR, #str(os.path.abspath( os.path.dirname(__file__))),
       Config["tabwidth"], Config["tabwidth"]))
         layout = QVBoxLayout()
         layout.setMargin(0)
@@ -645,6 +647,198 @@ class RFinder(QWidget):
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
             self.document.setFocus()
+
+class LibrarySplitter(QSplitter):
+
+    def __init__(self, parent):
+        super(LibrarySplitter, self).__init__(parent)
+        robjects.r("""make.packages.html()""")
+        host = "localhost"
+        port = robjects.r('tools:::httpdPort')[0]
+        home = "/doc/html/packages.html"
+        paths = QStringList(os.path.join(CURRENTDIR, "icons"))
+        self.setOrientation(Qt.Vertical)
+        self.setFrameStyle(QFrame.StyledPanel|QFrame.Sunken)
+        monofont = QFont(Config["fontfamily"], Config["fontsize"])
+        self.table = QTableWidget(0, 4, self)
+        self.table.setFont(monofont)
+        labels = QStringList()
+        labels.append("Loaded")
+        labels.append("Package")
+        labels.append("Title")
+        labels.append("Path")
+        self.table.setHorizontalHeaderLabels(labels)
+        self.table.setShowGrid(True)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.viewer = HtmlViewer(self, host, port, home, paths)
+        self.update_packages()
+        self.connect(self.table, SIGNAL("itemChanged(QTableWidgetItem*)"), self.load_package)
+
+    def load_package(self, item):
+        mime = QMimeData()
+        row = item.row()
+        tmp = self.table.item(row, 1)
+        package = tmp.text()
+        if item.checkState() == Qt.Checked:
+            mime.setText("library(%s)" % package)
+        else:
+            mime.setText("detach('package:%s')" % package)
+        MainWindow.Console.editor.moveToEnd()
+        MainWindow.Console.editor.cursor.movePosition(
+        QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+        MainWindow.Console.editor.cursor.removeSelectedText()
+        MainWindow.Console.editor.cursor.insertText(
+        MainWindow.Console.editor.currentPrompt)
+        MainWindow.Console.editor.insertFromMimeData(mime)
+        MainWindow.Console.editor.entered()
+
+    def update_packages(self):
+        library_ = robjects.r.get('library', mode='function')
+        packages_ = robjects.r.get('.packages', mode='function')
+        loaded = list(packages_())
+        packages = list(library_()[1])
+        length = len(packages)
+        self.table.clearContents()
+        #self.table.setRowCount(length/3)
+        package_list = []
+        for i in range(length/3):
+            package = str(packages[i])
+            if not package in package_list:
+                package_list.append(package)
+                self.table.setRowCount(len(package_list))
+                item = QTableWidgetItem("Loaded")
+                item.setFlags(
+                Qt.ItemIsUserCheckable|Qt.ItemIsEnabled|Qt.ItemIsSelectable)
+                if package in loaded:
+                    item.setCheckState(Qt.Checked)
+                else:
+                    item.setCheckState(Qt.Unchecked)
+                self.table.setItem(i, 0, item)
+                item = QTableWidgetItem(str(packages[i]))
+                item.setFlags(Qt.ItemIsEnabled|Qt.ItemIsSelectable)
+                self.table.setItem(i, 1, item)
+                item = QTableWidgetItem(str(packages[i+(2*(length/3))]))
+                item.setFlags(Qt.ItemIsEnabled|Qt.ItemIsSelectable)
+                self.table.setItem(i, 2, item)
+                item = QTableWidgetItem(str(packages[i+(length/3)]))
+                item.setFlags(Qt.ItemIsEnabled|Qt.ItemIsSelectable)
+                self.table.setItem(i, 3, item)
+        self.table.resizeColumnsToContents()
+
+class LibraryBrowser(QDialog):
+
+    def __init__(self, parent=None):
+        super(LibraryBrowser, self).__init__(parent)
+        #self.setAttribute(Qt.WA_GroupLeader)
+        #self.setAttribute(Qt.WA_DeleteOnClose)
+        layout = QVBoxLayout()
+        layout.setMargin(0)
+        splitter = LibrarySplitter(self)
+        layout.addWidget(splitter)
+        self.setLayout(layout)
+        QShortcut(QKeySequence("Escape"), self, self.close)
+        self.setWindowTitle("manageR - Library browser")
+        self.resize(500, 500)
+
+class HtmlViewer(QWidget):
+
+    class PBrowser(QTextBrowser):
+
+        def __init__(self, parent, host, port, home, paths):
+            QTextBrowser.__init__(self, parent)
+            self.http = QHttp()
+            self.http.setHost(host, port)
+            home = QUrl(home)
+            self.base = home
+            self.html = QString()
+            self.setOpenLinks(True)
+            self.setSearchPaths(paths)
+            self.connect(self.http, SIGNAL(
+            "requestFinished(int,bool)"), self.http_data)
+            self.anchor = QString()
+            self.setSource(home)
+
+        def loadResource(self, type, name):
+            ret=QVariant()
+            if type == QTextDocument.HtmlResource:
+                regex = QRegExp(r"#(.*)")
+                if regex.indexIn(name.toString()) > -1:
+                    url = self.base
+                    self.anchor = regex.cap()[1:]
+                else:
+                    url = self.base.resolved(QUrl(name))
+                self.base = url
+                self.http.get(url.toString())
+                data = QVariant(QString(self.html))
+            else:
+                fileName = QFileInfo(name.toLocalFile()).fileName()
+                data = QTextBrowser.loadResource(self, type, QUrl(fileName))
+            return data
+
+        def http_data(self, id, error):
+            if error:
+                self.html = self.http.errorString()
+            else:
+                self.html = self.http.readAll()
+            if not self.anchor.isEmpty():
+                self.scrollToAnchor(self.anchor)
+            else:
+                self.setHtml(QString(self.html))
+
+    def __init__(self, parent, host, port, home, paths):
+        super(HtmlViewer, self).__init__(parent)
+        robjects.r("""make.packages.html()""")
+        self.viewer = self.PBrowser(self, host, port, home, paths)
+
+        homeButton = QToolButton(self)
+        homeAction = QAction("&Home", self)
+        homeAction.setToolTip("Return to start page")
+        homeAction.setWhatsThis("Return to start page")
+        homeAction.setIcon(QIcon(":mActionHome.png"))
+        homeButton.setDefaultAction(homeAction)
+        homeAction.setEnabled(True)
+        homeButton.setAutoRaise(True)
+
+        backButton = QToolButton(self)
+        backAction = QAction("&Back", self)
+        backAction.setToolTip("Move to previous page")
+        backAction.setWhatsThis("Move to previous page")
+        backAction.setIcon(QIcon(":mActionBack.png"))
+        backButton.setDefaultAction(backAction)
+        backAction.setEnabled(True)
+        backButton.setAutoRaise(True)
+
+        forwardButton = QToolButton(self)
+        forwardAction = QAction("&Forward", self)
+        forwardAction.setToolTip("Move to next page")
+        forwardAction.setWhatsThis("Move to next page")
+        forwardAction.setIcon(QIcon(":mActionForward.png"))
+        forwardButton.setDefaultAction(forwardAction)
+        forwardAction.setEnabled(True)
+        forwardButton.setAutoRaise(True)
+
+        vert = QVBoxLayout(self)
+        horiz = QHBoxLayout()
+        horiz.addStretch()
+        horiz.addWidget(backButton)
+        horiz.addWidget(homeButton)
+        horiz.addWidget(forwardButton)
+        horiz.addStretch()
+        vert.addLayout(horiz)
+        vert.addWidget(self.viewer)
+        self.connect(homeAction, SIGNAL("triggered()"), self.go_home)
+        self.connect(backAction, SIGNAL("triggered()"), self.go_back)
+        self.connect(forwardAction, SIGNAL("triggered()"), self.go_forward)
+
+    def go_home(self):
+        self.viewer.home()
+
+    def go_back(self):
+        self.viewer.backward()
+
+    def go_forward(self):
+        self.viewer.forward()
 
 class RHighlighter(QSyntaxHighlighter):
 
@@ -837,7 +1031,7 @@ class RHighlighter(QSyntaxHighlighter):
     def rehighlight(self):
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         QSyntaxHighlighter.rehighlight(self)
-        QApplication.restoreOverrideCursor()       
+        QApplication.restoreOverrideCursor()
 
 class RCompleter(QObject):
 
@@ -1237,144 +1431,6 @@ class Editor(QPlainTextEdit):
             block = block.next()
         painter.end()
 
-
-class LibrarySplitter(QSplitter):
-
-    def __init__(self, parent):
-        super(LibrarySplitter, self).__init__(parent)
-
-        self.setOrientation(Qt.Vertical)
-        #self.setFrameStyle(QFrame.StyledPanel|QFrame.Sunken)
-        monofont = QFont(Config["fontfamily"], Config["fontsize"])
-        robjects.r("""make.packages.html()""")
-        self.table = QTableWidget(0, 4, self)
-        self.table.setFont(monofont)
-        labels = QStringList()
-        labels.append("Loaded")
-        labels.append("Package")
-        labels.append("Title")
-        labels.append("Path")
-        self.table.setHorizontalHeaderLabels(labels)
-        self.table.setShowGrid(True)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.host = "localhost"
-        self.port = robjects.r('tools:::httpdPort')[0]
-        home_url = "/doc/html/packages.html"
-        self.viewer = PBrowser(self, self.host, self.port, home_url)
-        self.viewer.setOpenLinks(True)
-        self.viewer.setSource(QUrl(home_url))
-        #self.http = QHttp()
-        #self.http.setHost(self.host, self.port)
-        #self.connect(self.http, SIGNAL("requestFinished(int,bool)"), self.http_data)
-        #self.connect(self.viewer, SIGNAL("anchorClicked(QUrl)"), self.update_viewer)
-        self.connect(self.table, SIGNAL("itemActivated(QTableWidgetItem)"), self.update_item)
-        #self.update_viewer(home_url)
-        self.update_packages()
-
-    def update_packages(self):
-        library_ = robjects.r.get('library', mode='function')
-        packages_ = robjects.r.get('.packages', mode='function')
-        loaded = list(packages_())
-        packages = list(library_()[1])
-        length = len(packages)
-        self.table.clearContents()
-        self.table.setRowCount(length/3)
-        
-        for i in range(length/3):
-            package = str(packages[i])
-            item = QTableWidgetItem("Loaded")
-            item.setFlags(
-            Qt.ItemIsUserCheckable|Qt.ItemIsEnabled|Qt.ItemIsSelectable)
-            if package in loaded:
-                item.setCheckState(Qt.Checked)
-            else:
-                item.setCheckState(Qt.Unchecked)
-            self.table.setItem(i, 0, item)
-            item = QTableWidgetItem(str(packages[i]))
-            self.table.setItem(i, 1, item)
-            item = QTableWidgetItem(str(packages[i+(2*(length/3))]))
-            self.table.setItem(i, 2, item)
-            item = QTableWidgetItem(str(packages[i+(length/3)]))
-            self.table.setItem(i, 3, item)
-        self.table.resizeColumnsToContents()
-
-    #def update_viewer(self, url):
-        #url = url.path()
-        #url = url.remove(QString("../"))
-        #if not url.startsWith("/"):
-            #url = url.prepend("/")
-        #self.http.get(url)
-
-    #def http_data(self, id, error):
-        #if error:
-            #self.viewer.setText(self.http.errorString())
-        #else:
-            #html = self.http.readAll()
-            #self.viewer.setHtml(str(html))
-            
-    def update_item(self, item):
-        print item
-        print item.checkedState()
-            
-class LibraryBrowser(QDialog):
-
-    def __init__(self, parent=None):
-        super(LibraryBrowser, self).__init__(parent)
-        #self.setAttribute(Qt.WA_GroupLeader)
-        #self.setAttribute(Qt.WA_DeleteOnClose)
-        layout = QVBoxLayout()
-        layout.setMargin(0)
-        splitter = LibrarySplitter(self)
-        layout.addWidget(splitter)
-        self.setLayout(layout)
-        QShortcut(QKeySequence("Escape"), self, self.close)
-        self.setWindowTitle("manageR - Library browser")
-        self.resize(500, 500)
-        
-class PBrowser(QTextBrowser):
-  
-    def __init__(self, parent, host, port, home):
-        QTextBrowser.__init__(self, parent)
-        self.http = QHttp()
-        self.http.setHost(host, port)
-        self.home = QUrl(home)
-        self.base = self.home
-        self.html = QString()
-        self.setOpenLinks(True)
-        self.path = str(os.path.abspath(os.path.dirname(__file__)))
-        self.setSearchPaths(QStringList(self.path))
-        self.connect(self.http, SIGNAL(
-        "requestFinished(int,bool)"), self.http_data)
-        #self.loop = QEventLoop()
-        
-    def loadResource(self, type, name):
-        ret=QVariant()
-        if type == QTextDocument.HtmlResource:
-            regex = QRegExp(r"#(.*)")
-            if regex.indexIn(name.toString()) > -1:
-                url = self.base
-                self.anchor = regex.cap()[1]
-                print self.anchor
-            else:
-                url = self.base.resolved(QUrl(name))
-            self.base = url
-            self.http.get(url.toString())
-            data = QString(self.html)
-            return QVariant(data)
-        else:
-            QTextBrowser.loadResource(self, type, name)
-        
-    def http_data(self, id, error):
-        if error:
-            self.html = self.http.errorString()
-        else:
-            self.html = self.http.readAll()
-        if not self.anchor.isEmpty():
-            self.scrollToAnchor(self.anchor)
-        else:
-            self.setHtml(QString(self.html))
-
 class REditor(QFrame):
 
     class NumberBar(QWidget):
@@ -1425,20 +1481,20 @@ class REditor(QFrame):
         self.edit.blockCountChanged.connect(self.number_bar.adjustWidth)
         self.edit.updateRequest.connect(self.number_bar.updateContents)
 
-    def getText(self):
-        return unicode(self.edit.toPlainText())
+    #def getText(self):
+        #return unicode(self.edit.toPlainText())
 
-    def setText(self, text):
-        self.edit.setPlainText(text)
+    #def setText(self, text):
+        #self.edit.setPlainText(text)
 
-    def isModified(self):
-        return self.edit.document().isModified()
+    #def isModified(self):
+        #return self.edit.document().isModified()
 
-    def setModified(self, modified):
-        self.edit.document().setModified(modified)
+    #def setModified(self, modified):
+        #self.edit.document().setModified(modified)
 
-    def setLineWrapMode(self, mode):
-        self.edit.setLineWrapMode(mode)
+    #def setLineWrapMode(self, mode):
+        #self.edit.setLineWrapMode(mode)
 
 
 class RConsole(QTextEdit):
@@ -3580,7 +3636,7 @@ class MainWindow(QMainWindow):
                     load_text = QString("[R history file ")
                 QApplication.processEvents()
             if not load_text.isEmpty():
-                load_text.append("restored]")
+                load_text.append("restored]\n")
                 self.editor.appendText(load_text)
             self.editor.displayPrompt()
             # If requested, execute startup commands
@@ -5014,7 +5070,8 @@ class PluginManager:
     def __init__(self, parent):#, iface):
         ## Save reference to the QGIS interface
         #self.iface = iface
-        self.tools = os.path.join(str(os.path.abspath(os.path.dirname(__file__))),"tools.xml")
+        #self.tools = os.path.join(str(os.path.abspath(os.path.dirname(__file__))),"tools.xml")
+        self.tools = os.path.join(CURRENTDIR,"tools.xml")
         self.parent = parent
 
     def makeCaller(self, n):

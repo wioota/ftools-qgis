@@ -1,5 +1,6 @@
 <RCC>
     <qresource>
+        <file alias="mActionBack.png">icons/mActionBack.png</file>
         <file alias="mActionEditIndent.png">icons/mActionEditIndent.png</file>
         <file alias="mActionGraphicRefresh.png">icons/mActionGraphicRefresh.png</file>
         <file alias="mActionWorkingSet.png">icons/mActionWorkingSet.png</file>
@@ -8,9 +9,11 @@
         <file alias="mActionEditRedo.png">icons/mActionEditRedo.png</file>
         <file alias="mActionEditPaste.png">icons/mActionEditPaste.png</file>
         <file alias="mActionActionFile.png">icons/mActionActionFile.png</file>
+        <file alias="mActionHome.png">icons/mActionHome.png</file>
         <file alias="mActionFileConfigure.png">icons/mActionFileConfigure.png</file>
         <file alias="mActionActionExport.png">icons/mActionActionExport.png</file>
         <file alias="mActionEditCopy.png">icons/mActionEditCopy.png</file>
+        <file alias="mActionForward.png">icons/mActionForward.png</file>
         <file alias="mActionFolderNew.png">icons/mActionFolderNew.png</file>
         <file alias="mActionGraphicNew.png">icons/mActionGraphicNew.png</file>
         <file alias="mActionGraphicSave.png">icons/mActionGraphicSave.png</file>

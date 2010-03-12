@@ -44,7 +44,8 @@ import pdb
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
         QSettings, QString, QT_VERSION_STR, QTextStream, QThread, QRect,
-        QTimer, QUrl, QVariant, Qt, SIGNAL, QStringList, QMimeData, QEventLoop)
+        QTimer, QUrl, QVariant, Qt, SLOT, SIGNAL, QStringList, QMimeData, 
+        QEventLoop)
 from PyQt4.QtNetwork import QHttp
 from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QColor, QColorDialog, QComboBox, QCursor, QDesktopServices,
@@ -656,6 +657,7 @@ class LibrarySplitter(QSplitter):
         host = "localhost"
         port = robjects.r('tools:::httpdPort')[0]
         home = "/doc/html/packages.html"
+        self.home = home
         paths = QStringList(os.path.join(CURRENTDIR, "icons"))
         self.setOrientation(Qt.Vertical)
         self.setFrameStyle(QFrame.StyledPanel|QFrame.Sunken)
@@ -674,6 +676,15 @@ class LibrarySplitter(QSplitter):
         self.viewer = HtmlViewer(self, host, port, home, paths)
         self.update_packages()
         self.connect(self.table, SIGNAL("itemChanged(QTableWidgetItem*)"), self.load_package)
+        self.connect(self.table, SIGNAL("itemDoubleClicked(QTableWidgetItem*)"), self.show_package)
+
+    def show_package(self, item):
+        row = item.row()
+        tmp = self.table.item(row, 1)
+        package = tmp.text()
+        home = QUrl(self.home)
+        curr = QUrl("../../library/%s/html/00Index.html" % package)
+        self.viewer.setSource(home.resolved(curr))
 
     def load_package(self, item):
         mime = QMimeData()
@@ -755,41 +766,48 @@ class HtmlViewer(QWidget):
             self.setOpenLinks(True)
             self.setSearchPaths(paths)
             self.connect(self.http, SIGNAL(
-            "requestFinished(int,bool)"), self.http_data)
+            "done(bool)"), self.getData)
             self.anchor = QString()
             self.setSource(home)
+            
+        def setSource(self, url):
+            regex = QRegExp(r"#(.*)")
+            if regex.indexIn(url.toString()) > -1:
+                url = self.base
+                #self.anchor = regex.cap()[1:]
+            else:
+                url = self.base.resolved(QUrl(url))
+            self.base = url
+            QTextBrowser.setSource(self, url)
 
         def loadResource(self, type, name):
-            ret=QVariant()
+            ret = QVariant()
             if type == QTextDocument.HtmlResource:
-                regex = QRegExp(r"#(.*)")
-                if regex.indexIn(name.toString()) > -1:
-                    url = self.base
-                    self.anchor = regex.cap()[1:]
-                else:
-                    url = self.base.resolved(QUrl(name))
-                self.base = url
-                self.http.get(url.toString())
+                loop = QEventLoop()
+                loop.connect(self.http, SIGNAL(
+                "done(bool)"), SLOT("quit()"))
+                self.http.get(name.toString())
+                loop.exec_(
+                QEventLoop.AllEvents|QEventLoop.WaitForMoreEvents)
                 data = QVariant(QString(self.html))
             else:
-                fileName = QFileInfo(name.toLocalFile()).fileName()
-                data = QTextBrowser.loadResource(self, type, QUrl(fileName))
+                fileName = QFileInfo(
+                name.toLocalFile()).fileName()
+                data = QTextBrowser.loadResource(
+                self, type, QUrl(fileName))
             return data
 
-        def http_data(self, id, error):
+        def getData(self, error):
             if error:
                 self.html = self.http.errorString()
             else:
                 self.html = self.http.readAll()
-            if not self.anchor.isEmpty():
-                self.scrollToAnchor(self.anchor)
-            else:
-                self.setHtml(QString(self.html))
 
     def __init__(self, parent, host, port, home, paths):
         super(HtmlViewer, self).__init__(parent)
         robjects.r("""make.packages.html()""")
         self.viewer = self.PBrowser(self, host, port, home, paths)
+        self.parent = parent
 
         homeButton = QToolButton(self)
         homeAction = QAction("&Home", self)
@@ -827,18 +845,21 @@ class HtmlViewer(QWidget):
         horiz.addStretch()
         vert.addLayout(horiz)
         vert.addWidget(self.viewer)
-        self.connect(homeAction, SIGNAL("triggered()"), self.go_home)
-        self.connect(backAction, SIGNAL("triggered()"), self.go_back)
-        self.connect(forwardAction, SIGNAL("triggered()"), self.go_forward)
+        self.connect(homeAction, SIGNAL("triggered()"), self.home)
+        self.connect(backAction, SIGNAL("triggered()"), self.backward)
+        self.connect(forwardAction, SIGNAL("triggered()"), self.forward)
 
-    def go_home(self):
+    def home(self):
         self.viewer.home()
 
-    def go_back(self):
+    def backward(self):
         self.viewer.backward()
 
-    def go_forward(self):
+    def forward(self):
         self.viewer.forward()
+        
+    def setSource(self, url):
+        self.viewer.setSource(url)
 
 class RHighlighter(QSyntaxHighlighter):
 
@@ -1481,21 +1502,32 @@ class REditor(QFrame):
         self.edit.blockCountChanged.connect(self.number_bar.adjustWidth)
         self.edit.updateRequest.connect(self.number_bar.updateContents)
 
-    #def getText(self):
-        #return unicode(self.edit.toPlainText())
+    def getText(self):
+        return unicode(self.edit.toPlainText())
 
-    #def setText(self, text):
-        #self.edit.setPlainText(text)
+    def setText(self, text):
+        self.edit.setPlainText(text)
 
-    #def isModified(self):
-        #return self.edit.document().isModified()
+    def isModified(self):
+        return self.edit.document().isModified()
 
-    #def setModified(self, modified):
-        #self.edit.document().setModified(modified)
-
-    #def setLineWrapMode(self, mode):
-        #self.edit.setLineWrapMode(mode)
-
+    def setModified(self, modified):
+        self.edit.document().setModified(modified)
+        
+    def setTabChangesFocus(self, bool):
+        self.edit.setTabChangesFocus(bool)
+        
+    def document(self):
+        return self.edit.document()
+        
+    def toPlainText(self):
+        return self.edit.toPlainText()
+        
+    def appendPlainText(self, text):
+        self.edit.appendPlainText(text)
+        
+    def moveCursor(self, operation, mode = QTextCursor.MoveAnchor):
+        self.edit.moveCursor(operation, mode)
 
 class RConsole(QTextEdit):
     def __init__(self, parent):
@@ -2423,7 +2455,7 @@ class ConfigForm(QDialog):
                  "Changes made here only take "
                  "effect when manageR is next run.</p></font>")):
             editor = REditor(self, int(Config["tabwidth"]))
-            editor.setPlainText(Config[name])
+            editor.setText(Config[name])
             editor.setTabChangesFocus(True)
             RHighlighter(editor.document())
             vbox = QVBoxLayout()

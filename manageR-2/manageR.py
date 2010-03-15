@@ -123,7 +123,7 @@ either version 2 of the License, or (at your option) any later version.
 Currently running %s""" % (version,robjects.r.version[12][0])
     return string
 
-CURRENTDIR = str(os.path.abspath( os.path.dirname(__file__)))
+CURRENTDIR = unicode(os.path.abspath( os.path.dirname(__file__)))
 
 def loadConfig():
     def setDefaultString(name, default):
@@ -212,7 +212,7 @@ def addLibraryCommands(library):
         if not library in Libraries:
             Libraries.append(library)
             info = robjects.r('lsf.str("package:%s")' % (library))
-            info = QString(str(info)).replace(", \n    ", ", ")
+            info = QString(unicode(info)).replace(", \n    ", ", ")
             items = info.split('\n')
             for item in items:
                 CAT.append(item)
@@ -714,7 +714,7 @@ class LibrarySplitter(QSplitter):
         #self.table.setRowCount(length/3)
         package_list = []
         for i in range(length/3):
-            package = str(packages[i])
+            package = unicode(packages[i])
             if not package in package_list:
                 package_list.append(package)
                 self.table.setRowCount(len(package_list))
@@ -726,13 +726,13 @@ class LibrarySplitter(QSplitter):
                 else:
                     item.setCheckState(Qt.Unchecked)
                 self.table.setItem(i, 0, item)
-                item = QTableWidgetItem(str(packages[i]))
+                item = QTableWidgetItem(unicode(packages[i]))
                 item.setFlags(Qt.ItemIsEnabled|Qt.ItemIsSelectable)
                 self.table.setItem(i, 1, item)
-                item = QTableWidgetItem(str(packages[i+(2*(length/3))]))
+                item = QTableWidgetItem(unicode(packages[i+(2*(length/3))]))
                 item.setFlags(Qt.ItemIsEnabled|Qt.ItemIsSelectable)
                 self.table.setItem(i, 2, item)
-                item = QTableWidgetItem(str(packages[i+(length/3)]))
+                item = QTableWidgetItem(unicode(packages[i+(length/3)]))
                 item.setFlags(Qt.ItemIsEnabled|Qt.ItemIsSelectable)
                 self.table.setItem(i, 3, item)
         self.table.resizeColumnsToContents()
@@ -769,26 +769,27 @@ class HtmlViewer(QWidget):
             "done(bool)"), self.getData)
             self.anchor = QString()
             self.setSource(home)
-            
+
         def setSource(self, url):
-            regex = QRegExp(r"#(.*)")
-            if regex.indexIn(url.toString()) > -1:
-                url = self.base
-                #self.anchor = regex.cap()[1:]
-            else:
-                url = self.base.resolved(QUrl(url))
-            self.base = url
+            print "#########################################"
+            print url
+            url = self.source().resolved(QUrl(url))
+            print url
+            print "#########################################"
+            print self.historyUrl(-1)
             QTextBrowser.setSource(self, url)
 
         def loadResource(self, type, name):
             ret = QVariant()
+            print name
             if type == QTextDocument.HtmlResource:
                 loop = QEventLoop()
                 loop.connect(self.http, SIGNAL(
                 "done(bool)"), SLOT("quit()"))
                 self.http.get(name.toString())
                 loop.exec_(
-                QEventLoop.AllEvents|QEventLoop.WaitForMoreEvents)
+                QEventLoop.AllEvents | \
+                QEventLoop.WaitForMoreEvents)
                 data = QVariant(QString(self.html))
             else:
                 fileName = QFileInfo(
@@ -905,7 +906,8 @@ class RHighlighter(QSyntaxHighlighter):
                 r"|([<]{3}|[>]{3})"
                 r"|([\+\-\*/\^\:\$~&\|@^])="
                 r"|=([\+\-\*/\^\:\$~!<>&\|@^])"
-                r"|(\+|\-|\*|/|<=|>=|={1,2}|\!=|\|{1,2}|&{1,2}|:{1,3}|\^|@|\$|~){2,}"),
+                #r"|(\+|\-|\*|/|<=|>=|={1,2}|\!=|\|{1,2}|&{1,2}|:{1,3}|\^|@|\$|~){2,}"
+                ),
                 "syntax"))
         self.stringRe = QRegExp("(\'[^\']*\'|\"[^\"]*\")")
         self.stringRe.setMinimal(True)
@@ -947,7 +949,7 @@ class RHighlighter(QSyntaxHighlighter):
     def highlightBlock(self, text):
         NORMAL, MULTILINESINGLE, MULTILINEDOUBLE, ERROR = range(4)
         INBRACKETS, INBRACKETSSINGLE, INBRACKETSDOUBLE = range(4,7)
-        
+
         textLength = text.length()
         prevState = self.previousBlockState()
 
@@ -979,18 +981,9 @@ class RHighlighter(QSyntaxHighlighter):
         endIndex = 0
         if not self.previousBlockState() >= 4:
             startIndex = self.bracketStartExpression.indexIn(text)
-        #if startIndex == -1:
-            #regex = QRegExp(r"[\)\]\}]")
-            #format = "syntax"
-            #i = regex.indexIn(text)
-            #while i >= 0:
-                #bracketLength = regex.matchedLength()
-                #self.setFormat(startIndex + i+1, bracketLength, RHighlighter.Formats[format])
-                #i = regex.indexIn(text, i + bracketLength)
         while startIndex >= 0:
             startCount += 1
             endIndex = self.bracketBothExpression.indexIn(text, startIndex+1)
-            #endIndex = self.bracketEndExpression.indexIn(text, startIndex)
             bracket = self.bracketBothExpression.cap()
             if endIndex == -1 or bracket == "(":
                 self.setCurrentBlockState(self.currentBlockState() + 4)
@@ -1000,22 +993,18 @@ class RHighlighter(QSyntaxHighlighter):
                 tmpEndIndex = endIndex
                 while tmpEndIndex >= 0:
                     tmpLength = self.bracketBothExpression.matchedLength()
-                    #tmpLength = self.bracketEndExpression.matchedLength()
                     tmpEndIndex = self.bracketBothExpression.indexIn(text, tmpEndIndex + tmpLength)
-                    #tmpEndIndex = self.bracketEndExpression.indexIn(text, tmpEndIndex + tmpLength)
                     bracket = self.bracketBothExpression.cap()
                     if tmpEndIndex >= 0:
                         if bracket == ")":
                             endIndex = tmpEndIndex
                             endCount += 1
-                            #if endCount > startCount:
-                                #self.setFormat(endIndex, tmpLength, RHighlighter.Formats["syntax"])
                         else:
                             startCount += 1
                 if startCount > endCount:
                     self.setCurrentBlockState(self.currentBlockState() + 4)
                 length = endIndex - startIndex + self.bracketBothExpression.matchedLength() + 1 
-                
+
             bracketText = text.mid(startIndex, length+1)
             regex = QRegExp(r"[a-zA-Z_\.][0-9a-zA-Z_\.]*[\s]*=(?=([^=]|$))")
             format = "inbrackets"
@@ -1762,7 +1751,7 @@ class RConsole(QTextEdit):
 
 
     def checkBrackets(self, command):
-        s = str(command)
+        s = unicode(command)
         s = filter(lambda x: x in '()[]{}"\'', s)
         s = s.replace ("'''", "'")
         s = s.replace ('"""', '"')
@@ -2087,7 +2076,7 @@ class RConsole(QTextEdit):
                                 visible = result[1][0]
                             if visible:
                                 try:
-                                    if not str(result.r["value"][0]) == "NULL":
+                                    if not unicode(result.r["value"][0]) == "NULL":
                                         robjects.r['print'](result.r["value"][0])
                                     if class_(result.r["value"][0])[0] == "help_files_with_topic" or \
                                         class_(result.r["value"][0])[0] == "hsearch":
@@ -2794,13 +2783,14 @@ class RVariableWidget(QWidget):
         self.setMinimumSize(30,30)
         self.parent = parent
         self.isStandalone = isStandalone
-        self.variableTable = QTableWidget(0, 2, self)
+        self.variableTable = QTreeWidget(self)
+        self.variableTable.setColumnCount(3)
         labels = QStringList()
         labels.append("Name")
         labels.append("Type")
-        self.variableTable.setHorizontalHeaderLabels(labels)
-        self.variableTable.horizontalHeader().setResizeMode(1, QHeaderView.Stretch)
-        self.variableTable.setShowGrid(True)
+        labels.append("Size")
+        self.variableTable.setHeaderLabels(labels)
+        self.variableTable.header().setResizeMode(1, QHeaderView.Stretch)
         self.variableTable.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.variableTable.setSelectionMode(QAbstractItemView.SingleSelection)
 
@@ -2819,7 +2809,7 @@ class RVariableWidget(QWidget):
         self.exportAction.setWhatsThis("Export data to file")
         self.exportAction.setIcon(QIcon(":mActionActionFile.png"))
         self.export.setDefaultAction(self.exportAction)
-        self.exportAction.setEnabled(False)
+        self.exportAction.setEnabled(True)
         self.export.setAutoRaise(True)
         
         if not self.isStandalone:
@@ -2832,13 +2822,13 @@ class RVariableWidget(QWidget):
             self.canvasAction.setEnabled(False)
             self.canvas.setAutoRaise(True)
 
-        #self.layer = QToolButton(self)
-        #self.layer.setText("layer")
-        #self.layer.setToolTip("Import layer from canvas")
-        #self.layer.setWhatsThis("Import layer from canvas")
-        #self.layer.setIcon(QIcon(":mActionActionImport.png"))
-        #self.layer.setEnabled(True)
-        #self.layer.setAutoRaise(True)
+        self.layer = QToolButton(self)
+        self.layer.setText("refresh")
+        self.layer.setToolTip("Refresh environment browser")
+        self.layer.setWhatsThis("Refresh environment browser")
+        self.layer.setIcon(QIcon(":mActionActionImport.png"))
+        self.layer.setEnabled(True)
+        self.layer.setAutoRaise(True)
         
         self.save = QToolButton(self)
         self.saveAction = QAction("&Save variable", self)
@@ -2871,7 +2861,7 @@ class RVariableWidget(QWidget):
         horiz = QHBoxLayout()
         horiz.addWidget(self.rm)
         horiz.addWidget(self.export)
-        #horiz.addWidget(self.layer)
+        horiz.addWidget(self.layer)
         if not self.isStandalone:
             horiz.addWidget(self.canvas)
         horiz.addWidget(self.save)
@@ -2882,92 +2872,89 @@ class RVariableWidget(QWidget):
         grid.addWidget(self.variableTable, 1, 0, 1, 1)
         
         self.variables = dict()
-        self.connect(self.rmAction, SIGNAL("triggered()"), self.removeVariable)
+        #self.connect(self.rmAction, SIGNAL("triggered()"), self.removeVariable)
         self.connect(self.exportAction, SIGNAL("triggered()"), self.exportVariable)
-        self.connect(self.saveAction, SIGNAL("triggered()"), self.saveVariable)
-        if not self.isStandalone:
-            self.connect(self.canvasAction, SIGNAL("triggered()"), self.exportToCanvas)
-        self.connect(self.loadAction, SIGNAL("triggered()"), self.loadRVariable)
+        #self.connect(self.saveAction, SIGNAL("triggered()"), self.saveVariable)
+        #if not self.isStandalone:
+            #self.connect(self.canvasAction, SIGNAL("triggered()"), self.exportToCanvas)
+        #self.connect(self.loadAction, SIGNAL("triggered()"), self.loadRVariable)
         self.connect(self.methodAction, SIGNAL("triggered()"), self.printRMethods)
-        #self.connect(self.layer, SIGNAL("clicked()"), self.importFromCanvas)
-        self.connect(self.variableTable, \
-        SIGNAL("itemSelectionChanged()"), self.selectionChanged)
+        self.connect(self.layer, SIGNAL("clicked()"), self.updateVariables)
+        #self.connect(self.variableTable, \
+        #SIGNAL("itemSelectionChanged()"), self.selectionChanged)
         
-    def contextMenuEvent(self, event):
-        menu = QMenu(self)
-        menu.addAction(self.rmAction)
-        menu.addSeparator()
-        menu.addAction(self.exportAction)
-        if not self.isStandalone:
-            menu.addAction(self.canvasAction)
-        menu.addAction(self.saveAction)
-        menu.addAction(self.loadAction)
-        menu.addAction(self.methodAction)
-        menu.exec_(event.globalPos())
+    #def contextMenuEvent(self, event):
+        #menu = QMenu(self)
+        #menu.addAction(self.rmAction)
+        #menu.addSeparator()
+        #menu.addAction(self.exportAction)
+        #if not self.isStandalone:
+            #menu.addAction(self.canvasAction)
+        #menu.addAction(self.saveAction)
+        #menu.addAction(self.loadAction)
+        #menu.addAction(self.methodAction)
+        #menu.exec_(event.globalPos())
 
-    def updateVariables(self, variables):
-        self.variables = {}
-        while self.variableTable.rowCount() > 0:
-            self.variableTable.removeRow(0)
-        if isinstance(variables, tuple):
-            variables = variables[0]
-        for variable in variables.items():
-            self.addVariable(variable)
-
-    def addVariable(self, variable):
-        self.variables[variable[0]] = variable[1]
-        nameItem = QTableWidgetItem(QString(variable[0]))
-        nameItem.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEnabled)
-        typeItem = QTableWidgetItem(QString(variable[1]))
-        typeItem.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        typeItem.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEnabled)
-        row = self.variableTable.rowCount()
-        self.variableTable.insertRow(row)
-        self.variableTable.setItem(row, 0, nameItem)
-        self.variableTable.setItem(row, 1, typeItem)
-        self.variableTable.resizeColumnsToContents
+    #def addVariable(self, variable):
+        #self.variables[variable[0]] = variable[1]
+        #nameItem = QTableWidgetItem(QString(variable[0]))
+        #nameItem.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEnabled)
+        #typeItem = QTableWidgetItem(QString(variable[1]))
+        #typeItem.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        #typeItem.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEnabled)
+        #row = self.variableTable.rowCount()
+        #self.variableTable.insertRow(row)
+        #self.variableTable.setItem(row, 0, nameItem)
+        #self.variableTable.setItem(row, 1, typeItem)
+        #self.variableTable.resizeColumnsToContents
       
-    def selectionChanged(self):
-        row = self.variableTable.currentRow()
-        if row < 0 or row >= self.variableTable.rowCount() or \
-        self.variableTable.rowCount() < 1:
-            self.saveAction.setEnabled(False)
-            self.rmAction.setEnabled(False)
-            if not self.isStandalone:
-                self.canvasAction.setEnabled(False)
-            self.exportAction.setEnabled(False)
-        else:
-            itemName, itemType = self.getVariableInfo(row)
-            self.saveAction.setEnabled(True)
-            self.rmAction.setEnabled(True)
-            self.exportAction.setEnabled(True)
-            if not self.isStandalone:
-                if itemType in VECTORTYPES:
-                    #self.canvas.setEnabled(True)
-                    self.canvasAction.setEnabled(True)
-                else:
-                    #self.canvas.setEnabled(False)
-                    self.canvasAction.setEnabled(False)
+    #def selectionChanged(self):
+        #row = self.variableTable.currentRow()
+        #if row < 0 or row >= self.variableTable.rowCount() or \
+        #self.variableTable.rowCount() < 1:
+            #self.saveAction.setEnabled(False)
+            #self.rmAction.setEnabled(False)
+            #if not self.isStandalone:
+                #self.canvasAction.setEnabled(False)
+            #self.exportAction.setEnabled(False)
+        #else:
+            #itemName, itemType = self.getVariableInfo(row)
+            #self.saveAction.setEnabled(True)
+            #self.rmAction.setEnabled(True)
+            #self.exportAction.setEnabled(True)
+            #if not self.isStandalone:
+                #if itemType in VECTORTYPES:
+                    ##self.canvas.setEnabled(True)
+                    #self.canvasAction.setEnabled(True)
+                #else:
+                    ##self.canvas.setEnabled(False)
+                    #self.canvasAction.setEnabled(False)
 
     def printRMethods(self):
-        row = self.variableTable.currentRow()
-        if row < 0:
+        items = self.variableTable.selectedItems()
+        if len(items) < 1:
             return False
-        itemName, itemType = self.getVariableInfo(row)
-        self.sendCommands(QString('methods(class=class(%s))' % (itemName)))
+        itemName, itemType = self.getVariableInfo(items[0])
+        self.sendCommands(QString('methods(class=%s)' % (itemType)))
 
-    def removeVariable(self):
-        row = self.variableTable.currentRow()
-        if row < 0:
-            return False
-        itemName, itemType = self.getVariableInfo(row)
-        self.sendCommands(QString('rm(%s)' % (itemName)))
+    #def removeVariable(self):
+        #row = self.variableTable.currentRow()
+        #if row < 0:
+            #return False
+        #itemName, itemType = self.getVariableInfo(row)
+        #self.sendCommands(QString('rm(%s)' % (itemName)))
         
     def exportVariable(self):
-        row = self.variableTable.currentRow()
-        if row < 0:
+        items = self.variableTable.selectedItems()
+        if len(items) < 1:
             return False
-        itemName, itemType = self.getVariableInfo(row)
+        parents = []
+        parent = items[0].parent()
+        while parent:
+            parents.append(parent.text(0))
+            item = parent
+            parent = item.parent()
+        itemName, itemType = self.getVariableInfo(item)
         if itemType in VECTORTYPES or \
         itemType in RASTERTYPES:
             self.parent.exportRObjects(True, itemName, itemType, False)
@@ -2987,7 +2974,7 @@ class RVariableWidget(QWidget):
             suffix = suffix.mid(index1, index2-index1)
             if not selectedFile.endsWith(suffix):
                 selectedFile.append(suffix)
-            command = QString('write.table(%s, file = "%s",' % (itemName,selectedFile))
+            command = QString('write.table(%s, file = "%s",' % (itemName, selectedFile))
             command.append(QString('append = FALSE, quote = TRUE, sep = ",", eol = "\\n", na = "NA"'))
             command.append(QString(', dec = ".", row.names = FALSE, col.names = TRUE, qmethod = "escape")'))
             self.sendCommands(command)
@@ -3042,11 +3029,9 @@ class RVariableWidget(QWidget):
             return False
         self.sendCommands(QString('load("%s")' % (selectedFile)))
       
-    def getVariableInfo(self, row):
-        item_name = self.variableTable.item(row, 0)
-        item_name = item_name.data(Qt.DisplayRole).toString()
-        item_type = self.variableTable.item(row, 1)
-        item_type = item_type.data(Qt.DisplayRole).toString()
+    def getVariableInfo(self, item):
+        item_name = item.text(0)
+        item_type = item.text(1)
         return (item_name, item_type)
       
     def sendCommands(self, commands):
@@ -3061,7 +3046,175 @@ class RVariableWidget(QWidget):
             MainWindow.Console.editor.currentPrompt)
             MainWindow.Console.editor.insertFromMimeData(mime)
             MainWindow.Console.editor.entered()
-            
+
+    def updateVariables(self):
+        self.variableTable.clear()
+        data = self.browseEnv()
+        numofroots = list(data[0])[0]
+        rootitems = list(data[1])
+        names = list(data[2])
+        types = list(data[3])
+        dims = list(data[4])
+        container = list(data[5])
+        parentid = list(data[6])
+        itemspercontainer = list(data[7])
+        ids = list(data[8])
+        print parentid
+        def which(L, value):
+            i = -1
+            tmp = []
+            try:
+                while 1:
+                    i = L.index(value, i+1)
+                    tmp.append(i)
+            except ValueError:
+                pass
+            return tmp
+
+        for i in range(numofroots):
+            iid = rootitems[i]-1
+            a = QTreeWidgetItem(self.variableTable)
+            a.setText(0, QString(names[iid]))
+            a.setText(1, QString(types[iid]))
+            a.setText(2, QString(dims[iid]))
+            if container[i]:
+                b = QTreeWidgetItem(a)
+                items = which(parentid, i+1)
+                for id in items:
+                    b.setText(0, QString(names[id]))
+                    b.setText(1, QString(types[id]))
+                    b.setText(2, QString(dims[id]))
+
+    def browseEnv(self):
+        parseEnv = robjects.r("""
+        function ()
+        {
+            excludepatt = "^last\.warning"
+            objlist <- ls(envir=.GlobalEnv)
+            if (length(iX <- grep(excludepatt, objlist)))
+                objlist <- objlist[-iX]
+            n <- length(objlist)
+            if (n == 0L) # do nothing!
+                return(invisible())
+
+            str1 <- function(obj) {
+                md <- mode(obj)
+                lg <- length(obj)
+                objdim <- dim(obj)
+                if (length(objdim) == 0L)
+                    dim.field <- paste("length:", lg)
+                else {
+                    dim.field <- "dim:"
+                    for (i in seq_along(objdim)) dim.field <- paste(dim.field,
+                        objdim[i])
+                    if (is.matrix(obj))
+                        md <- "matrix"
+                }
+                obj.class <- oldClass(obj)
+                if (!is.null(obj.class)) {
+                    md <- obj.class[1L]
+                    if (inherits(obj, "factor"))
+                        dim.field <- paste("levels:", length(levels(obj)))
+                }
+                list(type = md, dim.field = dim.field)
+            }
+            N <- 0L
+            M <- n
+            IDS <- rep.int(NA, n)
+            NAMES <- rep.int(NA, n)
+            TYPES <- rep.int(NA, n)
+            DIMS <- rep.int(NA, n)
+            IsRoot <- rep.int(TRUE, n)
+            Container <- rep.int(FALSE, n)
+            ItemsPerContainer <- rep.int(0, n)
+            ParentID <- rep.int(-1, n)
+            for (objNam in objlist) {
+                N <- N + 1L
+                obj <- get(objNam, envir = .GlobalEnv)
+                sOb <- str1(obj)
+                IDS[N] <- N
+                NAMES[N] <- objNam
+                TYPES[N] <- sOb$type
+                DIMS[N] <- sOb$dim.field
+                if (is.recursive(obj) && !is.function(obj) && !is.environment(obj) &&
+                    (lg <- length(obj))) {
+                    Container[N] <- TRUE
+                    ItemsPerContainer[N] <- lg
+                    nm <- names(obj)
+                    if (is.null(nm))
+                        nm <- paste("[[", format(1L:lg), "]]", sep = "")
+                    for (i in 1L:lg) {
+                        M <- M + 1
+                        ParentID[M] <- N
+                        if (nm[i] == "")
+                        nm[i] <- paste("[[", i, "]]", sep = "")
+                        s.l <- str1(obj[[i]])
+                        IDS <- c(IDS, M)
+                        NAMES <- c(NAMES, nm[i])
+                        TYPES <- c(TYPES, s.l$type)
+                        DIMS <- c(DIMS, s.l$dim.field)
+                    }
+                }
+                else if (!is.null(class(obj))) {
+                    if (inherits(obj, "table")) {
+                        obj.nms <- attr(obj, "dimnames")
+                        lg <- length(obj.nms)
+                        if (length(names(obj.nms)) > 0)
+                        nm <- names(obj.nms)
+                        else nm <- rep.int("", lg)
+                        Container[N] <- TRUE
+                        ItemsPerContainer[N] <- lg
+                        for (i in 1L:lg) {
+                        M <- M + 1L
+                        ParentID[M] <- N
+                        if (nm[i] == "")
+                            nm[i] = paste("[[", i, "]]", sep = "")
+                        md.l <- mode(obj.nms[[i]])
+                        objdim.l <- dim(obj.nms[[i]])
+                        if (length(objdim.l) == 0L)
+                            dim.field.l <- paste("length:", length(obj.nms[[i]]))
+                        else {
+                            dim.field.l <- "dim:"
+                            for (j in seq_along(objdim.l)) dim.field.l <- paste(dim.field.l,
+                            objdim.l[i])
+                        }
+                        IDS <- c(IDS, M)
+                        NAMES <- c(NAMES, nm[i])
+                        TYPES <- c(TYPES, md.l)
+                        DIMS <- c(DIMS, dim.field.l)
+                        }
+                    }
+                    else if (inherits(obj, "mts")) {
+                        nm <- dimnames(obj)[[2L]]
+                        lg <- length(nm)
+                        Container[N] <- TRUE
+                        ItemsPerContainer[N] <- lg
+                        for (i in 1L:lg) {
+                        M <- M + 1L
+                        ParentID[M] <- N
+                        md.l <- mode(obj[[i]])
+                        dim.field.l <- paste("length:", dim(obj)[1L])
+                        md.l <- "ts"
+                        IDS <- c(IDS, M)
+                        NAMES <- c(NAMES, nm[i])
+                        TYPES <- c(TYPES, md.l)
+                        DIMS <- c(DIMS, dim.field.l)
+                        }
+                    }
+                }
+            }
+            Container <- c(Container, rep.int(FALSE, M - N))
+            IsRoot <- c(IsRoot, rep.int(FALSE, M - N))
+            ItemsPerContainer <- c(ItemsPerContainer, rep.int(0, M -N))
+            RootItems <- which(IsRoot)
+            NumOfRoots <- length(RootItems)
+            return (list(NumOfRoots, RootItems, NAMES,
+                        TYPES, DIMS, Container, ParentID,
+                        ItemsPerContainer, IDS))
+            # note that field names are: Object, Type, and Size
+        }""")
+        return parseEnv()
+
 class RGraphicsWidget(QWidget):
 
     def __init__(self, parent):
@@ -3181,7 +3334,7 @@ class RGraphicsWidget(QWidget):
 
     def addGraphic(self, graphic):
         self.graphics[graphic[0]] = graphic[1]
-        itemID = QTableWidgetItem(QString(str(graphic[0])))
+        itemID = QTableWidgetItem(QString(unicode(graphic[0])))
         itemID.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEnabled)
         itemDevice = QTableWidgetItem(QString(graphic[1]))
         itemDevice.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -3518,7 +3671,7 @@ class MainWindow(QMainWindow):
                 "Please ensure that your tools.xml file is correctly formatted.")
                 message.setInformativeText("Note: Analysis plugins will be disabled for "
                 "the current manageR session." )
-                message.setDetailedText(str(e))
+                message.setDetailedText(unicode(e))
                 message.exec_()
                 pluginsMenu.deleteLater()
         self.viewMenu = self.menuBar().addMenu("&View")
@@ -3721,8 +3874,8 @@ class MainWindow(QMainWindow):
         MainWindow.Widgets.add(graphicWidget)
         
         variableWidget = RVariableWidget(self, isStandalone)
-        variableWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"),
-        variableWidget.updateVariables)
+        #variableWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"),
+        #variableWidget.updateVariables)
         variableDockWidget = QDockWidget("Workspace Manager", self)          
         variableDockWidget.setObjectName("variableDockWidget")
         variableDockWidget.setAllowedAreas(Qt.RightDockWidgetArea|Qt.LeftDockWidgetArea)
@@ -3879,9 +4032,9 @@ class MainWindow(QMainWindow):
             layerCreator = QRasterLayerConverter(mlayer)
         MainWindow.Console.editor.commandOutput(rbuf)
         rLayer, layerName, message = layerCreator.start()
-        robjects.r.assign(str(layerName), rLayer)
-        if not str(layerName) in CAT:
-            CAT.append(str(layerName))
+        robjects.r.assign(unicode(layerName), rLayer)
+        if not unicode(layerName) in CAT:
+            CAT.append(unicode(layerName))
         #self.emit(SIGNAL("newObjectCreated(PyQt_PyObject)"), \
         #self.updateRObjects())
         MainWindow.Console.editor.commandOutput(message)
@@ -4446,7 +4599,7 @@ class QVectorLayerConverter(QObject):
         extra.append( "e.g. layer@proj4string <- CRS('+proj=longlat +datum=NAD83')" )
       else:
         if not sRs.geographicFlag():
-          projString = str( sRs.toProj4() )
+          projString = unicode( sRs.toProj4() )
         else:
           # TODO: Find better way to handle geographic coordinate systems
           # As far as I can tell, R does not like geographic coodinate systems input
@@ -4465,7 +4618,7 @@ class QVectorLayerConverter(QObject):
     order = []
     for (id, field) in fields.iteritems():
       # initial read in has correct ordering...
-      name = str(field.name())
+      name = unicode(field.name())
       df[ name ] = []
       types[ name ] = int( field.type() )
       order.append(name)
@@ -4517,8 +4670,8 @@ class QVectorLayerConverter(QObject):
     source = self.mlayer.publicSource()
     name = QFileInfo(name).baseName()
 
-    message.append(QString("Name: " + str(name) + "\nSource: " + str(source)))
-    message.append( QString("\nwith " + str(length) + " rows and " + str(width) + " columns"))
+    message.append(QString("Name: " + unicode(name) + "\nSource: " + unicode(source)))
+    message.append( QString("\nwith " + unicode(length) + " rows and " + unicode(width) + " columns"))
     message.append("\n" + extra)
     return (spds, name, message)
 
@@ -4551,12 +4704,12 @@ class QVectorLayerConverter(QObject):
         for line in lines:
           keeps.append(self.Line_(self.matrix_(self.unlist_([self.convertToXY(point) for point in line]), \
           nrow=len([self.convertToXY(point) for point in line]), byrow=True)))
-      return self.Lines_(keeps, str(fid))
+      return self.Lines_(keeps, unicode(fid))
     else:
       line = geom.asPolyline() #multi_geom is a line
       Line = self.Line_(self.matrix_(self.unlist_([self.convertToXY(point) for point in line]), \
       nrow = len([self.convertToXY(point) for point in line]), byrow=True))
-      return self.Lines_(Line, str(fid))
+      return self.Lines_(Line, unicode(fid))
 
   # Function to retrieve QgsGeometry (point) coordinates
   # and convert to a format that can be used by R
@@ -4647,9 +4800,9 @@ class QRasterLayerConverter(QObject):
           summary_ = robjects.r.get('summary', mode='function')
           slot_ = robjects.r.get('@', mode='function')
         message = QString("QGIS Raster Layer\n")
-        message.append("Name: " + str(self.mlayer.name())
-        + "\nSource: " + str(self.mlayer.source()) + "\n")
-        message.append(str(summary_(slot_(rlayer, 'grid'))))
+        message.append("Name: " + unicode(self.mlayer.name())
+        + "\nSource: " + unicode(self.mlayer.source()) + "\n")
+        message.append(unicode(summary_(slot_(rlayer, 'grid'))))
         return (rlayer, layer, message)
 
 class RVectorLayerWriter(QObject):
@@ -4843,9 +4996,9 @@ class RVectorLayerConverter(QObject):
             count = 0
             for field in temp:
                 if self.class_(field)[0] == "factor":
-                    out[provider.fieldNameIndex(str(names[count]))] = QVariant(self.as_character_(field)[0])
+                    out[provider.fieldNameIndex(unicode(names[count]))] = QVariant(self.as_character_(field)[0])
                 else:
-                    out[provider.fieldNameIndex(str(names[count]))] = QVariant(field[0])
+                    out[provider.fieldNameIndex(unicode(names[count]))] = QVariant(field[0])
                 count += 1
         return out
 
@@ -4986,11 +5139,11 @@ class GenericVerticalUI(object):
             widget.setFixedHeight(26)
         if not skip:
             hbox = QHBoxLayout()
-            name="widget"+str(self.widgetCounter)
+            name="widget"+unicode(self.widgetCounter)
             widget.setObjectName(name)
             widget.setMinimumWidth(250)
             self.widgets.append(widget)
-            name="label"+str(self.widgetCounter)
+            name="label"+unicode(self.widgetCounter)
             self.widgetCounter += 1
             label = QLabel(ParentClass)
             label.setObjectName(name)
@@ -5023,13 +5176,13 @@ class GenericVerticalUI(object):
                         if splayers[layer] in VECTORTYPES \
                         or splayers[layer] == "data.frame":
                             names =  robjects.r('names(%s)' % (layer))
-                            if not str(names) == 'NULL':
+                            if not unicode(names) == 'NULL':
                                 for item in list(names):
                                     if splayers[layer] == "data.frame":
                                         value = layer+"$"+item
                                     else:
                                         value = layer+"@data$"+item
-                                    if str(robjects.r('class(%s)' % (value))[0]) == sptype.strip() \
+                                    if unicode(robjects.r('class(%s)' % (value))[0]) == sptype.strip() \
                                     or sptype.strip() == "all":
                                         widget.addItem(value)
 
@@ -5075,9 +5228,9 @@ class GenericVerticalUI(object):
             self.ParentClass.parent().editor.cursor.insertText(
             "%shelp(%s)" % (
             self.ParentClass.parent().editor.currentPrompt,
-            str(topic)))
+            unicode(topic)))
             self.ParentClass.parent().editor.execute(
-            QString("help('%s')" % (str(topic))))
+            QString("help('%s')" % (unicode(topic))))
         else:
             HelpForm(self.ParentClass, self.helpString).show()
 
@@ -5175,13 +5328,13 @@ class PluginManager:
         command = self.command
         for i,item in enumerate(self.dlg.ui.widgets):
             if type(item)==type(QTextEdit()):
-                text=str(item.toPlainText())
+                text=unicode(item.toPlainText())
             elif type(item)==type(QLineEdit()):
-                text=str(item.text())
+                text=unicode(item.text())
             elif type(item)==type(QDoubleSpinBox()):
-                text=str(item.value())
+                text=unicode(item.value())
             elif type(item)==type(QComboBox()):
-                text=str(item.currentText())
+                text=unicode(item.currentText())
             elif isinstance(item, SpListWidget):
                 items=item.selectedItems()
                 text=QString()
@@ -5190,10 +5343,10 @@ class PluginManager:
                 text.remove(-1,1)
             else:
                 try:
-                    text=str(item.currentText())
+                    text=unicode(item.currentText())
                 except:
                     text="Error loading widget."
-            command = command.replace("|"+str(i+1)+"|",text)
+            command = command.replace("|"+unicode(i+1)+"|",text)
         self.runCommand(command)
         self.dlg.close()
 

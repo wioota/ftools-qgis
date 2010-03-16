@@ -71,6 +71,7 @@ except ImportError:
 try:
     import rpy2
     import rpy2.robjects as robjects
+    import rpy2.rlike.container as rlc
 #  import rpy2.rinterface as rinterface
 except ImportError:
     QMessageBox.warning(None , "manageR", "Unable to load manageR: Unable to load required package rpy2."
@@ -1721,8 +1722,8 @@ class RConsole(QTextEdit):
             self.execute(command)
             self.runningCommand.clear()
             self.switchPrompt(True)
-        #self.displayPrompt()
-        self.moveToEnd()
+            self.cursor.movePosition(QTextCursor.End,
+            QTextCursor.MoveAnchor)
         self.emit(SIGNAL("cursorPositionChanged()"))
 
     def showPrevious(self):
@@ -1800,7 +1801,7 @@ class RConsole(QTextEdit):
             menu.exec_(e.globalPos())
         else:
             QTextEdit.mousePressEvent(self, e)
-        
+
     def moveToEnd(self):
         cursor = self.textCursor()
         cursor.movePosition(QTextCursor.End, 
@@ -2152,7 +2153,7 @@ class RConsole(QTextEdit):
             #output = sys.stdout.get_and_clean_data()
             #if output:
                 #self.commandOutput(output.decode('utf8'))
-            self.commandComplete()
+        self.commandComplete()
         MainWindow.Console.statusBar().clearMessage()
 
     def helpTopic(self, text):
@@ -2591,31 +2592,30 @@ class RWDWidget(QWidget):
             MainWindow.Console.editor.currentPrompt)
             MainWindow.Console.editor.insertFromMimeData(mime)
             MainWindow.Console.editor.entered()
-            
-class RCommandList(QListWidget):
-    def __init__(self, parent):
-        QListWidget.__init__(self, parent)
-        
-        
-    def mousePressEvent(self, event):
-        item = self.itemAt(event.globalPos())
-        if not item and event.button() == Qt.LeftButton:
-            self.clearSelection()
-        QListWidget.mousePressEvent(self, event)
-        
-    def selectionChanged(self, sela, selb):
-        self.emit(SIGNAL("selectionChanged()"))
-        QListWidget.selectionChanged(self, sela, selb)
-            
+
 class RHistoryWidget(QWidget):
 
+    class ListWidget(QListWidget):
+        def __init__(self, parent):
+            QListWidget.__init__(self, parent)
+
+        def mousePressEvent(self, event):
+            item = self.itemAt(event.globalPos())
+            if not item and event.button() == Qt.LeftButton:
+                self.clearSelection()
+            QListWidget.mousePressEvent(self, event)
+
+        def selectionChanged(self, sela, selb):
+            self.emit(SIGNAL("selectionChanged()"))
+            QListWidget.selectionChanged(self, sela, selb)
+        
     def __init__(self, parent, console):
         QWidget.__init__(self, parent)
         # initialise standard settings
         self.setMinimumSize(30,30)
         self.parent = parent
         self.console = console
-        self.commandList = RCommandList(self)
+        self.commandList = self.ListWidget(self)
         self.commandList.setAlternatingRowColors(True)
         self.commandList.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.commandList.setSortingEnabled(False)
@@ -2662,9 +2662,9 @@ class RHistoryWidget(QWidget):
         self.runButton.setAutoRaise(True)
         
         self.clearButton = QToolButton(self)
-        self.clearAction = QAction("C&lear command list", self)
-        self.clearAction.setStatusTip("Clear command list")
-        self.clearAction.setToolTip("Clear command list")
+        self.clearAction = QAction("Clear &selected commands", self)
+        self.clearAction.setStatusTip("Clear the selected commands")
+        self.clearAction.setToolTip("Clear the selected commands")
         self.clearAction.setIcon(QIcon(":mActionFileClose.png"))
         self.clearAction.setEnabled(True)
         self.clearButton.setDefaultAction(self.clearAction)
@@ -2731,7 +2731,7 @@ class RHistoryWidget(QWidget):
         if len(commands) == 1:
             command = commands[0]
         self.insertCommand(command)
-        
+
     def run(self):
         commands = QString()
         selected = self.commandList.selectedItems()
@@ -2743,13 +2743,16 @@ class RHistoryWidget(QWidget):
                 commands.append(item.text()+"\n")
             count += 1
         self.runCommands(commands)
-        
+
     def selectAll(self):
         self.commandList.selectAll()    
-        
+
     def clear(self):
-        self.commandList.clear()
-        
+        for i in self.commandList.selectedItems():
+            row = self.commandList.row(i)
+            item = self.commandList.takeItem(row)
+            del item
+
     def updateCommands(self, commands):
         if commands:
             if not isinstance(commands, QStringList):
@@ -2776,6 +2779,20 @@ class RHistoryWidget(QWidget):
         self.runCommands(item.text())
             
 class RVariableWidget(QWidget):
+    
+    class TreeWidget(QTreeWidget):
+        def __init__(self, parent):
+            QTreeWidget.__init__(self, parent)
+
+        def mousePressEvent(self, event):
+            item = self.itemAt(event.globalPos())
+            if not item and event.button() == Qt.LeftButton:
+                self.clearSelection()
+            QTreeWidget.mousePressEvent(self, event)
+
+        def selectionChanged(self, sela, selb):
+            self.emit(SIGNAL("itemSelectionChanged()"))
+            QTreeWidget.selectionChanged(self, sela, selb)
 
     def __init__(self, parent, isStandalone):
         QWidget.__init__(self, parent)
@@ -2783,14 +2800,13 @@ class RVariableWidget(QWidget):
         self.setMinimumSize(30,30)
         self.parent = parent
         self.isStandalone = isStandalone
-        self.variableTable = QTreeWidget(self)
+        self.variableTable = self.TreeWidget(self)
         self.variableTable.setColumnCount(3)
         labels = QStringList()
         labels.append("Name")
         labels.append("Type")
         labels.append("Size")
         self.variableTable.setHeaderLabels(labels)
-        self.variableTable.header().setResizeMode(1, QHeaderView.Stretch)
         self.variableTable.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.variableTable.setSelectionMode(QAbstractItemView.SingleSelection)
 
@@ -2822,13 +2838,14 @@ class RVariableWidget(QWidget):
             self.canvasAction.setEnabled(False)
             self.canvas.setAutoRaise(True)
 
-        self.layer = QToolButton(self)
-        self.layer.setText("refresh")
-        self.layer.setToolTip("Refresh environment browser")
-        self.layer.setWhatsThis("Refresh environment browser")
-        self.layer.setIcon(QIcon(":mActionActionImport.png"))
-        self.layer.setEnabled(True)
-        self.layer.setAutoRaise(True)
+        self.refresh = QToolButton(self)
+        self.refreshAction = QAction("Re&fresh variables", self)
+        self.refreshAction.setToolTip("Refresh environment browser")
+        self.refreshAction.setWhatsThis("Refresh environment browser")
+        self.refreshAction.setIcon(QIcon(":mActionGraphicRefresh.png"))
+        self.refresh.setDefaultAction(self.refreshAction)
+        self.refreshAction.setEnabled(True)
+        self.refresh.setAutoRaise(True)
         
         self.save = QToolButton(self)
         self.saveAction = QAction("&Save variable", self)
@@ -2859,9 +2876,9 @@ class RVariableWidget(QWidget):
         
         grid = QGridLayout(self)
         horiz = QHBoxLayout()
+        horiz.addWidget(self.refresh)
         horiz.addWidget(self.rm)
         horiz.addWidget(self.export)
-        horiz.addWidget(self.layer)
         if not self.isStandalone:
             horiz.addWidget(self.canvas)
         horiz.addWidget(self.save)
@@ -2872,63 +2889,55 @@ class RVariableWidget(QWidget):
         grid.addWidget(self.variableTable, 1, 0, 1, 1)
         
         self.variables = dict()
-        #self.connect(self.rmAction, SIGNAL("triggered()"), self.removeVariable)
+        self.connect(self.rmAction, SIGNAL("triggered()"), self.removeVariable)
         self.connect(self.exportAction, SIGNAL("triggered()"), self.exportVariable)
-        #self.connect(self.saveAction, SIGNAL("triggered()"), self.saveVariable)
-        #if not self.isStandalone:
-            #self.connect(self.canvasAction, SIGNAL("triggered()"), self.exportToCanvas)
-        #self.connect(self.loadAction, SIGNAL("triggered()"), self.loadRVariable)
+        self.connect(self.saveAction, SIGNAL("triggered()"), self.saveVariable)
+        if not self.isStandalone:
+            self.connect(self.canvasAction, SIGNAL("triggered()"), self.exportToCanvas)
+        self.connect(self.loadAction, SIGNAL("triggered()"), self.loadRVariable)
         self.connect(self.methodAction, SIGNAL("triggered()"), self.printRMethods)
-        self.connect(self.layer, SIGNAL("clicked()"), self.updateVariables)
-        #self.connect(self.variableTable, \
-        #SIGNAL("itemSelectionChanged()"), self.selectionChanged)
-        
-    #def contextMenuEvent(self, event):
-        #menu = QMenu(self)
-        #menu.addAction(self.rmAction)
-        #menu.addSeparator()
-        #menu.addAction(self.exportAction)
-        #if not self.isStandalone:
-            #menu.addAction(self.canvasAction)
-        #menu.addAction(self.saveAction)
-        #menu.addAction(self.loadAction)
-        #menu.addAction(self.methodAction)
-        #menu.exec_(event.globalPos())
+        self.connect(self.refreshAction, SIGNAL("triggered()"), self.updateVariables)
+        self.connect(self.variableTable, SIGNAL("itemSelectionChanged()"), self.selectionChanged)
+        self.updateVariables()
 
-    #def addVariable(self, variable):
-        #self.variables[variable[0]] = variable[1]
-        #nameItem = QTableWidgetItem(QString(variable[0]))
-        #nameItem.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEnabled)
-        #typeItem = QTableWidgetItem(QString(variable[1]))
-        #typeItem.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        #typeItem.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEnabled)
-        #row = self.variableTable.rowCount()
-        #self.variableTable.insertRow(row)
-        #self.variableTable.setItem(row, 0, nameItem)
-        #self.variableTable.setItem(row, 1, typeItem)
-        #self.variableTable.resizeColumnsToContents
-      
-    #def selectionChanged(self):
-        #row = self.variableTable.currentRow()
-        #if row < 0 or row >= self.variableTable.rowCount() or \
-        #self.variableTable.rowCount() < 1:
-            #self.saveAction.setEnabled(False)
-            #self.rmAction.setEnabled(False)
-            #if not self.isStandalone:
-                #self.canvasAction.setEnabled(False)
-            #self.exportAction.setEnabled(False)
-        #else:
-            #itemName, itemType = self.getVariableInfo(row)
-            #self.saveAction.setEnabled(True)
-            #self.rmAction.setEnabled(True)
-            #self.exportAction.setEnabled(True)
-            #if not self.isStandalone:
-                #if itemType in VECTORTYPES:
-                    ##self.canvas.setEnabled(True)
-                    #self.canvasAction.setEnabled(True)
-                #else:
-                    ##self.canvas.setEnabled(False)
-                    #self.canvasAction.setEnabled(False)
+    def mousePressEvent(self, event):
+        print "to here"
+        item = self.variableTable.itemAt(event.globalPos())
+        if not item and event.button() == Qt.LeftButton:
+            self.variableTable.clearSelection()
+        QListWidget.mousePressEvent(self, event)
+
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        menu.addAction(self.refreshAction)
+        menu.addSeparator()
+        menu.addAction(self.exportAction)
+        if not self.isStandalone:
+            menu.addAction(self.canvasAction)
+        menu.addAction(self.saveAction)
+        menu.addAction(self.loadAction)
+        menu.addAction(self.methodAction)
+        menu.addAction(self.rmAction)
+        menu.exec_(event.globalPos())
+
+    def selectionChanged(self):
+        items = self.variableTable.selectedItems()
+        if len(items) < 1:
+            self.saveAction.setEnabled(False)
+            self.rmAction.setEnabled(False)
+            if not self.isStandalone:
+                self.canvasAction.setEnabled(False)
+            self.exportAction.setEnabled(False)
+        else:
+            itemName, itemType = self.getVariableInfo(items[0])
+            self.saveAction.setEnabled(True)
+            self.rmAction.setEnabled(True)
+            self.exportAction.setEnabled(True)
+            if not self.isStandalone:
+                if itemType in VECTORTYPES:
+                    self.canvasAction.setEnabled(True)
+                else:
+                    self.canvasAction.setEnabled(False)
 
     def printRMethods(self):
         items = self.variableTable.selectedItems()
@@ -2937,12 +2946,13 @@ class RVariableWidget(QWidget):
         itemName, itemType = self.getVariableInfo(items[0])
         self.sendCommands(QString('methods(class=%s)' % (itemType)))
 
-    #def removeVariable(self):
-        #row = self.variableTable.currentRow()
-        #if row < 0:
-            #return False
-        #itemName, itemType = self.getVariableInfo(row)
-        #self.sendCommands(QString('rm(%s)' % (itemName)))
+    def removeVariable(self):
+        items = self.variableTable.selectedItems()
+        if len(items) < 1:
+            return False
+        itemName, itemType = self.getVariableInfo(items[0])
+        self.sendCommands(QString('rm(%s)' % (itemName)))
+        self.updateVariables()
         
     def exportVariable(self):
         items = self.variableTable.selectedItems()
@@ -2980,10 +2990,16 @@ class RVariableWidget(QWidget):
             self.sendCommands(command)
     
     def saveVariable(self):
-        row = self.variableTable.currentRow()
-        if row < 0:
+        items = self.variableTable.selectedItems()
+        if len(items) < 1:
             return False
-        itemName, itemType = self.getVariableInfo(row)
+        parents = []
+        parent = items[0].parent()
+        while parent:
+            parents.append(parent.text(0))
+            item = parent
+            parent = item.parent()
+        itemName, itemType = self.getVariableInfo(item)
         fd = QFileDialog(self.parent, "Save data to file", "", \
         "R data file (*.Rda)")
         fd.setAcceptMode(QFileDialog.AcceptSave)
@@ -3003,10 +3019,16 @@ class RVariableWidget(QWidget):
         self.sendCommands(commands)
       
     def exportToCanvas(self):
-        row = self.variableTable.currentRow()
-        if row < 0:
+        items = self.variableTable.selectedItems()
+        if len(items) < 1:
             return False
-        itemName, itemType = self.getVariableInfo(row)
+        parents = []
+        parent = items[0].parent()
+        while parent:
+            parents.append(parent.text(0))
+            item = parent
+            parent = item.parent()
+        itemName, itemType = self.getVariableInfo(item)
         if itemType in VECTORTYPES:
             self.parent.exportRObjects(False, itemName, itemType, False)
         else:
@@ -3015,8 +3037,9 @@ class RVariableWidget(QWidget):
     def importFromCanvas(self):
         mlayer = self.parent.iface.mapCanvas().currentLayer()
         self.parent.importRObjects(mlayer = mlayer)
+        self.updateVariables()
         return True
-        
+
     def loadRVariable(self):
         fd = QFileDialog(self.parent, "Load R variable(s) from file", "",
         "R data (*.Rda);;All files (*.*)")
@@ -3028,7 +3051,8 @@ class RVariableWidget(QWidget):
         if selectedFile.length() == 0:
             return False
         self.sendCommands(QString('load("%s")' % (selectedFile)))
-      
+        self.updateVariables()
+
     def getVariableInfo(self, item):
         item_name = item.text(0)
         item_type = item.text(1)
@@ -3050,7 +3074,10 @@ class RVariableWidget(QWidget):
     def updateVariables(self):
         self.variableTable.clear()
         data = self.browseEnv()
-        numofroots = list(data[0])[0]
+        try:
+            numofroots = list(data[0])[0]
+        except:
+            return False
         rootitems = list(data[1])
         names = list(data[2])
         types = list(data[3])
@@ -3059,7 +3086,6 @@ class RVariableWidget(QWidget):
         parentid = list(data[6])
         itemspercontainer = list(data[7])
         ids = list(data[8])
-        print parentid
         def which(L, value):
             i = -1
             tmp = []
@@ -3078,9 +3104,9 @@ class RVariableWidget(QWidget):
             a.setText(1, QString(types[iid]))
             a.setText(2, QString(dims[iid]))
             if container[i]:
-                b = QTreeWidgetItem(a)
                 items = which(parentid, i+1)
                 for id in items:
+                    b = QTreeWidgetItem(a)
                     b.setText(0, QString(names[id]))
                     b.setText(1, QString(types[id]))
                     b.setText(2, QString(dims[id]))
@@ -3129,12 +3155,21 @@ class RVariableWidget(QWidget):
             ItemsPerContainer <- rep.int(0, n)
             ParentID <- rep.int(-1, n)
             for (objNam in objlist) {
+                Spatial = FALSE
                 N <- N + 1L
                 obj <- get(objNam, envir = .GlobalEnv)
+                if (!is.null(class(obj)) && inherits(obj, "Spatial")) {
+                    tmpClass <- oldClass(obj)[1L]
+                    obj <- obj@data
+                    Spatial = TRUE
+                }
                 sOb <- str1(obj)
                 IDS[N] <- N
                 NAMES[N] <- objNam
-                TYPES[N] <- sOb$type
+                if (Spatial)
+                    TYPES[N] <- tmpClass
+                else
+                    TYPES[N] <- sOb$type
                 DIMS[N] <- sOb$dim.field
                 if (is.recursive(obj) && !is.function(obj) && !is.environment(obj) &&
                     (lg <- length(obj))) {
@@ -3211,11 +3246,24 @@ class RVariableWidget(QWidget):
             return (list(NumOfRoots, RootItems, NAMES,
                         TYPES, DIMS, Container, ParentID,
                         ItemsPerContainer, IDS))
-            # note that field names are: Object, Type, and Size
         }""")
         return parseEnv()
 
 class RGraphicsWidget(QWidget):
+    
+    class TableWidget(QTableWidget):
+        def __init__(self, rows, cols, parent):
+            QTableWidget.__init__(self, rows, cols, parent)
+
+        def mousePressEvent(self, event):
+            item = self.itemAt(event.globalPos())
+            if not item and event.button() == Qt.LeftButton:
+                self.clearSelection()
+            QTableWidget.mousePressEvent(self, event)
+
+        def selectionChanged(self, sela, selb):
+            self.emit(SIGNAL("itemSelectionChanged()"))
+            QTableWidget.selectionChanged(self, sela, selb)
 
     def __init__(self, parent):
         QWidget.__init__(self, parent)
@@ -3223,7 +3271,7 @@ class RGraphicsWidget(QWidget):
         self.setMinimumSize(30, 30)
         self.parent = parent
         
-        self.graphicsTable = QTableWidget(0, 2, self)
+        self.graphicsTable = self.TableWidget(0, 2, self)
         labels = QStringList()
         labels.append("Item")
         labels.append("Device")
@@ -3306,8 +3354,7 @@ class RGraphicsWidget(QWidget):
         self.connect(self.newAction, SIGNAL("triggered()"), self.newGraphic)
         self.connect(self.refreshAction, SIGNAL("triggered()"), self.refreshGraphics)
         self.connect(self.activeAction, SIGNAL("triggered()"), self.activeGraphic)
-        self.connect(self.graphicsTable, \
-        SIGNAL("itemSelectionChanged()"), self.selectionChanged)
+        self.connect(self.graphicsTable, SIGNAL("itemSelectionChanged()"), self.selectionChanged)
         
     def contextMenuEvent(self, event):
         menu = QMenu(self)
@@ -3806,7 +3853,7 @@ class MainWindow(QMainWindow):
             load_text = QString("")
             load_check = False
             if workspace.exists():
-                load_check = self.loadRWorkspace(workspace.absoluteFilePath())
+                load_check = self.loadRWorkspace(workspace.absoluteFilePath(), False)
                 if load_check:
                     load_text = QString("[Previously saved workspace ")
                 else:
@@ -3950,7 +3997,21 @@ class MainWindow(QMainWindow):
         else:
             self.finder.hideReplace()
 
-    def loadRWorkspace(self, workspace=None):
+    def sendCommands(self, commands):
+        commands = QString(commands)
+        if not commands.isEmpty():
+            mime = QMimeData()
+            mime.setText(commands)
+            self.editor.moveToEnd()
+            self.editor.cursor.movePosition(
+            QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+            self.editor.cursor.removeSelectedText()
+            self.editor.cursor.insertText(
+            self.editor.currentPrompt)
+            self.editor.insertFromMimeData(mime)
+            self.editor.entered()
+
+    def loadRWorkspace(self, workspace=None, paste=True):
         if workspace is None:
             fd = QFileDialog(self, "Open R workspace", 
             robjects.r['getwd']()[0],
@@ -3965,13 +4026,16 @@ class MainWindow(QMainWindow):
                 return False
         try:
             if not workspace.isEmpty():
-                robjects.r['load'](unicode(workspace))
+                if paste:
+                    self.sendCommands("load('%s')" % workspace)
+                else:
+                    robjects.r['load'](unicode(workspace))
                 self.updateWidgets()
         except Exception, e: 
             return False
         return True
         
-    def saveRWorkspace(self, workspace=None):
+    def saveRWorkspace(self, workspace=None, paste=True):
         if workspace is None:
             fd = QFileDialog(self, "Save R workspace", 
             robjects.r['getwd']()[0],
@@ -3986,8 +4050,10 @@ class MainWindow(QMainWindow):
                 return False
         try:
             if not QString(workspace).isEmpty():
-                print "to here"
-                robjects.r['save.image'](unicode(workspace))
+                if paste:
+                    self.sendCommands("save.image('%s')" % unicode(workspace))
+                else:
+                    robjects.r['save.image'](unicode(workspace))
         except Exception, e: 
             return False
         return True
@@ -4643,19 +4709,20 @@ class QVectorLayerConverter(QObject):
         if not self.data_only:
           if not self.getNextGeometry( Coords, feat):
             raise Exception("Error: Unable to convert layer geometry")
-    try:
-      data_frame = rlike.container.ArgsDict()
-    except:
-      data_frame = rlike.container.OrdDict()
+    tmp = []
     for key in order:
       if types[key] == 10:
-        data_frame[key] = self.as_character_(robjects.StrVector(df[key]))
+        tmp.append((str(key), self.as_character_(robjects.StrVector(df[key]))))
       else:
-        data_frame[key] = robjects.FloatVector(df[key])
+        tmp.append((str(key), robjects.FloatVector(df[key])))
+    try:
+        data_frame = rlc.OrdDict(tmp)
+    except:
+        data_frame = rlike.container.OrdDict(tmp)
     #fid[ "fid" ] = robjects.IntVector( fid["fid"] )
     #data_frame = robjects.r(''' function( d ) data.frame( d ) ''')
     #data = data_frame( df )
-    data_frame = self.data_frame_.rcall(data_frame.items(), robjects.rinterface.globalenv)
+    data_frame = robjects.DataFrame(data_frame)
     #data = data_frame( df )
     #data['row.names'] = fid[ "fid" ]
     if not self.data_only:

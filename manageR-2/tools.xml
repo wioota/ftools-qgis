@@ -9,6 +9,50 @@ and run the commands in the console.&#xA;The tool does not require any specific 
 default command (&lt;tt&gt;ls()&lt;/tt&gt;), displays all variables and functions in the current 
 R environment." notnull="true"/>
 </RTool>
+<RTool name="Load OGR data" category= "Spatial operations" query=
+"|2| &lt;- local({&#xA;
+  require(rgdal)&#xA;
+  readOGR('|1|', '|2|', verbose = TRUE, p4s=NULL, drop_unsupported_fields=FALSE,&#xA;
+      input_field_name_encoding=NULL, pointDropZ=FALSE, dropNULLGeometries=TRUE)&#xA;
+})&#xA;">
+<Parameter label="Data source name:" type="lineEdit" default="/path/to/layer.shp" notnull="true"/>
+<Parameter label="Layer name:" type="lineEdit" default="layer" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:readOGR" notnull="true"/>
+</RTool>
+<RTool name="Write OGR data" category= "Spatial operations" query=
+"local({&#xA;
+  require(rgdal)&#xA;
+  writeOGR(|1|, '|2|', |3|, |4|, dataset_options=NULL, layer_options=NULL, verbose=TRUE)&#xA;
+})&#xA;">
+<Parameter label="Input layer:" type="spComboBox" default=
+"SpatialPointsDataFrame;SpatialLinesDataFrame;SpatialPolygonsDataFrame" notnull="true"/>
+<Parameter label="Output path:" type="lineEdit" default="/output/path/layer.shp" notnull="true"/>
+<Parameter label="Output layer name:" type="lineEdit" default="layer" notnull="true"/>
+<Parameter label="Driver name:" type="comboBox" default=
+"ESRI Shapefile;GML;KML;MapInfo File;CSV;PostgreSQL;SQLite;ODBC;MySQL;GPX;GMT;GeoJSON" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:writeOGR" notnull="true"/>
+</RTool>
+<RTool name="Load GDAL data" category= "Spatial operations" query=
+"|2| &lt;- local({&#xA;
+  require(rgdal)&#xA;
+  readGDAL('|1|')&#xA;
+})&#xA;">
+<Parameter label="Data source name:" type="lineEdit" default="/path/to/grid.tiff" notnull="true"/>
+<Parameter label="Layer name:" type="lineEdit" default="layer" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:readGDAL" notnull="true"/>
+</RTool>
+<RTool name="Write GDAL data" category= "Spatial operations" query=
+"local({&#xA;
+  require(rgdal)&#xA;
+  writeGDAL(|1|, '|2|', drivername='|3|', type='Float32', mvFlag=|4|, copy_drivername='|3|')&#xA;
+})&#xA;">
+<Parameter label="Input layer:" type="spComboBox" default="SpatialGridDataFrame;SpatialPixelDataFrame" notnull="true"/>
+<Parameter label="Output path:" type="lineEdit" default="/path/to/grid.tiff" notnull="true"/>
+<Parameter label="Driver name:" type="comboBox" default=
+"GTiff;VRT;PNG;JPEG;EHdr;ENVI" notnull="true"/>
+<Parameter label="Missing value flag:" type="lineEdit" default="NA" notnull="true"/>
+<Parameter label="help" type="helpString" default="topic:writeGDAL" notnull="true"/>
+</RTool>
 <RTool name="Voronoi polygons" category= "Spatial operations" query=
 "|2| &lt;- local({&#xA;
   require(deldir)&#xA;
@@ -63,7 +107,7 @@ function in the console." notnull="true"/>
 plot(|1|, type='|2|', main='|3|', sub='|4|', xlab='|5|', 
 ylab='|6|', bty='|7|', lab=c(|8|,|9|,7), las=|10|)&#xA;
 })">
-<Parameter label="X values:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="X values:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Plot type:" type="comboBox" default=
 "points;lines;both;overplotted;histogram;stair steps;no plotting" notnull="true"/>
 <Parameter label="Main title:" type="lineEdit" default="Scatterplot" notnull="false"/>
@@ -86,8 +130,8 @@ tmp.fit &lt;- lm(|2| ~ |1|)&#xA;
 abline(tmp.fit, lty='|13|')&#xA;
 }&#xA;
 })">
-<Parameter label="X values:" type="spComboBox" default="numeric" notnull="true"/>
-<Parameter label="Y values:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="X values:" type="spComboBox" default="numeric;integer" notnull="true"/>
+<Parameter label="Y values:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Main title:" type="lineEdit" default="Scatterplot" notnull="false"/>
 <Parameter label="Sub title:" type="lineEdit" default="" notnull="false"/>
 <Parameter label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
@@ -109,7 +153,7 @@ hist(|1|, breaks='|2|', main='|4|', sub='|5|', xlab='|6|', bty='|7|',
 freq=ifelse('|3|'=='Frequency',TRUE,FALSE), |10|)&#xA;
 if (|8|) lines(density(|1|), lty='|9|')&#xA;
 })">
-<Parameter label="Input values:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Input values:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Break calculation:" type="comboBox" default=
 "Sturges;Scott;Freedman-Diaconis" notnull="true"/>
 <Parameter label="Plot type:" type="comboBox" default="Frequency;Density" notnull="true"/>
@@ -129,7 +173,7 @@ if (|8|) lines(density(|1|), lty='|9|')&#xA;
 boxplot(|1|, varwidth=|2|, notch=|3|, outline=|4|, horizontal=|5|, 
 main='|6|', sub='|7|', xlab='|8|', ylab='|9|')&#xA;
 })">
-<Parameter label="Input data:" type="spComboBox" default="numeric;data.frame" notnull="true"/>
+<Parameter label="Input data:" type="spComboBox" default="numeric;data.frame;integer" notnull="true"/>
 <Parameter label="Use variable width boxes:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
 <Parameter label="Add box notches:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
 <Parameter label="Show outliers:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
@@ -144,7 +188,7 @@ main='|6|', sub='|7|', xlab='|8|', ylab='|9|')&#xA;
 "local({&#xA;
 pie(|1|, clockwise=|2|, main='|3|', sub='|4|', |5| )&#xA;
 })">
-<Parameter label="Input data:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Input data:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Clockwise:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
 <Parameter label="Main title:" type="lineEdit" default="Pie-chart" notnull="false"/>
 <Parameter label="Sub title:" type="lineEdit" default="" notnull="false"/>
@@ -155,7 +199,7 @@ pie(|1|, clockwise=|2|, main='|3|', sub='|4|', |5| )&#xA;
 local({&#xA;
 barplot(|1|, horiz=|2|, main='|3|', sub='|4|', xlab='|5|', ylab='|6|', |7|)&#xA;
 })">
-<Parameter label="Input data:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Input data:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Horizontal:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
 <Parameter label="Main title:" type="lineEdit" default="Bar-graph" notnull="false"/>
 <Parameter label="Sub title:" type="lineEdit" default="" notnull="false"/>
@@ -170,7 +214,7 @@ plot(density(|1|, bw='|2|', adjust=|3|, kern='|4|', n=|5|, na.rm=|6|),
 main='|7|', sub='|8|', xlab='|9|', ylab='|10|', |11|)&#xA;
 if (|12|) rug(|1|, |13|, |14|, side=|15|)
 })">
-<Parameter label="Input data:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Input data:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Bandwidth:" type="comboBox" default="nrd0;nrd;ucv;bcv;SJ-ste;SJ-dpi" notnull="true"/>
 <Parameter label="Bandwidth adjustment:" type="doubleSpinBox" default="1" notnull="true"/>
 <Parameter label="Smoothing kernel:" type="comboBox" default=
@@ -225,7 +269,7 @@ Out &lt;- rbind(Out, Res)&#xA;
 row.names(Out) &lt;- as.list(keep)&#xA;
 Out&#xA;
 })">
-<Parameter label="Input data:" type="spComboBox" default="numeric;data.frame" notnull="true"/>
+<Parameter label="Input data:" type="spComboBox" default="numeric;data.frame;integer" notnull="true"/>
 <Parameter label="help" type="helpString" default="
 &lt;h4&gt;Descriptive statistics help&lt;/h4&gt;
 Produce table of descriptive statistics including median, mean, variance, standard deviation, 
@@ -248,7 +292,7 @@ summary(|1|)
 tmp &lt;- data.frame(|1|)&#xA;
 cor(tmp, use='|2|', method='|3|')&#xA;
 })">
-<Parameter label="Input data:" type="spListWidget" default="numeric" notnull=","/>
+<Parameter label="Input data:" type="spListWidget" default="numeric;integer" notnull=","/>
 <Parameter label="Use (with NAs):" type="comboBox" default=
 "everything;all.obs;complete.obs;na.or.complete;pairwise.complete.obs"
 notnull="true"/>
@@ -260,8 +304,8 @@ notnull="true"/>
 if (|3|) summary.lm(lm(|1| ~ |2|))&#xA;
 else summary.lm(lm(|1| ~ 0 + |2|))&#xA;
 })">
-<Parameter label="Dependant variable:" type="spComboBox" default="numeric" notnull="true"/>
-<Parameter label="Independent variables:" type="spListWidget" default="numeric" notnull="+"/>
+<Parameter label="Dependant variable:" type="spComboBox" default="numeric;integer" notnull="true"/>
+<Parameter label="Independent variables:" type="spListWidget" default="numeric;integer" notnull="+"/>
 <Parameter label="Include intercept:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
 <Parameter label="help" type="helpString" default="topic:lm" notnull="true"/>
 </RTool>
@@ -314,7 +358,7 @@ moran.plot(|1|, |2|, zero.policy=FALSE, spChk=FALSE, quiet=ifelse(|3|,FALSE,TRUE
 main='|4|', sub='|5|', xlab='|6|', ylab=paste('Spatially lagged','|6|'), 
 bty='|7|', labels=|3|)&#xA;
 })">
-<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
 <Parameter label="Display influential variables:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
 <Parameter label="Main title:" type="lineEdit" default="Moran scatterplot" notnull="false"/>
@@ -330,7 +374,7 @@ local({&#xA;
 moran.test(|1|, |2|, randomisation=ifelse('|3|'=='normality',FALSE,TRUE), alternative='|4|', rank=|5|)
 &#xA;
 })">
-<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
 <Parameter label="Variance assumption:" type="comboBox" default="randomisation;normality" notnull="true"/>
 <Parameter label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
@@ -342,7 +386,7 @@ moran.test(|1|, |2|, randomisation=ifelse('|3|'=='normality',FALSE,TRUE), altern
 |6| &lt;- moran.mc(|1|, |2|, nsim=|3|, alternative='|4|')&#xA;
 if (|5|) plot(|6|)&#xA;
 if (|7|) |6|">
-<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
 <Parameter label="Number of simulations:" type="doubleSpinBox" default="99" notnull="true"/>
 <Parameter label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
@@ -357,7 +401,7 @@ local({&#xA;
 geary.test(|1|, |2|, randomisation=ifelse('|3|'=='normality',FALSE,TRUE), alternative='|4|')
 &#xA;
 })">
-<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
 <Parameter label="Variance assumption:" type="comboBox" default="randomisation;normality" notnull="true"/>
 <Parameter label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
@@ -368,7 +412,7 @@ geary.test(|1|, |2|, randomisation=ifelse('|3|'=='normality',FALSE,TRUE), altern
 |6| &lt;- geary.mc(|1|, |2|, nsim=|3|, alternative='|4|')&#xA;
 if (|5|) plot(|6|)&#xA;
 if (|7|) |6|">
-<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
 <Parameter label="Number of simulations:" type="doubleSpinBox" default="99" notnull="true"/>
 <Parameter label="Alternative hypothesis:" type="comboBox" default="less;greater" notnull="true"/>
@@ -386,7 +430,7 @@ else weights &lt;- weights&#xA;
 localG(|1|, weights)&#xA;
 })&#xA;
 if (|5|) |4|">
-<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
 <Parameter label="Gi* Statistic:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
 <Parameter label="Output name:" type="lineEdit" default="local.Gi" notnull="true"/>
@@ -399,7 +443,7 @@ if (|5|) |4|">
 localmoran(|1|, |2|, alternative='|3|', p.adjust.method='|4|')&#xA;
 })&#xA;
 if (|6|) |5|">
-<Parameter label="Input layer:" type="spComboBox" default="numeric" notnull="true"/>
+<Parameter label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
 <Parameter label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
 <Parameter label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
 <Parameter label="P-value adjustment:" type="comboBox" default="none;bonferroni;holm;hochberg;hommel;fdr" notnull="true"/>

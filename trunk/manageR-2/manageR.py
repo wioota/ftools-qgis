@@ -261,7 +261,7 @@ class OutputCatcher():
     
   def write(self, stuff):
     self.data += stuff
-    
+
   def get_and_clean_data(self):
     tmp = self.data
     self.data = ''
@@ -270,7 +270,7 @@ class OutputCatcher():
   def flush(self):
     pass
 
-#sys.stdout = OutputCatcher()
+sys.stdout = OutputCatcher()
 
 class HelpDialog(QDialog):
 
@@ -674,6 +674,7 @@ class LibrarySplitter(QSplitter):
         self.table.setShowGrid(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.table.setAlternatingRowColors(True)
         self.viewer = HtmlViewer(self, host, port, home, paths)
         self.update_packages()
         self.connect(self.table, SIGNAL("itemChanged(QTableWidgetItem*)"), self.load_package)
@@ -772,17 +773,12 @@ class HtmlViewer(QWidget):
             self.setSource(home)
 
         def setSource(self, url):
-            print "#########################################"
-            print url
-            url = self.source().resolved(QUrl(url))
-            print url
-            print "#########################################"
-            print self.historyUrl(-1)
+            url = self.source().resolved(url)
             QTextBrowser.setSource(self, url)
 
         def loadResource(self, type, name):
             ret = QVariant()
-            print name
+            name.setFragment(QString())
             if type == QTextDocument.HtmlResource:
                 loop = QEventLoop()
                 loop.connect(self.http, SIGNAL(
@@ -820,14 +816,14 @@ class HtmlViewer(QWidget):
         homeAction.setEnabled(True)
         homeButton.setAutoRaise(True)
 
-        backButton = QToolButton(self)
-        backAction = QAction("&Back", self)
-        backAction.setToolTip("Move to previous page")
-        backAction.setWhatsThis("Move to previous page")
-        backAction.setIcon(QIcon(":mActionBack.png"))
-        backButton.setDefaultAction(backAction)
-        backAction.setEnabled(True)
-        backButton.setAutoRaise(True)
+        backwardButton = QToolButton(self)
+        backwardAction = QAction("&Back", self)
+        backwardAction.setToolTip("Move to previous page")
+        backwardAction.setWhatsThis("Move to previous page")
+        backwardAction.setIcon(QIcon(":mActionBack.png"))
+        backwardButton.setDefaultAction(backwardAction)
+        backwardAction.setEnabled(False)
+        backwardButton.setAutoRaise(True)
 
         forwardButton = QToolButton(self)
         forwardAction = QAction("&Forward", self)
@@ -835,20 +831,22 @@ class HtmlViewer(QWidget):
         forwardAction.setWhatsThis("Move to next page")
         forwardAction.setIcon(QIcon(":mActionForward.png"))
         forwardButton.setDefaultAction(forwardAction)
-        forwardAction.setEnabled(True)
+        forwardAction.setEnabled(False)
         forwardButton.setAutoRaise(True)
 
         vert = QVBoxLayout(self)
         horiz = QHBoxLayout()
         horiz.addStretch()
-        horiz.addWidget(backButton)
+        horiz.addWidget(backwardButton)
         horiz.addWidget(homeButton)
         horiz.addWidget(forwardButton)
         horiz.addStretch()
         vert.addLayout(horiz)
         vert.addWidget(self.viewer)
+        self.connect(self.viewer, SIGNAL("forwardAvailable(bool)"), forwardAction.setEnabled)
+        self.connect(self.viewer, SIGNAL("backwardAvailable(bool)"), backwardAction.setEnabled)
         self.connect(homeAction, SIGNAL("triggered()"), self.home)
-        self.connect(backAction, SIGNAL("triggered()"), self.backward)
+        self.connect(backwardAction, SIGNAL("triggered()"), self.backward)
         self.connect(forwardAction, SIGNAL("triggered()"), self.forward)
 
     def home(self):
@@ -2066,9 +2064,9 @@ class RConsole(QTextEdit):
                                 result = try_(withVisible_(ei), silent=True)
                             except robjects.rinterface.RRuntimeError, rre:
                                 #self.commandError(str(rre))
-                                #output = sys.stdout.get_and_clean_data()
-                                #if output:
-                                    #self.commandError(output.decode('utf8'))
+                                output = sys.stdout.get_and_clean_data()
+                                if output:
+                                    self.commandError(output.decode('utf8'))
                                 self.commandComplete()
                                 return
                             try: # this was added to allow new rpy2 functionality
@@ -2099,8 +2097,10 @@ class RConsole(QTextEdit):
                                         if out_string.trimmed() == "R History":
                                             out_string = self.history.join("\n")
                                         # woraround to remove non-ascii text and formatting
-                                        out_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
-                                        self.helpTopic(out_string)
+                                            out_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
+                                            self.helpTopic(out_string)
+                                        else:
+                                            self.commandOutput(out_string)
                         if not visible:
                             try:
                                 regexp = QRegExp(r"library\(([\w\d]*)\)")
@@ -2114,9 +2114,9 @@ class RConsole(QTextEdit):
                     except robjects.rinterface.RRuntimeError, rre:
                         # this fixes error output to look more like R's output
                         #self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
-                        #output = sys.stdout.get_and_clean_data()
-                        #if output:
-                            #self.commandError(output.decode('utf8'))
+                        output = sys.stdout.get_and_clean_data()
+                        if output:
+                            self.commandError(output.decode('utf8'))
                         self.commandComplete()
                         return
                     if platform.system() == "Windows": #start changing the get functions below...
@@ -2145,14 +2145,14 @@ class RConsole(QTextEdit):
                           self.commandOutput(output_text)
             except Exception, err:
                 #self.commandError(str(err))
-                #output = sys.stdout.get_and_clean_data()
-                #if output:
-                    #self.commandOutput(output.decode('utf8'))
+                output = sys.stdout.get_and_clean_data()
+                if output:
+                    self.commandOutput(output.decode('utf8'))
                 self.commandComplete()
                 return
-            #output = sys.stdout.get_and_clean_data()
-            #if output:
-                #self.commandOutput(output.decode('utf8'))
+            output = sys.stdout.get_and_clean_data()
+            if output:
+                self.commandOutput(output.decode('utf8'))
         self.commandComplete()
         MainWindow.Console.statusBar().clearMessage()
 
@@ -2802,6 +2802,7 @@ class RVariableWidget(QWidget):
         self.isStandalone = isStandalone
         self.variableTable = self.TreeWidget(self)
         self.variableTable.setColumnCount(3)
+        self.variableTable.setAlternatingRowColors(True)
         labels = QStringList()
         labels.append("Name")
         labels.append("Type")
@@ -2825,7 +2826,7 @@ class RVariableWidget(QWidget):
         self.exportAction.setWhatsThis("Export data to file")
         self.exportAction.setIcon(QIcon(":mActionActionFile.png"))
         self.export.setDefaultAction(self.exportAction)
-        self.exportAction.setEnabled(True)
+        self.exportAction.setEnabled(False)
         self.export.setAutoRaise(True)
         
         if not self.isStandalone:
@@ -2871,7 +2872,7 @@ class RVariableWidget(QWidget):
         self.methodAction.setWhatsThis("Print available methods for object class")
         self.methodAction.setIcon(QIcon(":mActionQuestion.png"))
         self.method.setDefaultAction(self.methodAction)
-        self.methodAction.setEnabled(True)
+        self.methodAction.setEnabled(False)
         self.method.setAutoRaise(True)
         
         grid = QGridLayout(self)
@@ -2928,11 +2929,13 @@ class RVariableWidget(QWidget):
             if not self.isStandalone:
                 self.canvasAction.setEnabled(False)
             self.exportAction.setEnabled(False)
+            self.methodAction.setEnabled(False)
         else:
             itemName, itemType = self.getVariableInfo(items[0])
             self.saveAction.setEnabled(True)
             self.rmAction.setEnabled(True)
             self.exportAction.setEnabled(True)
+            self.methodAction.setEnabled(True)
             if not self.isStandalone:
                 if itemType in VECTORTYPES:
                     self.canvasAction.setEnabled(True)
@@ -3272,6 +3275,7 @@ class RGraphicsWidget(QWidget):
         self.parent = parent
         
         self.graphicsTable = self.TableWidget(0, 2, self)
+        self.graphicsTable.setAlternatingRowColors(True)
         labels = QStringList()
         labels.append("Item")
         labels.append("Device")
@@ -3810,7 +3814,6 @@ class MainWindow(QMainWindow):
                 if int(isConsole) + len(MainWindow.Instances) <= 2:
                     self.move(Config["windowx"], Config["windowy"])
 
-        self.restoreState(Config["toolbars"])
         self.filename = QString("")
         if isConsole:
             self.setWindowTitle("manageR")
@@ -3889,12 +3892,13 @@ class MainWindow(QMainWindow):
                 for library in robjects.r('.packages()'):
                     addLibraryCommands(library)
             self.createConsoleWidgets(isStandalone)
+            self.restoreState(Config["toolbars"])
             splash.showMessage("Attempting to start/build R html help", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             QApplication.processEvents()
             robjects.r['help.start'](update = True,
             browser=robjects.r('function(url) return(url)'))
-            #sys.stdout.get_and_clean_data()
+            sys.stdout.get_and_clean_data()
             splash.showMessage("manageR ready!", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             splash.finish(self)
@@ -3919,7 +3923,7 @@ class MainWindow(QMainWindow):
         graphicDockWidget.setWidget(graphicWidget)
         self.addDockWidget(Qt.RightDockWidgetArea, graphicDockWidget)
         MainWindow.Widgets.add(graphicWidget)
-        
+
         variableWidget = RVariableWidget(self, isStandalone)
         #variableWidget.connect(self, SIGNAL("updateDisplays(PyQt_PyObject)"),
         #variableWidget.updateVariables)
@@ -3949,8 +3953,8 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.TopDockWidgetArea, cwdDockWidget)
         MainWindow.Widgets.add(cwdWidget)
         
-        self.tabifyDockWidget(variableDockWidget, graphicDockWidget)
         self.tabifyDockWidget(graphicDockWidget, historyDockWidget)
+        self.tabifyDockWidget(historyDockWidget, variableDockWidget)
 
         if Config["enablehighlighting"]:
             palette = QPalette(QColor(Config["backgroundcolor"]))
@@ -3970,7 +3974,7 @@ class MainWindow(QMainWindow):
         self.updateWidgets()
             
     def updateWidgets(self):
-        self.emit(SIGNAL("updateDisplays(PyQt_PyObject)"),currentRObjects())
+        self.emit(SIGNAL("updateDisplays(PyQt_PyObject)"), currentRObjects())
 
     def timerEvent(self, e):
         try:
@@ -4562,7 +4566,7 @@ class MainWindow(QMainWindow):
         aboutLabel.setOpenExternalLinks(True)
         aboutLabel.setHtml("""
 <h3>Interface to the R statistical programming environment</h3>
-Copyright &copy; 2009 Carson J. Q. Farmer
+Copyright &copy; 2009-2010 Carson J. Q. Farmer
 <br/>Carson.Farmer@gmail.com
 <br/><a href='http://www.ftools.ca/manageR'>http://www.ftools.ca/manageR</a>
 <br/>manageR adds comprehensive statistical capabilities to Quantum 

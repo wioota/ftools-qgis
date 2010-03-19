@@ -113,15 +113,18 @@ Config = {}
 CAT = QStringList() # Completions And Tooltips
 Libraries = []
 
-def welcomeString(version):
-    string = """Welcome to manageR %s
-QGIS interface to the R statistical analysis program
-Copyright (C) 2009-2010  Carson J. Q. Farmer 
-Licensed under the terms of GNU GPL 2\nmanageR is free software; 
-you can redistribute it and/or modify it under the terms of 
-the GNU General Public License as published by the Free Software Foundation; 
-either version 2 of the License, or (at your option) any later version.
-Currently running %s""" % (version,robjects.r.version[12][0])
+def welcomeString(version, isStandalone):
+    string = QString("Welcome to manageR %s\n" % version)
+    if not isStandalone:
+        string.append("QGIS interface to the R statistical analysis program\n")
+    string.append("Copyright (C) 2009-2010  Carson J. Q. Farmer\n")
+    string.append("Licensed under the terms of GNU GPL 2\n")
+    string.append("manageR is free software;")
+    string.append("you can redistribute it and/or modify it under the terms")
+    string.append("of the GNU General Public License as published by the Free")
+    string.append("Software Foundation; either version 2 of the License, or")
+    string.append("(at your option) any later version.")
+    string.append("Currently running %s\n" % robjects.r.version[12][0])
     return string
 
 CURRENTDIR = unicode(os.path.abspath( os.path.dirname(__file__)))
@@ -151,6 +154,8 @@ def loadConfig():
                             .availableGeometry().width() / 2)).toInt()[0]
     Config["remembergeometry"] = settings.value("manageR/remembergeometry",
             QVariant(True)).toBool()
+    Config["useraster"] = settings.value("manageR/useraster",
+            QVariant(False)).toBool()
     setDefaultString("newfile", "")
     setDefaultString("consolestartup", "")
     Config["backupsuffix"] = settings.value("manageR/backupsuffix",
@@ -265,6 +270,7 @@ class OutputCatcher():
   def get_and_clean_data(self):
     tmp = self.data
     self.data = ''
+    original.write(tmp)
     return tmp
     
   def flush(self):
@@ -679,6 +685,7 @@ class LibrarySplitter(QSplitter):
         self.update_packages()
         self.connect(self.table, SIGNAL("itemChanged(QTableWidgetItem*)"), self.load_package)
         self.connect(self.table, SIGNAL("itemDoubleClicked(QTableWidgetItem*)"), self.show_package)
+        sys.stdout.get_and_clean_data()
 
     def show_package(self, item):
         row = item.row()
@@ -1518,6 +1525,26 @@ class REditor(QFrame):
         self.edit.moveCursor(operation, mode)
 
 class RConsole(QTextEdit):
+
+    class textDialog(QDialog):
+    # options(htmlhelp=FALSE) this should probably be added somewhere to make sure the help is always the R help...
+        def __init__(self, parent, text):
+            QDialog.__init__ (self, parent)
+            #initialise the display text edit
+            display = QTextBrowser(self)
+            display.setReadOnly(True)
+            #set the font style of the help display
+            font = QFont(Config["fontfamily"], Config["fontsize"])
+            font.setFixedPitch(True)
+            display.setFont(font)
+            display.document().setDefaultFont(font)
+            #initialise grid layout for dialog
+            grid = QGridLayout(self)
+            grid.addWidget(display)
+            self.setWindowTitle("manageR - Help")
+            display.setPlainText(text)
+            self.resize(750, 400)
+        
     def __init__(self, parent):
         super(RConsole, self).__init__(parent)
         # initialise standard settings
@@ -1620,13 +1647,16 @@ class RConsole(QTextEdit):
             else:
                 # if Ctrl + C is pressed, then undo the current command
                 if e.key() == Qt.Key_C and (e.modifiers() == Qt.ControlModifier or \
-                    e.modifiers() == Qt.MetaModifier) and not self.cursor.hasSelection():
-                    self.runningCommand.clear()
-                    #block = self.cursor.block()
-                    #block.setUserState(0)
-                    self.switchPrompt(True)
-                    self.displayPrompt()
-                    MainWindow.Console.statusBar().clearMessage()
+                    e.modifiers() == Qt.MetaModifier):
+                        if self.running:
+                            self.terminateCommand()
+                        elif not self.cursor.hasSelection():
+                            self.runningCommand.clear()
+                            #block = self.cursor.block()
+                            #block.setUserState(0)
+                            self.switchPrompt(True)
+                            self.displayPrompt()
+                            MainWindow.Console.statusBar().clearMessage()
                 elif e.key() == Qt.Key_Tab:
                     indent = " " * int(Config["tabwidth"])
                     self.cursor.insertText(indent)
@@ -1719,10 +1749,11 @@ class RConsole(QTextEdit):
                 command=self.runningCommand
             self.execute(command)
             self.runningCommand.clear()
-            self.switchPrompt(True)
-            self.cursor.movePosition(QTextCursor.End,
-            QTextCursor.MoveAnchor)
-        self.emit(SIGNAL("cursorPositionChanged()"))
+            #self.switchPrompt(True)
+            #self.cursor.movePosition(QTextCursor.End,
+            #QTextCursor.MoveAnchor)
+        #self.setTextCursor(self.cursor)
+        #self.moveToEnd()
 
     def showPrevious(self):
         if self.historyIndex < len(self.history) and not self.history.isEmpty():
@@ -1805,7 +1836,7 @@ class RConsole(QTextEdit):
         cursor.movePosition(QTextCursor.End, 
         QTextCursor.MoveAnchor)
         self.setTextCursor(cursor)
-        self.emit(SIGNAL("textChanged()"))
+        #self.emit(SIGNAL("textChanged()"))
 
     def highlight(self):
         extraSelections = []
@@ -2002,15 +2033,85 @@ class RConsole(QTextEdit):
         if self.isCursorInEditionZone():
           QTextEdit.insertPlainText(self, text)
 
-    def execute(self, text):
-        MainWindow.Console.statusBar().showMessage("Running...")
+    def updateStatusBar(self, text, time):
+        if time > 0:
+            MainWindow.Console.statusBar().showMessage(text, time)
+        else:
+            MainWindow.Console.statusBar().showMessage(text)
         QApplication.processEvents()
-        if not text.trimmed() == "":
+
+    def helpTopic(self, text):
+        dialog = self.textDialog(self, text)
+        dialog.setWindowModality(Qt.NonModal)
+        dialog.setModal(False)
+        dialog.show()
+        self.updateStatusBar("Help dialog opened", 5000)
+        QApplication.processEvents()
+
+    def commandError(self, error):
+        self.appendText(unicode(error))
+        QApplication.processEvents()
+
+    def commandOutput(self, output):
+        self.appendText(unicode(output))
+        QApplication.processEvents()
+
+    def commandComplete(self):
+        self.switchPrompt()
+        self.displayPrompt()
+        self.updateStatusBar("Complete!", 5000)
+        QApplication.processEvents()
+        self.emit(SIGNAL("commandComplete()"))
+        self.running = False
+        output = sys.stdout.get_and_clean_data()
+        if output:
+            self.appendText(QString(output.decode('utf8')))
+        self.emit(SIGNAL("cursorPositionChanged()"))
+        QApplication.processEvents()
+
+    def terminateCommand(self):
+        self.emit(SIGNAL("terminateCommand()"))
+        self.commandComplete()
+
+    def execute(self, command):
+        self.updateStatusBar("Running...", 0)
+        QApplication.processEvents()
+        self.worker = commandThread(self, command)
+        self.connect(self.worker, SIGNAL("commandError(QString)"), self.commandError)
+        self.connect(self.worker, SIGNAL("commandOutput(QString)"), self.commandOutput)
+        self.connect(self.worker, SIGNAL("commandHelp(QString)"), self.helpTopic)
+        self.connect(self.worker, SIGNAL("finished()"), self.commandComplete)
+        self.connect(self.worker, SIGNAL("terminated()"), self.commandComplete)
+        self.worker.start()
+        self.running = True
+
+class commandThread(QThread):
+
+    def __init__(self, parent, command):
+        QThread.__init__(self, parent)
+        self.text = QString(command)
+        self.stop = False
+        self.parent = parent
+        self.connect(self.parent, SIGNAL("terminateCommand()"), self.destroy)
+
+    def stopping(self):
+        self.stop = True
+        self.wait()
+
+    def destroy(self):
+        self.stop = True
+        self.terminate()
+
+    def run(self):
+        text = self.text
+        if not text.trimmed() == "" or \
+        not self.stop:
             try:
                 regexp = QRegExp(r"(\bquit\(.*\)|\bq\(.*\))")
                 if text.contains(regexp):
-                    self.commandError(
-                    "Error: System exit from manageR not allowed, close dialog manually")
+                    self.emit(SIGNAL("commandError(QString)"), QString(
+                    "Error: System exit from manageR not allowed, close dialog manually"))
+                    return
                 else:
                     pos = 0 # this is used later when checking if new libraries have been loaded
                     output_text = QString()
@@ -2031,10 +2132,12 @@ class RConsole(QTextEdit):
                         sink(temp)
                     else:
                         def write(output):
+                            if self.stop:
+                                return
                             if not QString(output).startsWith("Error"):
                                 output_text.append(unicode(output, 'utf-8'))
                             #if output_text.length() >= 50000 and output_text[-1] == "\n":
-                                self.commandOutput(output_text)
+                                self.emit(SIGNAL("commandOutput(QString)"), QString(output_text))
                                 output_text.clear()
                             QApplication.processEvents()
                         #try:
@@ -2042,6 +2145,8 @@ class RConsole(QTextEdit):
                         #except:
                             #robjects.rinterface.setWriteConsole(write)
                         def read(prompt): # TODO: This is a terrible workaround
+                            if self.stop:
+                                return
                             input = "\n"  # and needs to be futher investigated...
                             return input
                         try:
@@ -2059,6 +2164,8 @@ class RConsole(QTextEdit):
                         exprs = result
                         result = None
                         for i in list(seq_along_(exprs)):
+                            if self.stop:
+                                return
                             ei = exprs[i-1]
                             try:
                                 result = try_(withVisible_(ei), silent=True)
@@ -2066,20 +2173,21 @@ class RConsole(QTextEdit):
                                 #self.commandError(str(rre))
                                 output = sys.stdout.get_and_clean_data()
                                 if output:
-                                    self.commandError(output.decode('utf8'))
-                                self.commandComplete()
+                                    self.emit(SIGNAL("commandError(QString)"), QString(output.decode('utf8')))
                                 return
                             try: # this was added to allow new rpy2 functionality
                                 visible = result.r["visible"][0][0]
                             except:
                                 visible = result[1][0]
+                            if self.stop:
+                                return
                             if visible:
                                 try:
                                     if not unicode(result.r["value"][0]) == "NULL":
                                         robjects.r['print'](result.r["value"][0])
                                     if class_(result.r["value"][0])[0] == "help_files_with_topic" or \
                                         class_(result.r["value"][0])[0] == "hsearch":
-                                        self.helpTopic(result.r["value"])[0]
+                                        self.emit(SIGNAL("commandOutput(QString)"), QString(result.r["value"][0]))
                                 except:
                                     tmpclass = class_(result[0])[0]
                                     if not tmpclass in ("NULL"):#, "help_files_with_topic", "hsearch"):
@@ -2088,8 +2196,12 @@ class RConsole(QTextEdit):
                                         help_string = QString(sys.stdout.get_and_clean_data())
                                         # woraround to remove non-ascii text and formatting
                                         help_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
-                                        self.helpTopic(help_string)
+                                        self.emit(SIGNAL("commandHelp(QString)"), QString(help_string))
+                                if self.stop:
+                                    return
                             else:
+                                if self.stop:
+                                    return
                                 tmpclass = class_(result[0])[0]
                                 if tmpclass == "NULL":
                                     out_string = QString(sys.stdout.get_and_clean_data())
@@ -2098,13 +2210,17 @@ class RConsole(QTextEdit):
                                             out_string = self.history.join("\n")
                                         # woraround to remove non-ascii text and formatting
                                             out_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
-                                            self.helpTopic(out_string)
+                                            self.emit(SIGNAL("commandHelp(QString)"), QString(out_string))
                                         else:
-                                            self.commandOutput(out_string)
+                                            self.emit(SIGNAL("commandOutput(QString)"), QString(out_string))
+                        if self.stop:
+                            return
                         if not visible:
                             try:
                                 regexp = QRegExp(r"library\(([\w\d]*)\)")
                                 while not (regexp.indexIn(text, pos) == -1):
+                                    if self.stop:
+                                        return
                                     library = regexp.cap(1)
                                     pos += regexp.matchedLength()
                                     if not library in Libraries:
@@ -2116,10 +2232,11 @@ class RConsole(QTextEdit):
                         #self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
                         output = sys.stdout.get_and_clean_data()
                         if output:
-                            self.commandError(output.decode('utf8'))
-                        self.commandComplete()
+                            self.emit(SIGNAL("commandError(QString)"), QString(output.decode('utf8')))
                         return
                     if platform.system() == "Windows": #start changing the get functions below...
+                        if self.stop:
+                            return
                         sink()
                         try:
                             close = robjects.conversion.ri2py(
@@ -2142,66 +2259,23 @@ class RConsole(QTextEdit):
                         unlink(tfile)
                         output_text = QString(str.join(os.linesep, s))
                         if not output_text.isEmpty():
-                          self.commandOutput(output_text)
+                          self.emit(SIGNAL("commandOutput(QString)"), QString(output_text))
             except Exception, err:
                 #self.commandError(str(err))
                 output = sys.stdout.get_and_clean_data()
                 if output:
-                    self.commandOutput(output.decode('utf8'))
-                self.commandComplete()
+                    self.emit(SIGNAL("commandOutput(QString)"), QString(output.decode('utf8')))
                 return
             output = sys.stdout.get_and_clean_data()
             if output:
-                self.commandOutput(output.decode('utf8'))
-        self.commandComplete()
-        MainWindow.Console.statusBar().clearMessage()
-
-    def helpTopic(self, text):
-        dialog = textDialog(self, text)
-        dialog.setWindowModality(Qt.NonModal)
-        dialog.setModal(False)
-        dialog.show()
-        MainWindow.Console.statusBar().showMessage("Help dialog opened", 5000)
+                self.emit(SIGNAL("commandOutput(QString)"), QString(output.decode('utf8')))
         return
-
-    def commandError(self, error):
-        self.appendText(error)
-        # Emit a signal here?
-                
-    def commandOutput(self, output):
-        self.appendText(unicode(output))
-        # Emit a signal here?
-        
-    def commandComplete(self):
-        self.switchPrompt()
-        self.displayPrompt()
-        MainWindow.Console.statusBar().showMessage("Complete!", 5000)
-        self.emit(SIGNAL("commandComplete()"))
-
-class textDialog(QDialog):
-# options(htmlhelp=FALSE) this should probably be added somewhere to make sure the help is always the R help...
-    def __init__(self, parent, text):
-        QDialog.__init__ (self, parent)
-        #initialise the display text edit
-        display = QTextEdit(self)
-        display.setReadOnly(True)
-        #set the font style of the help display
-        font = QFont(Config["fontfamily"], Config["fontsize"])
-        font.setFixedPitch(True)
-        display.setFont(font)
-        display.document().setDefaultFont(font)
-        #initialise grid layout for dialog
-        grid = QGridLayout(self)
-        grid.addWidget(display)
-        self.setWindowTitle("manageR - Help")
-        display.setPlainText(text)
-        self.resize(750, 400)
 
 class ConfigForm(QDialog):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, isStandalone=True):
         super(ConfigForm, self).__init__(parent)
-
+        self.isStandalone = isStandalone
         self.highlightingChanged = False
         fm = QFontMetrics(self.font())
         monofont = QFont(Config["fontfamily"], 10)
@@ -2220,6 +2294,14 @@ class ConfigForm(QDialog):
                 "window and one editR window")
         self.rememberGeometryCheckBox.setChecked(
                 Config["remembergeometry"])
+        if not isStandalone:
+            self.useRasterPackage = QCheckBox(
+                    "Use 'raster' package")
+            self.useRasterPackage.setToolTip("<p>Check this to make "
+                    "manageR use the 'raster' package for loading raster "
+                    "layers from QGIS")
+            self.useRasterPackage.setChecked(
+                    Config["useraster"])
         self.backupLineEdit = QLineEdit(Config["backupsuffix"])
         self.backupLineEdit.setToolTip("<p>If nonempty, a backup will be "
                 "kept with the given suffix. If empty, no backup will be "
@@ -2331,6 +2413,8 @@ class ConfigForm(QDialog):
         grid0.addWidget(self.tabWidthSpinBox,2,2,1,1,Qt.AlignRight)
         grid0.addWidget(backupLabel,3,0,1,1)
         grid0.addWidget(self.backupLineEdit,3,2,1,1,Qt.AlignRight)
+        if not self.isStandalone:
+            grid0.addWidget(self.useRasterPackage,4,0,1,3)
         vbox.addLayout(grid0)
         
         gbox1 = QGroupBox("Console")
@@ -2484,6 +2568,8 @@ class ConfigForm(QDialog):
     def accept(self):
         Config["remembergeometry"] = (self.rememberGeometryCheckBox.isChecked())
         Config["backupsuffix"] = self.backupLineEdit.text()
+        if not self.isStandalone:
+            Config["useraster"] = (self.useRasterPackage.isChecked())
         inputPrompt = self.inputLineEdit.text()
         if Config["beforeinput"] != inputPrompt:
             self.highlightingChanged = True
@@ -3118,7 +3204,7 @@ class RVariableWidget(QWidget):
         parseEnv = robjects.r("""
         function ()
         {
-            excludepatt = "^last\.warning"
+            excludepatt = "^last\\\.warning"
             objlist <- ls(envir=.GlobalEnv)
             if (length(iX <- grep(excludepatt, objlist)))
                 objlist <- objlist[-iX]
@@ -3524,6 +3610,7 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon(":mActionIcon"))
         self.version = version
         self.iface = iface
+        self.isStandalone = isStandalone
         if isConsole:
             pixmap = QPixmap(":splash.png")
             splash = QSplashScreen(pixmap)
@@ -3534,7 +3621,7 @@ class MainWindow(QMainWindow):
             self.setAttribute(Qt.WA_DeleteOnClose)
             self.editor = RConsole(self)
             MainWindow.Console = self
-            self.editor.append(welcomeString(self.version))
+            self.editor.append(welcomeString(self.version, isStandalone))
             self.editor.setFocus(Qt.ActiveWindowFocusReason)
             self.setCentralWidget(self.editor)
             self.connect(self.editor, SIGNAL("commandComplete()"),self.updateWidgets)
@@ -3842,11 +3929,11 @@ class MainWindow(QMainWindow):
                 splash.showMessage("Setting default working directory", \
                 (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
                 QApplication.processEvents()
-                self.editor.execute(QString('setwd("%s")' % (Config["setwd"])))
-                cursor = self.editor.textCursor()
-                cursor.movePosition(QTextCursor.StartOfLine,
-                QTextCursor.KeepAnchor)
-                cursor.removeSelectedText()
+                robjects.r['setwd'](unicode(Config["setwd"]))
+                #cursor = self.editor.textCursor()
+                #cursor.movePosition(QTextCursor.StartOfLine,
+                #QTextCursor.KeepAnchor)
+                #cursor.removeSelectedText()
             # Process required R frontend tasks (load workspace and history)
             splash.showMessage("Checking for previously saved workspace", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
@@ -4097,10 +4184,19 @@ class MainWindow(QMainWindow):
                 "Error: Cannot load raster layer attributes")
                 MainWindow.Console.editor.commandComplete()
                 return
-            if not isLibraryLoaded("rgdal"):
-                raise Exception(RLibraryError("sp"))
-            layerCreator = QRasterLayerConverter(mlayer)
-        MainWindow.Console.editor.commandOutput(rbuf)
+            package = "rgdal"
+            if Config['useraster']:
+                if not isLibraryLoaded("raster"):
+                    raise Exception(RLibraryError("raster"))
+                package = "raster"
+            else:
+                if not isLibraryLoaded("rgdal"):
+                    raise Exception(RLibraryError("rgdal"))
+                package = "rgdal"
+            layerCreator = QRasterLayerConverter(mlayer, package)
+        rbuf = sys.stdout.get_and_clean_data()
+        if rbuf:
+            MainWindow.Console.editor.commandOutput(rbuf)
         rLayer, layerName, message = layerCreator.start()
         robjects.r.assign(unicode(layerName), rLayer)
         if not unicode(layerName) in CAT:
@@ -4347,7 +4443,7 @@ class MainWindow(QMainWindow):
         event.accept()      
 
     def fileConfigure(self):
-        form = ConfigForm(self)
+        form = ConfigForm(self, self.isStandalone)
         if form.exec_():
             # Should only do this if the highlighting was actually
             # changed since it is computationally expensive.
@@ -4851,16 +4947,20 @@ class QVectorLayerConverter(QObject):
 
 class QRasterLayerConverter(QObject):
 
-    def __init__(self, mlayer):
+    def __init__(self, mlayer, package):
         QObject.__init__(self)
         self.running = False
         self.mlayer = mlayer
+        self.package = package
 
     def start(self):
         dsn = unicode(self.mlayer.source())
         layer = unicode(self.mlayer.name())
         dsn.replace("\\", "/")
-        rcode = "readGDAL(fname = '" + dsn + "')"
+        if self.package == "raster":
+            rcode = "raster('%s')" % dsn
+        else:
+            rcode = "readGDAL(fname = '%s')" % dsn
         rlayer = robjects.r(rcode)
         try:
           summary_ = robjects.conversion.ri2py(
@@ -4873,7 +4973,11 @@ class QRasterLayerConverter(QObject):
         message = QString("QGIS Raster Layer\n")
         message.append("Name: " + unicode(self.mlayer.name())
         + "\nSource: " + unicode(self.mlayer.source()) + "\n")
-        message.append(unicode(summary_(slot_(rlayer, 'grid'))))
+        if self.package == 'raster':
+            message.append("Used package 'raster'")
+        else:
+            message.append(unicode(summary_(slot_(rlayer, 'grid'))))
+            message.append("Used package 'rgdal'")
         return (rlayer, layer, message)
 
 class RVectorLayerWriter(QObject):
@@ -5509,7 +5613,7 @@ if __name__ == '__main__':
             sys.exit(0)
 
     if not MainWindow.Instances:
-        MainWindow(None, "0.99").show()
+        MainWindow(None, "1.0").show()
     app.exec_()
     saveConfig()
 

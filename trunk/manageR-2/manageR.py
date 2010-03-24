@@ -35,11 +35,7 @@ manageR makes extensive use of rpy2 (Laurent Gautier) to communicate with R.
 import os, re, sys, platform, base64
 from xml.dom import minidom
 import resources
-#from GenericVerticalUI import GenericVerticalUI, SpListWidget, SpComboBox
-#from QLayerConverter import QVectorLayerConverter, QRasterLayerConverter
-#from RLayerWriter import RVectorLayerWriter, RRasterLayerWriter, RVectorLayerConverter
-#from pluginManager import PluginManager
-import pdb
+from multiprocessing import Process, Queue
 
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
@@ -51,17 +47,16 @@ from PyQt4.QtGui import (QAction, QApplication, QButtonGroup, QCheckBox,
         QColor, QColorDialog, QComboBox, QCursor, QDesktopServices,
         QDialog, QDialogButtonBox, QFileDialog, QFont, QFontComboBox,
         QFontMetrics, QGridLayout, QHBoxLayout, QIcon, QInputDialog,
-        QKeySequence, QLabel, QLineEdit, QListWidget, QMainWindow,QMouseEvent,
+        QKeySequence, QLabel, QLineEdit, QListWidget, QMainWindow,
         QMessageBox, QPixmap, QPushButton, QRadioButton, QGroupBox,
         QRegExpValidator, QShortcut, QSpinBox, QSplitter, QDirModel,
         QSyntaxHighlighter, QTabWidget, QTextBrowser, QTextCharFormat,
         QTextCursor, QTextDocument, QTextEdit, QPlainTextEdit, QToolTip,
-        QVBoxLayout, QPainter,
+        QVBoxLayout, QPainter, QDoubleSpinBox, QMouseEvent,
         QWidget, QDockWidget, QToolButton, QSpacerItem, QSizePolicy,
         QPalette, QSplashScreen, QTreeWidget, QTreeWidgetItem, QFrame,
         QListView, QTableWidget, QTableWidgetItem, QHeaderView, QMenu, 
-        QAbstractItemView, QTextBlockUserData, QTextFormat, QClipboard,
-        QDoubleSpinBox)
+        QAbstractItemView, QTextBlockUserData, QTextFormat, QClipboard,)
 
 try:
     from qgis.core import *
@@ -260,21 +255,27 @@ def currentRObjects():
 
 original = sys.stdout
 
-class OutputCatcher():
-  def __init__(self):
-    self.data = ''
-    
-  def write(self, stuff):
-    self.data += stuff
+class OutputCatcher(QObject):
 
-  def get_and_clean_data(self):
-    tmp = self.data
-    self.data = ''
-    original.write(tmp)
-    return tmp
-    
-  def flush(self):
-    pass
+    def __init__(self, parent=None):
+        QObject.__init__(self, parent)
+        self.data = ''
+
+    def write(self, stuff):
+        self.data += stuff
+        #original.write(stuff)
+
+    def get_and_clean_data(self, emit=True):
+        tmp = self.data
+        self.clear()
+        original.write(tmp)
+        return tmp
+
+    def flush(self):
+        pass
+
+    def clear(self):
+        self.data = ''
 
 sys.stdout = OutputCatcher()
 
@@ -1563,10 +1564,13 @@ class RConsole(QTextEdit):
         self.runningCommand = QString()
         # prepare prompt
         self.reset()
+        self.queue = Queue()
+        self.running = False
         self.setPrompt(Config["beforeinput"]+" ", Config["afteroutput"]+" ")
         self.cursor = self.textCursor()
         self.connect(self, SIGNAL("cursorPositionChanged()"),
         self.highlight)
+        self.timerId = -1
 
     def loadRHistory(self):
         success = True
@@ -1640,7 +1644,10 @@ class RConsole(QTextEdit):
                 if e.modifiers() == Qt.ControlModifier or \
                     e.modifiers() == Qt.MetaModifier:
                     if e.key() == Qt.Key_C:
-                        QTextEdit.keyPressEvent(self, e)
+                        if self.running:
+                            self.terminateCommand()
+                        else:
+                            QTextEdit.keyPressEvent(self, e)
                 else:
                     # all other keystrokes get sent to the input line
                     self.cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
@@ -2057,219 +2064,204 @@ class RConsole(QTextEdit):
         QApplication.processEvents()
 
     def commandComplete(self):
-        self.switchPrompt()
-        self.displayPrompt()
         self.updateStatusBar("Complete!", 5000)
         QApplication.processEvents()
-        self.emit(SIGNAL("commandComplete()"))
         self.running = False
+        self.emit(SIGNAL("commandComplete()"))
         output = sys.stdout.get_and_clean_data()
         if output:
             self.appendText(QString(output.decode('utf8')))
+        self.switchPrompt()
+        self.displayPrompt()
         self.emit(SIGNAL("cursorPositionChanged()"))
+        if self.timerId > -1:
+            self.killTimer(self.timerId)
+        self.timerId = -1
         QApplication.processEvents()
 
     def terminateCommand(self):
-        self.emit(SIGNAL("terminateCommand()"))
+        if self.p.is_alive():
+            self.p.terminate()
         self.commandComplete()
 
-    def execute(self, command):
+    def execute(self, cmd):
         self.updateStatusBar("Running...", 0)
         QApplication.processEvents()
-        self.worker = commandThread(self, command)
-        self.connect(self.worker, SIGNAL("commandError(QString)"), self.commandError)
-        self.connect(self.worker, SIGNAL("commandOutput(QString)"), self.commandOutput)
-        self.connect(self.worker, SIGNAL("commandHelp(QString)"), self.helpTopic)
-        self.connect(self.worker, SIGNAL("finished()"), self.commandComplete)
-        self.connect(self.worker, SIGNAL("terminated()"), self.commandComplete)
-        self.worker.start()
         self.running = True
+        self.timerId = self.startTimer(30)
+        self.p = Process(target = run, args = (self.queue,cmd,))
+        self.p.start()
 
-class commandThread(QThread):
+    def timerEvent(self, e):
+        if not self.queue.empty():
+            self.commandOutput(self.queue.get())
+        if not self.p.is_alive():
+            self.commandComplete()
 
-    def __init__(self, parent, command):
-        QThread.__init__(self, parent)
-        self.text = QString(command)
-        self.stop = False
-        self.parent = parent
-        self.connect(self.parent, SIGNAL("terminateCommand()"), self.destroy)
-
-    def stopping(self):
-        self.stop = True
-        self.wait()
-
-    def destroy(self):
-        self.stop = True
-        self.terminate()
-
-    def run(self):
-        text = self.text
-        if not text.trimmed() == "" or \
-        not self.stop:
-            try:
-                regexp = QRegExp(r"(\bquit\(.*\)|\bq\(.*\))")
-                if text.contains(regexp):
-                    self.emit(SIGNAL("commandError(QString)"), QString(
-                    "Error: System exit from manageR not allowed, close dialog manually"))
-                    return
-                else:
-                    pos = 0 # this is used later when checking if new libraries have been loaded
-                    output_text = QString()
-                    if platform.system() == "Windows":
-                        try:
-                            tfile = robjects.conversion.ri2py(
-                            robjects.rinterface.globalEnv.get('tempfile', wantFun=True))
-                            temp = robjects.conversion.ri2py(
-                            robjects.rinterface.globalEnv.get('file', wantFun=True))
-                            sink = robjects.conversion.ri2py(
-                            robjects.rinterface.globalEnv.get('sink', wantFun=True))
-                        except:
-                            tfile = robjects.r.get('tempfile', mode='function')
-                            temp = robjects.r.get('file', mode='function')
-                            sink = robjects.r.get('sink', mode='function')
-                        tfile = tfile()
-                        temp = temp(tfile, open='w')
-                        sink(temp)
-                    else:
-                        def write(output):
-                            if self.stop:
-                                return
-                            if not QString(output).startsWith("Error"):
-                                output_text.append(unicode(output, 'utf-8'))
-                            #if output_text.length() >= 50000 and output_text[-1] == "\n":
-                                self.emit(SIGNAL("commandOutput(QString)"), QString(output_text))
-                                output_text.clear()
-                            QApplication.processEvents()
-                        #try:
-                            #robjects.rinterface.set_writeconsole(write)
-                        #except:
-                            #robjects.rinterface.setWriteConsole(write)
-                        def read(prompt): # TODO: This is a terrible workaround
-                            if self.stop:
-                                return
-                            input = "\n"  # and needs to be futher investigated...
-                            return input
-                        try:
-                          robjects.rinterface.set_readconsole(read)
-                        except:
-                          robjects.rinterface.setReadConsole(read)
-                    try:
-                        try_ = robjects.r.get("try", mode='function')
-                        parse_ = robjects.r.get("parse", mode='function')
-                        paste_ = robjects.r.get("paste", mode='function')
-                        seq_along_ = robjects.r.get("seq_along", mode='function')
-                        withVisible_ = robjects.r.get("withVisible", mode='function')
-                        class_ = robjects.r.get("class", mode='function')
-                        result =  try_(parse_(text=paste_(unicode(text))), silent=True)
-                        exprs = result
-                        result = None
-                        for i in list(seq_along_(exprs)):
-                            if self.stop:
-                                return
-                            ei = exprs[i-1]
-                            try:
-                                result = try_(withVisible_(ei), silent=True)
-                            except robjects.rinterface.RRuntimeError, rre:
-                                #self.commandError(str(rre))
-                                output = sys.stdout.get_and_clean_data()
-                                if output:
-                                    self.emit(SIGNAL("commandError(QString)"), QString(output.decode('utf8')))
-                                return
-                            try: # this was added to allow new rpy2 functionality
-                                visible = result.r["visible"][0][0]
-                            except:
-                                visible = result[1][0]
-                            if self.stop:
-                                return
-                            if visible:
-                                try:
-                                    if not unicode(result.r["value"][0]) == "NULL":
-                                        robjects.r['print'](result.r["value"][0])
-                                    if class_(result.r["value"][0])[0] == "help_files_with_topic" or \
-                                        class_(result.r["value"][0])[0] == "hsearch":
-                                        self.emit(SIGNAL("commandOutput(QString)"), QString(result.r["value"][0]))
-                                except:
-                                    tmpclass = class_(result[0])[0]
-                                    if not tmpclass in ("NULL"):#, "help_files_with_topic", "hsearch"):
-                                        print result[0]
-                                    if tmpclass in ("help_files_with_topic", "hsearch"):
-                                        help_string = QString(sys.stdout.get_and_clean_data())
-                                        # woraround to remove non-ascii text and formatting
-                                        help_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
-                                        self.emit(SIGNAL("commandHelp(QString)"), QString(help_string))
-                                if self.stop:
-                                    return
-                            else:
-                                if self.stop:
-                                    return
-                                tmpclass = class_(result[0])[0]
-                                if tmpclass == "NULL":
-                                    out_string = QString(sys.stdout.get_and_clean_data())
-                                    if not out_string.isEmpty():
-                                        if out_string.trimmed() == "R History":
-                                            out_string = self.history.join("\n")
-                                        # woraround to remove non-ascii text and formatting
-                                            out_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
-                                            self.emit(SIGNAL("commandHelp(QString)"), QString(out_string))
-                                        else:
-                                            self.emit(SIGNAL("commandOutput(QString)"), QString(out_string))
-                        if self.stop:
-                            return
-                        if not visible:
-                            try:
-                                regexp = QRegExp(r"library\(([\w\d]*)\)")
-                                while not (regexp.indexIn(text, pos) == -1):
-                                    if self.stop:
-                                        return
-                                    library = regexp.cap(1)
-                                    pos += regexp.matchedLength()
-                                    if not library in Libraries:
-                                        addLibraryCommands(library)
-                            except Exception, err:
-                                print err
-                    except robjects.rinterface.RRuntimeError, rre:
-                        # this fixes error output to look more like R's output
-                        #self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
-                        output = sys.stdout.get_and_clean_data()
-                        if output:
-                            self.emit(SIGNAL("commandError(QString)"), QString(output.decode('utf8')))
-                        return
-                    if platform.system() == "Windows": #start changing the get functions below...
-                        if self.stop:
-                            return
-                        sink()
-                        try:
-                            close = robjects.conversion.ri2py(
-                            robjects.rinterface.globalEnv.get('close', wantFun=True))
-                            temp = robjects.conversion.ri2py(
-                            robjects.rinterface.globalEnv.get('file', wantFun=True))
-                            s = robjects.conversion.ri2py(
-                            robjects.rinterface.globalEnv.get('readLines', wantFun=True))
-                            unlink = robjects.conversion.ri2py(
-                            robjects.rinterface.globalEnv.get('unlink', wantFun=True))
-                        except:
-                            close =robjects.r.get('close', mode='function')
-                            temp =robjects.r.get('temp', mode='function')
-                            s =robjects.r.get('readLines', mode='function')
-                            unlink =robjects.r.get('unlink', mode='function')
-                        close(temp)
-                        temp = temp(tfile, open='r')
-                        s = s(temp)
-                        close(temp)
-                        unlink(tfile)
-                        output_text = QString(str.join(os.linesep, s))
-                        if not output_text.isEmpty():
-                          self.emit(SIGNAL("commandOutput(QString)"), QString(output_text))
-            except Exception, err:
-                #self.commandError(str(err))
-                output = sys.stdout.get_and_clean_data()
-                if output:
-                    self.emit(SIGNAL("commandOutput(QString)"), QString(output.decode('utf8')))
+def run(q, cmd):
+    text = QString(cmd)
+    if not text.trimmed() == "":
+        try:
+            regexp = QRegExp(r"(\bquit\(.*\)|\bq\(.*\))")
+            if text.contains(regexp):
+                q.put("Error: System exit from manageR not allowed, close dialog manually")
+                #output = sys.stdout.get_and_clean_data()
                 return
+            else:
+                pos = 0 # this is used later when checking if new libraries have been loaded
+                output_text = QString()
+                if platform.system() == "Windows":
+                    try:
+                        tfile = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('tempfile', wantFun=True))
+                        temp = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('file', wantFun=True))
+                        sink = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('sink', wantFun=True))
+                    except:
+                        tfile = robjects.r.get('tempfile', mode='function')
+                        temp = robjects.r.get('file', mode='function')
+                        sink = robjects.r.get('sink', mode='function')
+                    tfile = tfile()
+                    temp = temp(tfile, open='w')
+                    sink(temp)
+                else:
+                    def write(output):
+                        if self.stop:
+                            return
+                        if not QString(output).startsWith("Error"):
+                            output_text.append(unicode(output, 'utf-8'))
+                        #if output_text.length() >= 50000 and output_text[-1] == "\n":
+                            print QString(output_text)
+                            output_text.clear()
+                    #try:
+                        #robjects.rinterface.set_writeconsole(write)
+                    #except:
+                        #robjects.rinterface.setWriteConsole(write)
+                    def read(prompt): # TODO: This is a terrible workaround
+                        if self.stop:
+                            return
+                        input = "\n"  # and needs to be futher investigated...
+                        return input
+                    try:
+                        robjects.rinterface.set_readconsole(read)
+                    except:
+                        robjects.rinterface.setReadConsole(read)
+                try:
+                    try_ = robjects.r.get("try", mode='function')
+                    parse_ = robjects.r.get("parse", mode='function')
+                    paste_ = robjects.r.get("paste", mode='function')
+                    seq_along_ = robjects.r.get("seq_along", mode='function')
+                    withVisible_ = robjects.r.get("withVisible", mode='function')
+                    class_ = robjects.r.get("class", mode='function')
+                    result =  try_(parse_(text=paste_(unicode(text))), silent=True)
+                    exprs = result
+                    result = None
+                    for i in list(seq_along_(exprs)):
+                        ei = exprs[i-1]
+                        try:
+                            result = try_(withVisible_(ei), silent=True)
+                        except robjects.rinterface.RRuntimeError, rre:
+                            #self.commandError(str(rre))
+                            #output = sys.stdout.get_and_clean_data()
+                            #if output:
+                                #print QString(output.decode('utf8'))
+                            q.put(str(rre))
+                            return
+                        try: # this was added to allow new rpy2 functionality
+                            visible = result.r["visible"][0][0]
+                        except:
+                            visible = result[1][0]
+                        if visible:
+                            try:
+                                if not unicode(result.r["value"][0]) == "NULL":
+                                    robjects.r['print'](result.r["value"][0])
+                                if class_(result.r["value"][0])[0] == "help_files_with_topic" or \
+                                    class_(result.r["value"][0])[0] == "hsearch":
+                                    print QString(result.r["value"][0])
+                                    output = QString(sys.stdout.get_and_clean_data())
+                                    q.put(unicode(output))
+                            except:
+                                tmpclass = class_(result[0])[0]
+                                if not tmpclass in ("NULL"):#, "help_files_with_topic", "hsearch"):
+                                    print result[0]
+                                    output = QString(sys.stdout.get_and_clean_data())
+                                    q.put(unicode(output))
+                                if tmpclass in ("help_files_with_topic", "hsearch"):
+                                    help_string = QString(sys.stdout.get_and_clean_data())
+                                    # woraround to remove non-ascii text and formatting
+                                    help_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
+                                    #print QString(help_string) # fix this so that help returns in a text box
+                                    q.put(unicode(help_string))
+                        #else:
+                            #if self.stop:
+                                #return
+                            #tmpclass = class_(result[0])[0]
+                            #if tmpclass == "NULL":
+                                #out_string = QString(sys.stdout.get_and_clean_data())
+                                #if not out_string.isEmpty():
+                                    #if out_string.trimmed() == "R History":
+                                        #out_string = self.history.join("\n")
+                                    ## woraround to remove non-ascii text and formatting
+                                        #out_string.remove("_").replace(u'\xe2\x80\x98', "'").replace(u'\xe2\x80\x99',"'")
+                                        #print QString(out_string) # fix this so that help returns in a text box
+                                    #else:
+                                        #print QString(out_string)
+                    if not visible:
+                        try:
+                            regexp = QRegExp(r"library\(([\w\d]*)\)")
+                            while not (regexp.indexIn(text, pos) == -1):
+                                library = regexp.cap(1)
+                                pos += regexp.matchedLength()
+                                if not library in Libraries:
+                                    addLibraryCommands(library)
+                        except Exception, err:
+                            print err
+                except robjects.rinterface.RRuntimeError, rre:
+                    # this fixes error output to look more like R's output
+                    #self.commandError("Error: %s" % (str(" ").join(str(rre).split(":")[1:]).strip()))
+                    #output = sys.stdout.get_and_clean_data()
+                    #if output:
+                        #print QString(output.decode('utf8'))
+                    q.put(unicode(rre))
+                    return
+                if platform.system() == "Windows": #start changing the get functions below...
+                    sink()
+                    try:
+                        close = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('close', wantFun=True))
+                        temp = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('file', wantFun=True))
+                        s = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('readLines', wantFun=True))
+                        unlink = robjects.conversion.ri2py(
+                        robjects.rinterface.globalEnv.get('unlink', wantFun=True))
+                    except:
+                        close =robjects.r.get('close', mode='function')
+                        temp =robjects.r.get('temp', mode='function')
+                        s =robjects.r.get('readLines', mode='function')
+                        unlink =robjects.r.get('unlink', mode='function')
+                    close(temp)
+                    temp = temp(tfile, open='r')
+                    s = s(temp)
+                    close(temp)
+                    unlink(tfile)
+                    output_text = QString(str.join(os.linesep, s))
+                    if not output_text.isEmpty():
+                        #print QString(output_text)
+                        q.put(unicode(output_text))
+        except Exception, err:
+            #self.commandError(str(err))
             output = sys.stdout.get_and_clean_data()
-            if output:
-                self.emit(SIGNAL("commandOutput(QString)"), QString(output.decode('utf8')))
-        return
+            q.put(output)
+            #if output:
+                #print QString(output.decode('utf8'))
+            return
+        output = sys.stdout.get_and_clean_data()
+        q.put(output)
+        #if output:
+            #print QString(output.decode('utf8'))
+    return
 
 class ConfigForm(QDialog):
 
@@ -3985,7 +3977,7 @@ class MainWindow(QMainWindow):
             QApplication.processEvents()
             robjects.r['help.start'](update = True,
             browser=robjects.r('function(url) return(url)'))
-            sys.stdout.get_and_clean_data()
+            sys.stdout.clear()
             splash.showMessage("manageR ready!", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             splash.finish(self)

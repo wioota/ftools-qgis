@@ -40,7 +40,7 @@ def description():
   return "Interface to the R statistical programming language"
 
 def version():
-  return "0.8.1"
+  return "1.0"
 
 def qgisMinimumVersion():
   return "1.0"

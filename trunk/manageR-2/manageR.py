@@ -35,7 +35,7 @@ manageR makes extensive use of rpy2 (Laurent Gautier) to communicate with R.
 import os, re, sys, platform, base64
 from xml.dom import minidom
 import resources
-from multiprocessing import Process, Queue
+# from multiprocessing import Process, Queue
 
 from PyQt4.QtCore import (PYQT_VERSION_STR, QByteArray, QDir, QEvent,
         QFile, QFileInfo, QIODevice, QPoint, QProcess, QRegExp, QObject,
@@ -1078,13 +1078,13 @@ class RCompleter(QObject):
         self.popup.setFocusPolicy(Qt.NoFocus)
         self.popup.setFocusProxy(self.editor)
         self.timer = QTimer(self)
-        #self.timer.setSingleShot(True)
+        self.timer.setSingleShot(True)
         if isinstance(delay,int):
             self.timer.setInterval(delay)
         else:
             self.timer.setInterval(500)
         self.connect(self.timer, SIGNAL("timeout()"), self.suggest, Config["minimumchars"])
-        #self.connect(self.editor, SIGNAL("textChanged()"), self.startTimer)
+        self.connect(self.editor, SIGNAL("textChanged()"), self.startTimer)
 
     def startTimer(self):
         self.timer.start()
@@ -1569,7 +1569,7 @@ class RConsole(QTextEdit):
         self.runningCommand = QString()
         # prepare prompt
         self.reset()
-        self.queue = Queue()
+        #self.queue = Queue()
         self.running = False
         self.setPrompt(Config["beforeinput"]+" ", Config["afteroutput"]+" ")
         self.cursor = self.textCursor()
@@ -2125,8 +2125,18 @@ class RConsole(QTextEdit):
                     def read(prompt): # TODO: This is a terrible workaround
                         input = "\n"  # and needs to be futher investigated...
                         return input
-                    robjects.rinterface.set_readconsole(read)
                     try:
+                        robjects.rinterface.set_readconsole(read)
+                    except:
+                        robjects.rinterface.setReadConsole(read)
+                    try:
+                        if platform.system() == "Windows":
+                            tfile = r.get("tempfile", mode='function')
+                            temp = r.get("file", mode='function')
+                            sink = r.get("sink", mode='function')
+                            tfile = tfile()
+                            temp = temp(tfile, open='w')
+                            sink(temp)
                         try_ = r.get("try", mode='function')
                         parse_ = r.get("parse", mode='function')
                         paste_ = r.get("paste", mode='function')
@@ -2168,6 +2178,20 @@ class RConsole(QTextEdit):
                                     print err
                                     sys.stdout.get_and_clean_data()
                                     return
+                        if platform.system() == "Windows":
+                            sink()
+                            close = r.get("close", mode='function')
+                            close(temp)
+                            temp = r.get("file", mode='function')
+                            temp = temp(tfile, open='r')
+                            rlines = r.get("readLines", mode='function')
+                            rlines = rlines(temp)
+                            close(temp)
+                            unlink = r.get("unlink", mode='function')
+                            unlink(tfile)
+                            rlines = str.join(os.linesep, rlines)
+                            if not rlines == "":
+                                print rlines
                     except robjects.rinterface.RRuntimeError, err:
                         # dont need to print error...
                         sys.stdout.get_and_clean_data()

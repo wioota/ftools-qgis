@@ -82,6 +82,49 @@ abline(tmp.fit, lty='|13|')&#xA;
 <Parameter label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
 <Parameter label="help" type="helpString" default="topic:plot" notnull="true"/>
 </RTool>
+
+<RTool name="Polyline profile" category= "Plotting" query=
+"local({   # This 'polyline profile' tool contributed by Mayeul Kauffmann&#xA;
+library(spatstat)&#xA;
+library(gtools) #gtools is useful for smoothing by the running() function&#xA;
+if(|6|) {dev.new()}&#xA;
+DEM  &lt;- |3|&#xA;
+
+if(proj4string(|1|) != proj4string(|3|) ) {print(paste('Polyline and DEM might be in different reference systems. Unpredected behaviour may occur.','Polyline SRC:',proj4string(|1|),'DEM SRC:', proj4string(|3|) ,sep='   ')) } #TODO: FIXME by reprojecting polyline into DEM projection&#xA;
+my.projection&lt;- proj4string(|3|) &#xA;
+smoothing.window &lt;- 2*round(|5| / 2)   # k must be odd below in runmed( ,k=smoothing.window+1), so smoothing.window must be even&#xA;
+coord.path &lt;- coordinates(|1|)[[|2|]][[1]]&#xA;
+path.window&lt;-as.owin(c(min(coord.path[,1]), max(coord.path[,1]), min(coord.path[,2]), max(coord.path[,2])))&#xA;
+path.psp&lt;-as.psp(cbind(coord.path[1:(nrow(coord.path)-1),],coord.path[2:nrow(coord.path),]), window=path.window)&#xA;
+path.points&lt;-pointsOnLines(path.psp,eps=|4|) #sample elevation every eps meters or degrees &#xA;
+path.points.SP&lt;-SpatialPoints(cbind(path.points$x,path.points$y)[!is.na(path.points$x),], proj4string=CRS(my.projection))&#xA;
+path.points.elev&lt;-overlay(DEM,path.points.SP)$band1&#xA;
+elevation.stats&lt;-function(path.points.elev=path.points.elev){&#xA;
+  deniv&lt;-diff(path.points.elev)&#xA;
+  #smoothed.deniv&lt;-diff((runmed(path.points.elev, k=smoothing.window+1))) #would not requires gtools package &#xA;
+  smoothed.deniv&lt;- diff(running(runmed(path.points.elev, k=smoothing.window+1), width=smoothing.window)) # much better smoothing but requires gtools&#xA;
+  cum.pos.deniv&lt;-sum(deniv[deniv>0])&#xA;
+  cum.neg.deniv&lt;-sum(deniv[deniv&lt;0])&#xA;
+  smoothed.cum.pos.deniv&lt;-sum(smoothed.deniv[smoothed.deniv>0])&#xA;
+  smoothed.cum.neg.deniv&lt;-sum(smoothed.deniv[smoothed.deniv&lt;0])&#xA;  
+  elevation.start &lt;- path.points.elev[1]&#xA;
+  elevation.end &lt;- path.points.elev[length(path.points.elev)]&#xA;
+  lowest &lt;- min(path.points.elev)&#xA;
+  highest&lt;- max(path.points.elev)&#xA;
+  path.length&lt;-sum(lengths.psp(path.psp))&#xA;
+  cbind(elevation.start, elevation.end, lowest, highest, cum.pos.deniv, cum.neg.deniv,smoothed.cum.pos.deniv,smoothed.cum.neg.deniv,  path.length)&#xA;
+}&#xA;
+print(elevation.stats(path.points.elev))&#xA;
+plot(path.points.elev, type='l',xlab='Distance',ylab='Elevation')&#xA;
+points(running(runmed(path.points.elev, k=smoothing.window+1), width=smoothing.window), pch='.', col='cyan')&#xA;
+})">
+<Parameter label="Layer containing polyline(s):" type="spComboBox" default="SpatialLinesDataFrame" notnull="true"/>
+<Parameter label="Polyline number to profile:" type="lineEdit" default="1" notnull="true"/><!-- chosing e.g. '1' will take first polyline of the selected layer in: coordinates(|1|)[[|2|]] ; TODO: if there is an attribute called 'name' in the table of the polyline layer, propose the name from these names -->
+<Parameter label="Digital Elevation Model:" type="spComboBox" default="SpatialGridDataFrame" notnull="true"/>
+<Parameter label="Elevation sampling resolution (in projected unit):" type="lineEdit" default="1" notnull="true"/><!-- if DEM and polyline unit is meters, a value of 1 to 10 for e.g. ASTER data makes sense -->
+<Parameter label="Smoothing window:" type="lineEdit" default="50" notnull="true"/>
+<Parameter label="Draw on a new graphic device:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
+</RTool>
 <RTool name="Scatterplot" category= "Plotting" query=
 "local({&#xA;
 plot(x=|1|, y=|2|, type='p', main='|3|', sub='|4|', xlab='|5|', 

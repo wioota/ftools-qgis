@@ -84,10 +84,13 @@ abline(tmp.fit, lty='|13|')&#xA;
 </RTool>
 
 <RTool name="Polyline profile" category= "Plotting" query=
-"local({   # This 'polyline profile' tool contributed by Mayeul Kauffmann&#xA;
+"local({   # This 'polyline profile' tool (version 0.91) contributed by Mayeul Kauffmann&#xA;
 library(spatstat)&#xA;
-library(gtools) #gtools is useful for smoothing by the running() function&#xA;
-if(|6|) {dev.new()}&#xA;
+#gtools is needed for smoothing by the running() function. If not available or not wanted, replace by identity function. &#xA;
+gtools.available  &lt;-  library('gtools',logical.return=TRUE) &#xA;
+if (|6| &amp; gtools.available) {running2 &lt;- running}  else {running2 &lt;- function(x,...){x}} &#xA;
+
+if(|7|) {dev.new()}&#xA;
 DEM  &lt;- |3|&#xA;
 
 if(proj4string(|1|) != proj4string(|3|) ) {print(paste('Polyline and DEM might be in different reference systems. Unpredected behaviour may occur.','Polyline SRC:',proj4string(|1|),'DEM SRC:', proj4string(|3|) ,sep='   ')) } #TODO: FIXME by reprojecting polyline into DEM projection&#xA;
@@ -102,7 +105,7 @@ path.points.elev&lt;-overlay(DEM,path.points.SP)$band1&#xA;
 elevation.stats&lt;-function(path.points.elev=path.points.elev){&#xA;
   deniv&lt;-diff(path.points.elev)&#xA;
   #smoothed.deniv&lt;-diff((runmed(path.points.elev, k=smoothing.window+1))) #would not requires gtools package &#xA;
-  smoothed.deniv&lt;- diff(running(runmed(path.points.elev, k=smoothing.window+1), width=smoothing.window)) # much better smoothing but requires gtools&#xA;
+  smoothed.deniv&lt;- diff(running2(runmed(path.points.elev, k=smoothing.window+1), width=smoothing.window)) # much better smoothing but requires gtools&#xA;
   cum.pos.deniv&lt;-sum(deniv[deniv>0])&#xA;
   cum.neg.deniv&lt;-sum(deniv[deniv&lt;0])&#xA;
   smoothed.cum.pos.deniv&lt;-sum(smoothed.deniv[smoothed.deniv>0])&#xA;
@@ -115,15 +118,23 @@ elevation.stats&lt;-function(path.points.elev=path.points.elev){&#xA;
   cbind(elevation.start, elevation.end, lowest, highest, cum.pos.deniv, cum.neg.deniv,smoothed.cum.pos.deniv,smoothed.cum.neg.deniv,  path.length)&#xA;
 }&#xA;
 print(elevation.stats(path.points.elev))&#xA;
-plot(path.points.elev, type='l',xlab='Distance',ylab='Elevation')&#xA;
-points(running(runmed(path.points.elev, k=smoothing.window+1), width=smoothing.window), pch='.', col='cyan')&#xA;
+plot(path.points.elev, type='l',xlab='Distance',ylab='Elevation', xaxt='n')&#xA;
+points(running2(runmed(path.points.elev, k=smoothing.window+1), width=smoothing.window), pch='.', col='red')&#xA;
+par(new=T) # create new graph to fix the horizontal axis &#xA;
+# FIXME: next line gives strange error like: 'ascii' codec can't decode byte 0xc3 in position 76: ordinal not in range(128) &#xA;
+#plot( x = c( 0, 5000 ), y = c(lowest, highest), yaxt = 'n', pch= '', xlab = '', ylab = '') &#xA;
+#... so we need to compute AGAIN some values... &#xA;
+plot( x = c( 0, sum(lengths.psp(path.psp))), y = c(min(path.points.elev), max(path.points.elev)), yaxt = 'n', pch= '', xlab = '', ylab = '') &#xA;
+
 })">
 <Parameter label="Layer containing polyline(s):" type="spComboBox" default="SpatialLinesDataFrame" notnull="true"/>
 <Parameter label="Polyline number to profile:" type="lineEdit" default="1" notnull="true"/><!-- chosing e.g. '1' will take first polyline of the selected layer in: coordinates(|1|)[[|2|]] ; TODO: if there is an attribute called 'name' in the table of the polyline layer, propose the name from these names -->
 <Parameter label="Digital Elevation Model:" type="spComboBox" default="SpatialGridDataFrame" notnull="true"/>
 <Parameter label="Elevation sampling resolution (in projected unit):" type="lineEdit" default="1" notnull="true"/><!-- if DEM and polyline unit is meters, a value of 1 to 10 for e.g. ASTER data makes sense -->
 <Parameter label="Smoothing window:" type="lineEdit" default="50" notnull="true"/>
+<Parameter label="Advanced smoothing (only with gtools package):" type="comboBox" default="TRUE;FALSE" notnull="true"/>
 <Parameter label="Draw on a new graphic device:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
+
 </RTool>
 <RTool name="Scatterplot" category= "Plotting" query=
 "local({&#xA;

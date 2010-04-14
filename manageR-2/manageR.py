@@ -4765,12 +4765,15 @@ class QVectorLayerConverter(QObject):
       spds = data_frame
     length = len(fid["fid"])
     width = len(order)
-    name = self.mlayer.name()
-    source = self.mlayer.publicSource()
-    name = QFileInfo(name).baseName()
-
-    message.append(QString("Name: " + unicode(name) + "\nSource: " + unicode(source)))
+    name = unicode(self.mlayer.name())
+    source = unicode(self.mlayer.publicSource())
+    name = unicode(QFileInfo(name).baseName())
+    make_names_ = robjects.r.get('make.names', mode='function')
+    newname = make_names_(name)[0]
+    message.append(QString("Name: " + unicode(newname) + "\nSource: " + unicode(source)))
     message.append( QString("\nwith " + unicode(length) + " rows and " + unicode(width) + " columns"))
+    if not newname == name:
+      message.append(QString("\n**Note: layer name syntax changed"))
     message.append("\n" + extra)
     return (spds, name, message)
 

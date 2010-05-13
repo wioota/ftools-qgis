@@ -114,7 +114,7 @@ def welcomeString(version, isStandalone):
         string.append("QGIS interface to the R statistical analysis program\n")
     string.append("Copyright (C) 2009-2010  Carson J. Q. Farmer\n")
     string.append("Licensed under the terms of GNU GPL 2\n")
-    string.append("manageR is free software;")
+    string.append("manageR is free software; ")
     string.append("you can redistribute it and/or modify it under the terms")
     string.append("of the GNU General Public License as published by the Free")
     string.append("Software Foundation; either version 2 of the License, or")
@@ -726,6 +726,7 @@ class LibrarySplitter(QSplitter):
         packages = list(library_()[1])
         length = len(packages)
         self.table.clearContents()
+        sys.stdout.get_and_clean_data(False)
         #self.table.setRowCount(length/3)
         package_list = []
         for i in range(length/3):
@@ -1764,6 +1765,8 @@ class RConsole(QTextEdit):
                 command=self.runningCommand
             self.execute(command)
             self.runningCommand.clear()
+            self.cursor.movePosition(QTextCursor.End,
+            QTextCursor.MoveAnchor)
             #self.switchPrompt(True)
             #self.cursor.movePosition(QTextCursor.End,
             #QTextCursor.MoveAnchor)
@@ -2116,7 +2119,7 @@ class RConsole(QTextEdit):
             try:
                 regexp = QRegExp(r"(\bquit\(.*\)|\bq\(.*\))")
                 if text.contains(regexp):
-                    print "Error: System exit from manageR not allowed, close dialog manually"
+                    print "Error: System exit from manageR not allowed, close dialog manually or use Ctrl+Q"
                     sys.stdout.get_and_clean_data()
                     return
                 else:
@@ -3118,12 +3121,12 @@ class RVariableWidget(QWidget):
                 pass
             return tmp
 
-        for i in range(numofroots):
+        for i in range(int(numofroots)):
             iid = rootitems[i]-1
             a = QTreeWidgetItem(self.variableTable)
-            a.setText(0, QString(names[iid]))
-            a.setText(1, QString(types[iid]))
-            a.setText(2, QString(dims[iid]))
+            a.setText(0, QString(names[int(iid)]))
+            a.setText(1, QString(types[int(iid)]))
+            a.setText(2, QString(dims[int(iid)]))
             if container[i]:
                 items = which(parentid, i+1)
                 for id in items:
@@ -3268,7 +3271,14 @@ class RVariableWidget(QWidget):
                         TYPES, DIMS, Container, ParentID,
                         ItemsPerContainer, IDS))
         }""")
-        return parseEnv()
+        try:
+            return parseEnv()
+        except Exception, err:
+            print err
+            return robjects.r("""list(1, 1, c("Error!"),
+                        c("Missing package:"), c("'%s'"), c(F), 1,
+                        1, 1)""" % str(err).split('"')[1])
+
 
 class RGraphicsWidget(QWidget):
     
@@ -4085,60 +4095,64 @@ class MainWindow(QMainWindow):
         self.importRObjects(dataOnly=True)
         
     def importRObjects(self, mlayer=None, dataOnly=False):
-        if mlayer is None:
-            mlayer = self.iface.mapCanvas().currentLayer()
-        self.statusBar().showMessage(
-        "Importing data from canvas...")
-        MainWindow.Console.editor.moveToEnd()
-        MainWindow.Console.editor.cursor.movePosition(
-        QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
-        MainWindow.Console.editor.cursor.removeSelectedText()
-        MainWindow.Console.editor.cursor.insertText(
-        "%smanageR import function" % (MainWindow.Console.editor.currentPrompt))
-        QApplication.processEvents()
-        #try:
-        if mlayer is None:
-            MainWindow.Console.editor.commandError(
-            "Error: No layer selected in layer list")
-            MainWindow.Console.editor.commandComplete()
-            return
-        rbuf = QString()
-        def f(x):
-            rbuf.append(x)
-        #robjects.rinterface.set_writeconsole(f)
-        if not dataOnly and not isLibraryLoaded("sp"):
-            raise Exception(RLibraryError("sp"))
-        if mlayer.type() == QgsMapLayer.VectorLayer:
-            layerCreator = QVectorLayerConverter(mlayer, dataOnly)
-        if mlayer.type() == QgsMapLayer.RasterLayer:
-            if dataOnly:
+        try:
+            if mlayer is None:
+                mlayer = self.iface.mapCanvas().currentLayer()
+            self.statusBar().showMessage(
+            "Importing data from canvas...")
+            MainWindow.Console.editor.moveToEnd()
+            MainWindow.Console.editor.cursor.movePosition(
+            QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
+            MainWindow.Console.editor.cursor.removeSelectedText()
+            MainWindow.Console.editor.cursor.insertText(
+            "%smanageR import function" % (MainWindow.Console.editor.currentPrompt))
+            QApplication.processEvents()
+            #try:
+            if mlayer is None:
                 MainWindow.Console.editor.commandError(
-                "Error: Cannot load raster layer attributes")
+                "Error: No layer selected in layer list\n")
                 MainWindow.Console.editor.commandComplete()
                 return
-            package = "rgdal"
-            if Config['useraster']:
-                if not isLibraryLoaded("raster"):
-                    raise Exception(RLibraryError("raster"))
-                package = "raster"
-            else:
-                if not isLibraryLoaded("rgdal"):
-                    raise Exception(RLibraryError("rgdal"))
+            rbuf = QString()
+            def f(x):
+                rbuf.append(x)
+            #robjects.rinterface.set_writeconsole(f)
+            if not dataOnly and not isLibraryLoaded("sp"):
+                raise Exception(RLibraryError("sp"))
+            if mlayer.type() == QgsMapLayer.VectorLayer:
+                layerCreator = QVectorLayerConverter(mlayer, dataOnly)
+            if mlayer.type() == QgsMapLayer.RasterLayer:
+                if dataOnly:
+                    MainWindow.Console.editor.commandError(
+                    "Error: Cannot load raster layer attributes\n")
+                    MainWindow.Console.editor.commandComplete()
+                    return
                 package = "rgdal"
-            layerCreator = QRasterLayerConverter(mlayer, package)
-        rbuf = sys.stdout.get_and_clean_data()
-        if rbuf:
-            MainWindow.Console.editor.commandOutput(rbuf)
-        rLayer, layerName, message = layerCreator.start()
-        robjects.r.assign(unicode(layerName), rLayer)
-        if not unicode(layerName) in CAT:
-            CAT.append(unicode(layerName))
-        #self.emit(SIGNAL("newObjectCreated(PyQt_PyObject)"), \
-        #self.updateRObjects())
-        MainWindow.Console.editor.commandOutput(message)
-        #except Exception, e:
-        #    MainWindow.Console.editor.commandError(e)
-        MainWindow.Console.editor.commandComplete()
+                if Config['useraster']:
+                    if not isLibraryLoaded("raster"):
+                        raise Exception(RLibraryError("raster"))
+                    package = "raster"
+                else:
+                    if not isLibraryLoaded("rgdal"):
+                        raise Exception(RLibraryError("rgdal"))
+                    package = "rgdal"
+                layerCreator = QRasterLayerConverter(mlayer, package)
+            rbuf = sys.stdout.get_and_clean_data(False)
+            if rbuf:
+                MainWindow.Console.editor.commandOutput(rbuf)
+            rLayer, layerName, message = layerCreator.start()
+            robjects.r.assign(unicode(layerName), rLayer)
+            if not unicode(layerName) in CAT:
+                CAT.append(unicode(layerName))
+            #self.emit(SIGNAL("newObjectCreated(PyQt_PyObject)"), \
+            #self.updateRObjects())
+            MainWindow.Console.editor.commandOutput(message)
+            #except Exception, e:
+            #    MainWindow.Console.editor.commandError(e)
+            MainWindow.Console.editor.commandComplete()
+        except Exception, err:
+            sys.stdout.get_and_clean_data()
+            MainWindow.Console.editor.commandComplete()
         
     def exportToFile(self):
         self.exportRObjects(True)

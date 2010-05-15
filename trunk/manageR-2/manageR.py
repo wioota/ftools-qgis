@@ -202,6 +202,8 @@ def loadConfig():
             QVariant(True)).toBool()
     Config["enableautocomplete"] = settings.value("manageR/enableautocomplete",
             QVariant(True)).toBool()
+    Config["bracketautocomplete"] = settings.value("manageR/bracketautocomplete",
+            QVariant(True)).toBool()
 
 def saveConfig():
     settings = QSettings()
@@ -1228,6 +1230,22 @@ class Editor(QPlainTextEdit):
                             break
                 userCursor.insertText(insert)
                 return True
+            elif event.key() in (Qt.Key_ParenLeft,
+                                 Qt.Key_BracketLeft,
+                                 Qt.Key_BraceLeft):
+                if Config["bracketautocomplete"]:
+                    if event.key() == Qt.Key_ParenLeft:
+                        insert = QString(Qt.Key_ParenRight)
+                    elif event.key() == Qt.Key_BracketLeft:
+                        insert = QString(Qt.Key_BracketRight)
+                    else:
+                        insert = QString(Qt.Key_BraceRight)
+                    userCursor = self.textCursor()
+                    cursor = QTextCursor(userCursor)
+                    userCursor.insertText("%s%s" % (QString(event.key()), insert))
+                    cursor.movePosition(QTextCursor.PreviousCharacter, QTextCursor.MoveAnchor)
+                    self.setTextCursor(cursor)
+                    return True
                 # Fall through to let the base class handle the movement
         return QPlainTextEdit.event(self, event)
 
@@ -1676,6 +1694,24 @@ class RConsole(QTextEdit):
                     indent = " " * int(Config["tabwidth"])
                     self.cursor.insertText(indent)
                   # if Return is pressed, then perform the commands
+                elif e.key() in (Qt.Key_ParenLeft,
+                                 Qt.Key_BracketLeft,
+                                 Qt.Key_BraceLeft):
+                    if Config["bracketautocomplete"]:
+                        if e.key() == Qt.Key_ParenLeft:
+                            insert = QString(Qt.Key_ParenRight)
+                        elif e.key() == Qt.Key_BracketLeft:
+                            insert = QString(Qt.Key_BracketRight)
+                        else:
+                            insert = QString(Qt.Key_BraceRight)
+                        #userCursor = self.textCursor()
+                        #cursor = QTextCursor(userCursor)
+                        self.cursor.insertText("%s%s" % (QString(e.key()), insert))
+                        self.cursor.movePosition(QTextCursor.PreviousCharacter, QTextCursor.MoveAnchor)
+                        #self.setTextCursor(cursor)
+                        #return True
+                    else:
+                        QTextEdit.keyPressEvent(self, e)
                 elif e.key() == Qt.Key_Return:
                     self.entered()
                   # if Up or Down is pressed
@@ -2328,6 +2364,10 @@ class ConfigForm(QDialog):
                 "autocomplete list.")
         self.autocompleteCheckBox.setChecked(Config["enableautocomplete"])
         
+        self.autocompleteBrackets = QCheckBox("Enable auto-insert of brackets/parentheses")
+        self.autocompleteBrackets.setToolTip("<p>Check this to enable "
+                "auto-insert of brackets and parentheses when typing R functions and commands.")
+        self.autocompleteBrackets.setChecked(Config["bracketautocomplete"])
         maxWidth = fm.width(mincharsLabel.text())
         for widget in (self.backupLineEdit, self.inputLineEdit, self.outputLineEdit,
                 self.tabWidthSpinBox, self.mincharsSpinBox, self.timeoutSpinBox,
@@ -2370,6 +2410,7 @@ class ConfigForm(QDialog):
         grid2.addWidget(mincharsLabel,1,0,1,1)
         grid2.addWidget(self.mincharsSpinBox,1,1,1,1,Qt.AlignRight)
         grid2.addWidget(self.autocompleteCheckBox,2,0,1,2)
+        grid2.addWidget(self.autocompleteBrackets,3,0,1,2)
         gbox2.setLayout(grid2)
         vbox.addWidget(gbox2)
         generalWidget.setLayout(vbox)
@@ -2520,6 +2561,7 @@ class ConfigForm(QDialog):
         Config["delay"] = self.timeoutSpinBox.value()
         Config["minimumchars"] = self.mincharsSpinBox.value()
         Config["enableautocomplete"] = (self.autocompleteCheckBox.isChecked())
+        Config["bracketautocomplete"] = (self.autocompleteBrackets.isChecked())
         Config["enablehighlighting"] = (self.highlightingCheckBox.isChecked())
         
         #Config["tooltipsize"] = self.toolTipSizeSpinBox.value()

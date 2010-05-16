@@ -118,7 +118,7 @@ def welcomeString(version, isStandalone):
     string.append("you can redistribute it and/or modify it under the terms")
     string.append("of the GNU General Public License as published by the Free")
     string.append("Software Foundation; either version 2 of the License, or")
-    string.append("(at your option) any later version.")
+    string.append("(at your option) any later version. ")
     string.append("Currently running %s\n" % robjects.r.version[12][0])
     return string
 
@@ -4147,7 +4147,7 @@ class MainWindow(QMainWindow):
             QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
             MainWindow.Console.editor.cursor.removeSelectedText()
             MainWindow.Console.editor.cursor.insertText(
-            "%smanageR import function" % (MainWindow.Console.editor.currentPrompt))
+            "%s# manageR import function" % (MainWindow.Console.editor.currentPrompt))
             QApplication.processEvents()
             #try:
             if mlayer is None:
@@ -4210,7 +4210,7 @@ class MainWindow(QMainWindow):
         MainWindow.Console.editor.cursor.removeSelectedText()
         MainWindow.Console.editor.switchPrompt()
         MainWindow.Console.editor.cursor.insertText(
-        "%smanageR export function" % (MainWindow.Console.editor.currentPrompt))
+        "%s# manageR export function" % (MainWindow.Console.editor.currentPrompt))
         QApplication.processEvents()
         try:
             if ask:

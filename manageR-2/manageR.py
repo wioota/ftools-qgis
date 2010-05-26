@@ -5348,9 +5348,12 @@ class GenericVerticalUI(object):
                                         value = layer+"$"+item
                                     else:
                                         value = layer+"@data$"+item
-                                    if unicode(robjects.r('class(%s)' % (value))[0]) == sptype.strip() \
-                                    or sptype.strip() == "all":
-                                        widget.addItem(value)
+                                    try:
+                                        if unicode(robjects.r('class(%s)' % (value))[0]) == sptype.strip() \
+                                        or sptype.strip() == "all":
+                                             widget.addItem(value)
+                                    except:
+                                        pass
 
 
 

@@ -6,6 +6,7 @@
         <file alias="mActionWorkingSet.png">icons/mActionWorkingSet.png</file>
         <file alias="mActionEditComment.png">icons/mActionEditComment.png</file>
         <file alias="splash.png">icons/splash.png</file>
+        <file alias="mActionWarning.png">icons/mActionWarning.png</file>
         <file alias="mActionEditRedo.png">icons/mActionEditRedo.png</file>
         <file alias="mActionEditPaste.png">icons/mActionEditPaste.png</file>
         <file alias="mActionActionFile.png">icons/mActionActionFile.png</file>
@@ -40,6 +41,7 @@
         <file alias="mActionFileSave.png">icons/mActionFileSave.png</file>
         <file alias="mActionActionTable.png">icons/mActionActionTable.png</file>
         <file alias="mActionWorkspaceSave.png">icons/mActionWorkspaceSave.png</file>
+        <file alias="mActionError.png">icons/mActionError.png</file>
         <file alias="mActionRun.png">icons/mActionRun.png</file>
         <file alias="mActionHelpHelp.png">icons/mActionHelpHelp.png</file>
         <file alias="mActionFileSaveAs.png">icons/mActionFileSaveAs.png</file>

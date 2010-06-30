@@ -115,14 +115,14 @@ def welcomeString(version, isStandalone):
     string.append("Copyright (C) 2009-2010  Carson J. Q. Farmer\n")
     string.append("Licensed under the terms of GNU GPL 2\n")
     string.append("manageR is free software; ")
-    string.append("you can redistribute it and/or modify it under the terms")
-    string.append("of the GNU General Public License as published by the Free")
-    string.append("Software Foundation; either version 2 of the License, or")
+    string.append("you can redistribute it and/or modify it under the terms ")
+    string.append("of the GNU General Public License as published by the Free ")
+    string.append("Software Foundation; either version 2 of the License, or ")
     string.append("(at your option) any later version. ")
     string.append("Currently running %s\n" % robjects.r.version[12][0])
     return string
 
-CURRENTDIR = unicode(os.path.abspath( os.path.dirname(__file__)))
+CURRENTDIR = unicode(os.path.abspath(os.path.dirname(__file__)))
 
 def loadConfig():
     def setDefaultString(name, default):
@@ -271,7 +271,7 @@ class OutputCatcher(QObject):
     def get_and_clean_data(self, emit=True):
         tmp = self.data
         self.clear()
-        #original.write(tmp)
+        original.write(tmp)
         if emit:
             self.emit(SIGNAL("output(QString)"),
             QString(tmp.decode('utf8')))
@@ -610,8 +610,8 @@ class RFinder(QWidget):
                 self.document.setTextCursor(cursor)
                 if not self.document.find(text, flags):
                     if selection:
-                        cursor.setPosition(start, QTextCursor.MoveAnchor)
-                        cursor.setPosition(end, QTextCursor.KeepAnchor)
+                        cursor.setPosition(QTextCursor.Start, QTextCursor.MoveAnchor)
+                        cursor.setPosition(QTextCursor.End, QTextCursor.MoveAnchor)
                     else:
                         cursor.setPosition(pos)
                     self.document.setTextCursor(cursor)
@@ -2182,7 +2182,7 @@ class RConsole(QTextEdit):
                         seq_along_ = r.get("seq_along", mode='function')
                         withVisible_ = r.get("withVisible", mode='function')
                         class_ = r.get("class", mode='function')
-                        result =  try_(parse_(text=paste_(unicode(text))), silent=True)
+                        result =  try_(parse_(text=paste_(unicode(text, "UTF-8"))), silent=True)
                         exprs = result
                         result = None
                         for i in list(seq_along_(exprs)):
@@ -3138,7 +3138,7 @@ class RVariableWidget(QWidget):
             MainWindow.Console.editor.entered()
 
     def updateVariables(self):
-        self.variableTable.clear()
+        #self.variableTable.clear()
         data = self.browseEnv()
         try:
             numofroots = list(data[0])[0]
@@ -3165,13 +3165,24 @@ class RVariableWidget(QWidget):
 
         for i in range(int(numofroots)):
             iid = rootitems[i]-1
-            a = QTreeWidgetItem(self.variableTable)
-            a.setText(0, QString(names[int(iid)]))
-            a.setText(1, QString(types[int(iid)]))
-            a.setText(2, QString(dims[int(iid)]))
+            items = self.variableTable.findItems(QString(names[int(iid)]), Qt.MatchExactly, 0)
+            if len([True for j in items if not j.parent()]) < 1: # check if a top level item matches
+                a = QTreeWidgetItem(self.variableTable)
+                a.setText(0, QString(names[int(iid)]))
+                a.setText(1, QString(types[int(iid)]))
+                a.setText(2, QString(dims[int(iid)]))
+            else:
+                count = 0
+                while items[count].parent():
+                    count+=1
+                a = items[count-1]
+                #subitems = which(parentid, i+1)
+                #count = a.childCount()
+                a.takeChildren() # since we only offer one level
+                                        # of expansion, we might as well
             if container[i]:
-                items = which(parentid, i+1)
-                for id in items:
+                subitems = which(parentid, i+1)
+                for id in subitems:        # just recreate all children
                     b = QTreeWidgetItem(a)
                     b.setText(0, QString(names[id]))
                     b.setText(1, QString(types[id]))
@@ -4147,7 +4158,7 @@ class MainWindow(QMainWindow):
             QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
             MainWindow.Console.editor.cursor.removeSelectedText()
             MainWindow.Console.editor.cursor.insertText(
-            "%s# manageR import function" % (MainWindow.Console.editor.currentPrompt))
+            "%s# manageR import" % (MainWindow.Console.editor.currentPrompt))
             QApplication.processEvents()
             #try:
             if mlayer is None:
@@ -4210,7 +4221,7 @@ class MainWindow(QMainWindow):
         MainWindow.Console.editor.cursor.removeSelectedText()
         MainWindow.Console.editor.switchPrompt()
         MainWindow.Console.editor.cursor.insertText(
-        "%s# manageR export function" % (MainWindow.Console.editor.currentPrompt))
+        "%s# manageR export" % (MainWindow.Console.editor.currentPrompt))
         QApplication.processEvents()
         try:
             if ask:
@@ -4222,7 +4233,7 @@ class MainWindow(QMainWindow):
             # If there is no input layer, don't do anything
             if result is None: # this needs to be updated to reflect where we get the R objects from...
                 MainWindow.Console.editor.commandError(
-                "Error: No R spatial objects available")
+                "Error: No R spatial objects available\n")
                 MainWindow.Console.editor.commandComplete()
                 return
             if not result:
@@ -4234,12 +4245,12 @@ class MainWindow(QMainWindow):
                 raise Exception(RLibraryError("rgdal"))
             if not exportType in VECTORTYPES and not exportType in RASTERTYPES:
                 MainWindow.Console.editor.commandError(
-                "Error: Unrecognised sp object, unable to save to file.")
+                "Error: Unrecognised sp object, unable to save to file.\n")
                 MainWindow.Console.editor.commandComplete()
                 return
             if not toFile and exportType in RASTERTYPES:
                 MainWindow.Console.editor.commandError(
-                "Error: Unable to export raster layers to map canvas at this time.")
+                "Error: Unable to export raster layers to map canvas at this time.\n")
                 MainWindow.Console.editor.commandComplete()
                 return
             if not toFile:
@@ -4261,7 +4272,7 @@ class MainWindow(QMainWindow):
                     if fileCheck.exists():
                         if not QgsVectorFileWriter.deleteShapeFile(layerName):
                             MainWindow.Console.editor.commandError(
-                            "Error: Unable to overwrite existing file")
+                            "Error: Unable to overwrite existing file\n")
                             MainWindow.Console.editor.commandComplete()
                             return
                 if exportType in VECTORTYPES:
@@ -4699,10 +4710,13 @@ class QVectorLayerConverter(QObject):
     self.mlayer = mlayer
     self.data_only = data_only
     self.running = False
-
+    self.selection = mlayer.selectedFeatureCount() > 0
     # variables are retrived by 'getting' them from the global environment,
     # specifying that we want functions only, which avoids funtions being
     # masked by variable names
+    if not self.selection:
+      if not isLibraryLoaded("rgdal"):
+        raise Exception(RLibraryError("rgdal"))
     try:
       env = rinterface.globalEnv
       self.as_character_ = robjects.conversion.ri2py(env.get('as.character',wantFun=True))
@@ -4714,7 +4728,7 @@ class QVectorLayerConverter(QObject):
       self.data_frame_ = robjects.r.get('data.frame', mode='function')
       self.matrix_ = robjects.r.get('matrix', mode='function')
       self.unlist_ = robjects.r.get('unlist', mode='function')
-    if not self.data_only:
+    if not self.data_only and self.selection:
       # variables from package sp (only needed if featching geometries as well)
       try:
         self.CRS_ = robjects.conversion.ri2py(env.get('CRS',wantFun=True))
@@ -4761,76 +4775,92 @@ class QVectorLayerConverter(QObject):
           projString = 'NA'
           extra.append( "Unable to determine projection information\nPlease specify using:\n" )
           extra.append( "layer@proj4string <- CRS('+proj=longlat +datum=NAD83') for example." )
-
-    attrIndex = provider.attributeIndexes()
-    provider.select(attrIndex)
-    fields = provider.fields()
-    if len(fields.keys()) <= 0:
-      raise Exception("Error: Attribute table must have at least one field")
-    df = {}
-    types = {}
-    order = []
-    for (id, field) in fields.iteritems():
-      # initial read in has correct ordering...
-      name = unicode(field.name())
-      df[ name ] = []
-      types[ name ] = int( field.type() )
-      order.append(name)
-    fid = {"fid": []}
-    Coords = []
-    if self.mlayer.selectedFeatureCount() > 0:
-      features = self.mlayer.selectedFeatures()
-      for feat in features:
-        for (key, value) in df.iteritems():
-          df[key].append(self.convertAttribute(feat.attributeMap()[provider.fieldNameIndex(key)]))
-        fid["fid"].append(feat.id())
-        if not self.data_only:
-          if not self.getNextGeometry( Coords, feat):
-            raise Exception("Error: Unable to convert layer geometry")
-    else:
-      feat = QgsFeature()
-      while provider.nextFeature(feat):
-        for key in df.keys():
-          attrib = self.convertAttribute(feat.attributeMap()[provider.fieldNameIndex(key)])
-          df[key].append(attrib)
-        fid["fid"].append(feat.id())
-        if not self.data_only:
-          if not self.getNextGeometry( Coords, feat):
-            raise Exception("Error: Unable to convert layer geometry")
-    tmp = []
-    for key in order:
-      if types[key] == 10:
-        tmp.append((str(key), self.as_character_(robjects.StrVector(df[key]))))
+    if self.selection:
+      attrIndex = provider.attributeIndexes()
+      provider.select(attrIndex)
+      fields = provider.fields()
+      if len(fields.keys()) <= 0:
+        raise Exception("Error: Attribute table must have at least one field")
+      df = {}
+      types = {}
+      order = []
+      for (id, field) in fields.iteritems():
+        # initial read in has correct ordering...
+        name = unicode(field.name())
+        df[ name ] = []
+        types[ name ] = int( field.type() )
+        order.append(name)
+      fid = {"fid": []}
+      Coords = []
+      if self.mlayer.selectedFeatureCount() > 0:
+        features = self.mlayer.selectedFeatures()
+        for feat in features:
+          for (key, value) in df.iteritems():
+            df[key].append(self.convertAttribute(feat.attributeMap()[provider.fieldNameIndex(key)]))
+          fid["fid"].append(feat.id())
+          if not self.data_only:
+            if not self.getNextGeometry( Coords, feat):
+              raise Exception("Error: Unable to convert layer geometry")
       else:
-        tmp.append((str(key), robjects.FloatVector(df[key])))
-    try:
-        data_frame = rlc.OrdDict(tmp)
-    except:
-        data_frame = rlike.container.OrdDict(tmp)
-    #fid[ "fid" ] = robjects.IntVector( fid["fid"] )
-    #data_frame = robjects.r(''' function( d ) data.frame( d ) ''')
-    #data = data_frame( df )
-    data_frame = robjects.DataFrame(data_frame)
-    #data = data_frame( df )
-    #data['row.names'] = fid[ "fid" ]
-    if not self.data_only:
-      message = QString( "QGIS Vector Layer\n" )
-      spds = self.createSpatialDataset(feat.geometry().type(), Coords, data_frame, projString)
+        feat = QgsFeature()
+        while provider.nextFeature(feat):
+          for key in df.keys():
+            attrib = self.convertAttribute(feat.attributeMap()[provider.fieldNameIndex(key)])
+            df[key].append(attrib)
+          fid["fid"].append(feat.id())
+          if not self.data_only:
+            if not self.getNextGeometry( Coords, feat):
+              raise Exception("Error: Unable to convert layer geometry")
+      tmp = []
+      for key in order:
+        if types[key] == 10:
+          tmp.append((str(key), self.as_character_(robjects.StrVector(df[key]))))
+        else:
+          tmp.append((str(key), robjects.FloatVector(df[key])))
+      try:
+          data_frame = rlc.OrdDict(tmp)
+      except:
+          data_frame = rlike.container.OrdDict(tmp)
+      #fid[ "fid" ] = robjects.IntVector( fid["fid"] )
+      #data_frame = robjects.r(''' function( d ) data.frame( d ) ''')
+      #data = data_frame( df )
+      data_frame = robjects.DataFrame(data_frame)
+      #data = data_frame( df )
+      #data['row.names'] = fid[ "fid" ]
+      if not self.data_only:
+        message = QString( "QGIS Vector Layer\n" )
+        spds = self.createSpatialDataset(feat.geometry().type(), Coords, data_frame, projString)
+      else:
+        message = QString("QGIS Attribute Table\n")
+        spds = data_frame
+      length = len(fid["fid"])
+      width = len(order)
+      name = unicode(self.mlayer.name())
+      source = unicode(self.mlayer.publicSource())
+      name = unicode(QFileInfo(name).baseName())
+      make_names_ = robjects.r.get('make.names', mode='function')
+      newname = make_names_(name)[0]
+      message.append(QString("Name: " + unicode(newname) + "\nSource: " + unicode(source)))
+      message.append( QString("\nwith " + unicode(length) + " rows and " + unicode(width) + " columns"))
+      if not newname == name:
+        message.append(QString("\n**Note: layer name syntax changed"))
+      message.append("\n" + extra)
     else:
-      message = QString("QGIS Attribute Table\n")
-      spds = data_frame
-    length = len(fid["fid"])
-    width = len(order)
-    name = unicode(self.mlayer.name())
-    source = unicode(self.mlayer.publicSource())
-    name = unicode(QFileInfo(name).baseName())
-    make_names_ = robjects.r.get('make.names', mode='function')
-    newname = make_names_(name)[0]
-    message.append(QString("Name: " + unicode(newname) + "\nSource: " + unicode(source)))
-    message.append( QString("\nwith " + unicode(length) + " rows and " + unicode(width) + " columns"))
-    if not newname == name:
-      message.append(QString("\n**Note: layer name syntax changed"))
-    message.append("\n" + extra)
+      dsn = self.mlayer.source()
+      name = self.mlayer.name()
+      encode = provider.encoding()
+      readOGR_ = robjects.r.get('readOGR', mode='function')
+      try:
+        #print unicode(dsn,encoding=str(encode)), unicode(name,encoding=str(encode)), str(encode)
+        spds = readOGR_(dsn=unicode(dsn,encoding=str(encode)),layer=unicode(name,encoding=str(encode)),
+        input_field_name_encoding=str(encode))
+      except Exception, err:
+        spds = None
+        name = "Error"
+        print str(err)
+      if self.data_only:
+        spds = robjects.r["@"](spds,"data")
+      message = sys.stdout.get_and_clean_data(False)
     return (spds, name, message)
 
   # Function to retrieve QgsGeometry (polygon) coordinates
@@ -5080,6 +5110,7 @@ class RVectorLayerConverter(QObject):
         provider = vlayer.dataProvider()
         fields = self.getAttributesList()
         self.addAttributeSorted(fields, provider)
+
         rowCount = self.getRowCount()
         feat = QgsFeature()
         for row in range(1, rowCount + 1):
@@ -5098,12 +5129,12 @@ class RVectorLayerConverter(QObject):
         Add attribute to memory provider in correct order
         To preserve correct order they must be added one-by-one
         '''
-        for (i, j) in attributeList.iteritems():
+        for i, j in attributeList:
             try:
                 provider.addAttributes({i : j})
             except:
-                if j == "int": j = QVariant.Int
-                elif j == "double": j = QVariant.Double
+                #if j == "int": j = QVariant.Int
+                if j == "double": j = QVariant.Double
                 else: j = QVariant.String
                 provider.addAttributes([QgsField(i, j)])
 
@@ -5112,18 +5143,18 @@ class RVectorLayerConverter(QObject):
         Get list of attributes for R layer
         Return: Attribute list in format to be used by memory provider
         '''
-        typeof_ = robjects.r.get('typeof', mode='function')
+        typeof_ = robjects.r.get('class', mode='function')
         sapply_ = robjects.r.get('sapply', mode='function')
         try:
             in_types = sapply_(self.slot_(self.r_layer, "data"), typeof_)
         except:
             raise Exception("Error: R vector layer contains unsupported field type(s)")
         in_names = self.names_(self.r_layer)
-        out_fields = dict()
+        out_fields = []
         for i in range(0, len(in_types)):
-            if in_types[i] == "double": out_fields[in_names[i]] = "double"
-            elif in_types[i] == "integer": out_fields[in_names[i]] = "int"
-            else: out_fields[in_names[i]] =  "string"
+            if in_types[i] == "numeric": out_fields.append((in_names[i], "double"))
+            #elif in_types[i] == "integer": out_fields[in_names[i]] = "int"
+            else: out_fields.append((in_names[i], "string"))
         return out_fields
 
     def checkIfRObject(self, layer):

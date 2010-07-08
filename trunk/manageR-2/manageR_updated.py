@@ -44,6 +44,7 @@ from PyQt4.QtNetwork import QHttp
 
 # extra resources
 import resources
+import complete
 
 # rpy2 (R) imports
 import rpy2
@@ -225,7 +226,7 @@ class MainWindow(QMainWindow):
             editPasteAction, editSelectAllAction, None))
         if autocomplete:
             editCompleteAction = self.createAction("Com&plete",
-                self.main.completer().suggest, "Ctrl+Space", "mActionEditComplete",
+                self.main.completer().suggest, "TAB", "mActionEditComplete",
                 "Initiate autocomplete suggestions")
             self.addActions(editMenu, (editCompleteAction, None,))
         editFindNextAction = self.createAction("&Find",
@@ -924,10 +925,9 @@ class PlainTextEdit(QPlainTextEdit):
 
     def currentCommand(self, block):
         command = QString(block.text())
-        #if command.isEmpty():
-            #block = block.previous()
-            #command = QString(block.text())
         block = block.previous()
+        pos1 = self.textCursor().position()
+        pos2 = block.position()
         while block.isValid():
             try:
                 if not block.userData().data() == PlainTextEdit.CONTINUE:
@@ -936,7 +936,8 @@ class PlainTextEdit(QPlainTextEdit):
                 break
             command.prepend("\n%s" % block.text())
             block = block.previous()
-        return command
+            pos2 = block.position()
+        return (command, pos1-pos2)
 
     def insertParameters(self):
         cursor = self.textCursor()
@@ -1069,7 +1070,7 @@ class REditor(PlainTextEdit):
         PlainTextEdit.mousePressEvent(self, e)
 
     def textChanged(self):
-        self.checkSyntax(self.currentCommand(self.textCursor().block()))
+        self.checkSyntax(self.currentCommand(self.textCursor().block())[0])
 
 class RConsole(PlainTextEdit):
 
@@ -1079,6 +1080,7 @@ class RConsole(PlainTextEdit):
         self.setPrompt(prompts[0],prompts[1])
         self.__HIST = History()
         self.__started = False
+        self.__tabwidth = tabwidth
 
     def setHistory(self, history):
         self.__HIST = history
@@ -1126,6 +1128,14 @@ class RConsole(PlainTextEdit):
                 if not cursor.hasSelection() and cursor.atBlockStart():
                     return
                 PlainTextEdit.keyPressEvent(self, e)
+            elif e.key() == Qt.Key_Tab:
+                if not cursor.hasSelection():
+                    cursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor)
+                    text = cursor.selectedText().trimmed()
+                    if not text.isEmpty():
+                        self.emit(SIGNAL("requestSuggestion(int)"), 1)
+                    else:
+                        self.insertPlainText(" "*self.__tabwidth)
             elif e.key() == Qt.Key_Return:
                 cursor = self.textCursor()
                 cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
@@ -1165,7 +1175,7 @@ class RConsole(PlainTextEdit):
 
     def entered(self):
         block = self.textCursor().block().previous()
-        command = self.currentCommand(block)
+        command = self.currentCommand(block)[0]
         check = self.checkSyntax(command, block)
         if not check == PlainTextEdit.OUTPUT:
             if not self.lastLine().isEmpty():
@@ -1539,12 +1549,12 @@ class CompletePopup(QObject):
         else:
             self.timer.setInterval(500)
         self.currentItem = ""
-        self.DICT = Dictionary()
+        #self.DICT = Dictionary()
         self.connect(self.timer, SIGNAL("timeout()"), self.suggest, minchars)
         self.connect(self.editor, SIGNAL("textChanged()"), self.startTimer)
 
-    def setDictionary(self, dictionary):
-        self.DICT = dictionary
+    #def setDictionary(self, dictionary):
+        #self.DICT = dictionary
 
     def startTimer(self):
         self.timer.start()
@@ -1581,7 +1591,7 @@ class CompletePopup(QObject):
             return consumed
         return False
 
-    def showCompletion(self, choices):
+    def showCompletion(self, choices, start, end):
         if len(choices) < 1:
             return
 
@@ -1610,6 +1620,8 @@ class CompletePopup(QObject):
         self.popup.move(self.editor.mapToGlobal(self.editor.cursorRect().bottomRight()))
         self.popup.setFocus()
         self.popup.show()
+        self.start = start
+        self.end = end
 
     def doneCompletion(self):
         self.timer.stop()
@@ -1624,8 +1636,7 @@ class CompletePopup(QObject):
             self.preventSuggest()
             self.setCurrentItem(item)
             self.emit(SIGNAL("doneCompletion(QString, QString)"),
-            QString(unicode(item.text(0))),
-            QString(self.DICT.value(unicode(item.text(0)))))
+            QString(unicode(item.text(0))),QString())
 
     def setCurrentItem(self, item):
         self.currentItem = item
@@ -1636,24 +1647,36 @@ class CompletePopup(QObject):
     def preventSuggest(self):
         self.timer.stop()
 
-    def suggest(self,minchars=3):
-        text = self.getCurrentWord()
-        def f(x):
-            return x.startswith(text)
-        if text.contains(QRegExp(r"\b.{%d,}" % (minchars))):
-            self.showCompletion(filter(f, self.DICT.keys()))
+    def suggest(self, minchars=3):
+        block = self.editor.textCursor().block()
+        text = block.text()
+        if len(text) < minchars:
+            return
+        command = self.editor.currentCommand(block)
+        linebuffer = command[0]
+        if QString(linebuffer).trimmed().isEmpty():
+            return
+        cursor = command[1]
+        token, start, end = complete.guessTokenFromLine(linebuffer, cursor-1)
+        if len(token) < minchars:
+            return
+        comps = complete.completeToken(linebuffer, token, start, end)
+        self.showCompletion(comps, start, end)
 
-    def getCurrentWord(self):
-        textCursor = self.editor.textCursor()
-        textCursor.movePosition(QTextCursor.StartOfWord, QTextCursor.KeepAnchor)
-        currentWord = textCursor.selectedText()
-        textCursor.setPosition(textCursor.anchor(), QTextCursor.MoveAnchor)
-        return currentWord
+    #def getCurrentWord(self):
+        #textCursor = self.editor.textCursor()
+        #textCursor.movePosition(QTextCursor.StartOfWord, QTextCursor.KeepAnchor)
+        #currentWord = textCursor.selectedText()
+        #textCursor.setPosition(textCursor.anchor(), QTextCursor.MoveAnchor)
+        #return currentWord
 
     def replaceCurrentWord(self, word):
         textCursor = self.editor.textCursor()
-        textCursor.movePosition(QTextCursor.StartOfWord, QTextCursor.KeepAnchor)
-        textCursor.insertText(word)
+        textCursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor, self.end-self.start)
+        textCursor.removeSelectedText()
+        self.editor.setTextCursor(textCursor)
+        self.editor.insertPlainText(word)
+
 
 class BaseFrame(QFrame):
 
@@ -1669,7 +1692,9 @@ class BaseFrame(QFrame):
         if autopopup:
             self.connect(self.completePopup,
             SIGNAL("doneCompletion(QString, QString)"), self.doneCompletion)
-        
+            self.connect(self.edit,
+            SIGNAL("requestSuggestion(int)"), self.completer().suggest)
+
         self.sidePanel = SidePanel(self.edit)
         if sidepanel:
             self.connect(self.edit, SIGNAL("blockCountChanged(int)"),
@@ -3128,13 +3153,10 @@ class Highlighter(QSyntaxHighlighter):
     Rules = []
     Formats = {}
 
-    def __init__(self, parent=None, isConsole=False):
+    def __init__(self, parent=None):
         QSyntaxHighlighter.__init__(self, parent)
         self.parent = parent
-        if isinstance(self.parent, QPlainTextEdit):
-            self.setDocument(self.parent.document())
         self.initializeFormats()
-        self.isConsole = isConsole
         RHighlighter.Rules.append((QRegExp(
             r"[a-zA-Z_]+[a-zA-Z_\.0-9]*(?=[\s]*[(])"), "keyword"))
         RHighlighter.Rules.append((QRegExp(

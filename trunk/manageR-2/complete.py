@@ -27,6 +27,7 @@ def insideQuotes(linebuffer = "", end = -1):
     if end < 0:
         end = len(linebuffer)
     linebuffer = QString(linebuffer[0:end])
+    print linebuffer
     double = linebuffer.count("'")
     single = linebuffer.count('"')
     return ((double % 2) or (single % 2))
@@ -59,11 +60,12 @@ def attachedPackageCompletions(token = ""):
     suffix = robjects.r["$"](robjects.r['rc.options'](),"package.suffix")[0]
     return ["%s%s" % (i[8:],suffix) for i in strings]
 
-def normalCompletions(token="", suffix=""):
+def normalCompletions(token="", suffix=None):
     if token == "":
         return list()
     else:
-        comps = QStringList(list(robjects.r.apropos("^%s" % makeRegexpSafe(token))))
+        kwargs = {"ignore.case": False}
+        comps = QStringList(list(robjects.r.apropos("^%s" % makeRegexpSafe(token), **kwargs)))
         function = [robjects.r.exists(unicode(i), mode="function")[0] for i in comps]
         if suffix is None:
             suffix = robjects.r["$"](robjects.r['rc.options'](),"function.suffix")[0]
@@ -155,7 +157,7 @@ def inFunction(line = "", cursor = 1, first = False):
         if suffix.count(QRegExp(r"[=,]")) < 1:
             first = True
         tmp = suffix.lastIndexOf("=")
-        if tmp > 0 and suffix[0:tmp].count(",") < 1:
+        if tmp > 0 and suffix[tmp:].count(",") < 1:
             return (None, first)
         else: ## guess function name
             regexp = QRegExp(r"[^\.\w]")
@@ -250,7 +252,7 @@ def completeToken(linebuffer="", token="", start=0, end=0):
     else:
         comps = QStringList()
         first = False
-        guessedFunction = inFunction(linebuffer,start)
+        guessedFunction = inFunction(linebuffer,end)
         fguess = guessedFunction[0]
         first = guessedFunction[1]
         if not fguess is None:
@@ -270,12 +272,16 @@ def completeToken(linebuffer="", token="", start=0, end=0):
             comps << normal
         return list(comps)
 
-#robjects.r("test <- data.frame('one'=c(1,2,3,4,5), 'twobaloo'=c(1,2,3,4,5))")
-#linebuffer = 'plo'
-#guess = guessTokenFromLine(linebuffer)
-#token = guess[0]
-#start = guess[1]
-#end = guess[2]
-#print linebuffer, token, start, end
-#comps = completeToken(linebuffer, token, start, end)
-#print comps
+def main():
+    #robjects.r("test <- data.frame('one'=c(1,2,3,4,5), 'twobaloo'=c(1,2,3,4,5))")
+    linebuffer = 'save(x, file="/home/cf")'
+    guess = guessTokenFromLine(linebuffer)
+    token = guess[0]
+    start = guess[1]
+    end = guess[2]
+    print linebuffer, token, start, end
+    comps = completeToken(linebuffer, token, start, end)
+    print comps
+
+if __name__ == '__main__':
+    main()

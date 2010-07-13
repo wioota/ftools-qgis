@@ -666,12 +666,16 @@ class PlainTextEdit(QPlainTextEdit):
         indent = " "*self.__tabwidth
         cursor = self.textCursor()
         if event.key() == Qt.Key_Tab:
-            if not self.tabChangesFocus():
-                if not cursor.hasSelection():
-                    cursor.insertText(indent)
-                    self.setTextCursor(cursor)
+            if not cursor.hasSelection():
+                cursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor)
+                text = cursor.selectedText().trimmed()
+                if not text.isEmpty():
+                    self.emit(SIGNAL("requestSuggestion(int)"), 1)
                 else:
-                    self.indentRegion()
+                    self.insertPlainText(indent)
+            else:
+                self.indentRegion()
+
         elif event.key() in (Qt.Key_Enter, Qt.Key_Return):
             insert = "\n"
             line = cursor.block().text()
@@ -934,7 +938,7 @@ class PlainTextEdit(QPlainTextEdit):
                     break
             except: # this means there is no user data, assume ok
                 break
-            command.prepend("\n%s" % block.text())
+            command.prepend("%s\n" % block.text())
             block = block.previous()
             pos2 = block.position()
         return (command, pos1-pos2)
@@ -1594,6 +1598,12 @@ class CompletePopup(QObject):
     def showCompletion(self, choices):
         if len(choices) < 1:
             return
+        if len(choices) == 1:
+            self.replaceCurrentWord(choices[0])
+            self.preventSuggest()
+            self.emit(SIGNAL("doneCompletion(QString, QString)"),
+            QString(unicode(choices[0])),QString())
+            return
         pal = self.editor.palette()
         color = pal.color(QPalette.Disabled,
                           QPalette.WindowText)
@@ -1653,9 +1663,9 @@ class CompletePopup(QObject):
         linebuffer = command[0]
         if QString(linebuffer).trimmed().isEmpty():
             return
-        cursor = command[1]
-        token, start, end = complete.guessTokenFromLine(linebuffer, cursor-1)
-        print token, start, end, len(linebuffer)
+        cursor = command[1]-1
+        token, start, end = complete.guessTokenFromLine(linebuffer, cursor)
+        print len(token)
         if len(token) < minchars:
             return
         self.move = len(token)
@@ -1673,6 +1683,10 @@ class CompletePopup(QObject):
         textCursor = self.editor.textCursor()
         textCursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor, self.move)
         textCursor.removeSelectedText()
+        textCursor.movePosition(QTextCursor.Right, QTextCursor.KeepAnchor)
+        sel = textCursor.selectedText()
+        if not word[-1] == sel and not sel.isEmpty():
+            textCursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor)
         self.editor.setTextCursor(textCursor)
         self.editor.insertPlainText(word)
 

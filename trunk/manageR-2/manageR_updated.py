@@ -195,10 +195,10 @@ class MainWindow(QMainWindow):
                 fileSaveAsAction, None, fileCloseAction,))
         if console:
             fileConfigureAction = self.createAction("Config&ure...",
-                self.fileConfigure, QKeySequence.Preferences,
+                self.fileConfigure, "Ctrl+Shift+P",
                 "mActionFileConfigure", "Configure manageR")
             fileQuitAction = self.createAction("&Quit", self.fileQuit,
-                QKeySequence.Quit, "mActionFileQuit", "Quit manageR")
+                "Ctrl+Q", "mActionFileQuit", "Quit manageR")
             self.addActions(fileMenu, (fileConfigureAction, None,
                 fileQuitAction,))
 
@@ -226,7 +226,7 @@ class MainWindow(QMainWindow):
             editPasteAction, editSelectAllAction, None))
         if autocomplete:
             editCompleteAction = self.createAction("Com&plete",
-                self.main.completer().suggest, "TAB", "mActionEditComplete",
+                self.main.completer().suggest, "Tab", "mActionEditComplete",
                 "Initiate autocomplete suggestions")
             self.addActions(editMenu, (editCompleteAction, None,))
         editFindNextAction = self.createAction("&Find",
@@ -1591,16 +1591,15 @@ class CompletePopup(QObject):
             return consumed
         return False
 
-    def showCompletion(self, choices, start, end):
+    def showCompletion(self, choices):
         if len(choices) < 1:
             return
-
         pal = self.editor.palette()
         color = pal.color(QPalette.Disabled,
                           QPalette.WindowText)
         self.popup.setUpdatesEnabled(False)
         self.popup.clear()
-        for i in choices:
+        for i in sorted(choices):
             item = QTreeWidgetItem(self.popup)
             #item.setText(0, i.split(":")[0].simplified())
             item.setText(0, i)
@@ -1620,8 +1619,6 @@ class CompletePopup(QObject):
         self.popup.move(self.editor.mapToGlobal(self.editor.cursorRect().bottomRight()))
         self.popup.setFocus()
         self.popup.show()
-        self.start = start
-        self.end = end
 
     def doneCompletion(self):
         self.timer.stop()
@@ -1658,10 +1655,12 @@ class CompletePopup(QObject):
             return
         cursor = command[1]
         token, start, end = complete.guessTokenFromLine(linebuffer, cursor-1)
+        print token, start, end, len(linebuffer)
         if len(token) < minchars:
             return
+        self.move = len(token)
         comps = complete.completeToken(linebuffer, token, start, end)
-        self.showCompletion(comps, start, end)
+        self.showCompletion(comps)
 
     #def getCurrentWord(self):
         #textCursor = self.editor.textCursor()
@@ -1672,7 +1671,7 @@ class CompletePopup(QObject):
 
     def replaceCurrentWord(self, word):
         textCursor = self.editor.textCursor()
-        textCursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor, self.end-self.start)
+        textCursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor, self.move)
         textCursor.removeSelectedText()
         self.editor.setTextCursor(textCursor)
         self.editor.insertPlainText(word)
@@ -3328,30 +3327,6 @@ class UserData(QTextBlockUserData):
 
     def hasExtra(self):
         return not self.__extra is None
-
-class Dictionary(QObject):
-
-    def __init__(self, parent=None):
-        QObject.__init__(self, None)
-        self.DICT = {}
-
-    def udpateItems(self, items):
-        self.DICT.update(items)
-
-    def setItems(self, items):
-        self.DICT = items
-
-    def keys(self):
-        return self.DICT.keys()
-
-    def values(self):
-        return self.DICT.values()
-
-    def value(self, key):
-        return self.DICT[key]
-
-    def items(self):
-        return self.DICT
 
 class History(QAbstractListModel):
 

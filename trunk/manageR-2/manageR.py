@@ -1803,11 +1803,12 @@ class RConsole(QTextEdit):
             self.runningCommand.clear()
             self.cursor.movePosition(QTextCursor.End,
             QTextCursor.MoveAnchor)
-            #self.switchPrompt(True)
-            #self.cursor.movePosition(QTextCursor.End,
-            #QTextCursor.MoveAnchor)
-        #self.setTextCursor(self.cursor)
-        #self.moveToEnd()
+            #self.cursor.insertText(str(self.children()))
+            self.switchPrompt(True)
+            self.cursor.movePosition(QTextCursor.End,
+            QTextCursor.MoveAnchor)
+        self.setTextCursor(self.cursor)
+        self.moveToEnd()
 
     def showPrevious(self):
         if self.historyIndex < len(self.history) and not self.history.isEmpty():
@@ -3978,8 +3979,7 @@ class MainWindow(QMainWindow):
             splash.showMessage("Attempting to start/build R html help", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)
             QApplication.processEvents()
-            robjects.r['help.start'](update = True,
-            browser=robjects.r('function(url) return(url)'))
+            robjects.r['help.start'](browser=robjects.r('function(url) return(url)'))
             sys.stdout.clear()
             splash.showMessage("manageR ready!", \
             (Qt.AlignBottom|Qt.AlignHCenter), Qt.white)

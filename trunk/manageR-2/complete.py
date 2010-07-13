@@ -56,17 +56,17 @@ def keywordCompletions(token=""):
 def attachedPackageCompletions(token = ""):
     strings = QStringList(list(robjects.r.search()))
     strings = strings.filter(QRegExp(r"^package:(%s)" % makeRegexpSafe(token)))
-    suffix = robjects.r['rc.options']().rx("package.suffix")[0][0]
+    suffix = robjects.r["$"](robjects.r['rc.options'](),"package.suffix")[0]
     return ["%s%s" % (i[8:],suffix) for i in strings]
 
 def normalCompletions(token="", suffix=""):
     if token == "":
         return list()
     else:
-        comps = QStringList(list(robjects.r.apropos("^%s" % makeRegexpSafe(token), ignore_case=False)))
+        comps = QStringList(list(robjects.r.apropos("^%s" % makeRegexpSafe(token))))
         function = [robjects.r.exists(unicode(i), mode="function")[0] for i in comps]
         if suffix is None:
-            suffix = robjects.r['rc.options']().rx("function.suffix")[0][0]
+            suffix = robjects.r["$"](robjects.r['rc.options'](),"function.suffix")[0]
         for i, item in enumerate(comps):
             if function[i]:
                 comps[i] = "%s%s" % (item,suffix)
@@ -168,7 +168,7 @@ def inFunction(line = "", cursor = 1, first = False):
         return (None, first)
 
 def functionArgs(fun="", text=""):
-    add = robjects.r['rc.getOption']("funarg.suffix")[0]
+    add = robjects.r["$"](robjects.r['rc.options'](),"funarg.suffix")[0]
     if fun == "" or text == "":
         return list()
     methods = []
@@ -271,11 +271,11 @@ def completeToken(linebuffer="", token="", start=0, end=0):
         return list(comps)
 
 #robjects.r("test <- data.frame('one'=c(1,2,3,4,5), 'twobaloo'=c(1,2,3,4,5))")
-linebuffer = 'plo'
-guess = guessTokenFromLine(linebuffer)
-token = guess[0]
-start = guess[1]
-end = guess[2]
-print linebuffer, token, start, end
-comps = completeToken(linebuffer, token, start, end)
-print comps
+#linebuffer = 'plo'
+#guess = guessTokenFromLine(linebuffer)
+#token = guess[0]
+#start = guess[1]
+#end = guess[2]
+#print linebuffer, token, start, end
+#comps = completeToken(linebuffer, token, start, end)
+#print comps

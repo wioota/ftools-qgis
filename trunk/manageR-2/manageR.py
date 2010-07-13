@@ -32,7 +32,7 @@ manageR makes extensive use of rpy2 (Laurent Gautier) to communicate with R.
   Rpy2 may be used under the terms of the GNU General Public License.
 '''
 
-import os, re, sys, platform, base64
+import os, re, sys, platform, base64, time
 from xml.dom import minidom
 import resources
 # from multiprocessing import Process, Queue
@@ -4193,8 +4193,11 @@ class MainWindow(QMainWindow):
             rbuf = sys.stdout.get_and_clean_data(False)
             if rbuf:
                 MainWindow.Console.editor.commandOutput(rbuf)
+            t1 = time.time()
             rLayer, layerName, message = layerCreator.start()
             robjects.r.assign(unicode(layerName), rLayer)
+            t2 = time.time()
+            QMessageBox.information(self,"","total time: %s" % str(t2-t1))
             if not unicode(layerName) in CAT:
                 CAT.append(unicode(layerName))
             #self.emit(SIGNAL("newObjectCreated(PyQt_PyObject)"), \

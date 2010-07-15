@@ -43,8 +43,8 @@ from PyQt4.QtGui import *
 from PyQt4.QtNetwork import QHttp
 
 # extra resources
-import resources
-import complete
+import complete, resources
+from config import ConfigDialog
 
 # rpy2 (R) imports
 import rpy2
@@ -332,7 +332,7 @@ class MainWindow(QMainWindow):
         self.windowMenu.clear()
         action = self.windowMenu.addAction("&Console", self.raise_)
         action.setData(QVariant(long(id(self))))
-        action.setIcon(QIcon(":utilities-terminal.png"))
+        action.setIcon(QIcon(":utilities-terminal.svg"))
         i = 1
         menu = self.windowMenu
         windows = QApplication.findChildren(self, MainWindow)
@@ -350,7 +350,7 @@ class MainWindow(QMainWindow):
             i += 1
             action = menu.addAction(text, window.raise_)
             action.setData(QVariant(long(id(window))))
-            action.setIcon(QIcon(":preferences-system-windows.png"))
+            action.setIcon(QIcon(":preferences-system-windows.svg"))
 
     def addActions(self, target, actions):
         for action in actions:
@@ -364,7 +364,7 @@ class MainWindow(QMainWindow):
                      param=None):
         action = QAction(text, self)
         if icon is not None:
-            action.setIcon(QIcon(":%s.png" % icon))
+            action.setIcon(QIcon(":%s.svg" % icon))
         if shortcut is not None:
             action.setShortcut(shortcut)
         if tip is not None:
@@ -455,7 +455,8 @@ class MainWindow(QMainWindow):
         QApplication.restoreOverrideCursor()
 
     def fileConfigure(self):
-        pass
+        browser = ConfigDialog(self)
+        browser.exec_()
 
     def fileNew(self):
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
@@ -1038,9 +1039,9 @@ class REditor(PlainTextEdit):
             try:
                 if block.userData().data() == PlainTextEdit.SYNTAX:
                     if block == self.textCursor().block():
-                        pixmap = QPixmap(":media-record-orange.png")
+                        pixmap = QPixmap(":media-record.svg")
                     else:
-                        pixmap = QPixmap(":media-record.png")
+                        pixmap = QPixmap(":media-record.svg")
                     painter.drawPixmap(rect, pixmap)
                 else:
                     painter.drawText(rect, Qt.AlignRight, unicode(count))
@@ -1052,18 +1053,18 @@ class REditor(PlainTextEdit):
     def mousePressEvent(self, e):
         cursor = self.textCursor()
         if e.button() == Qt.RightButton:
-            actions = [[QIcon(":edit-copy.png"),
+            actions = [[QIcon(":edit-copy.svg"),
                         "Copy", self.copy, QKeySequence(QKeySequence.Copy)],
-                       [QIcon(":edit-select-all.png"),
+                       [QIcon(":edit-select-all.svg"),
                         "Select all", self.selectAll,
                         QKeySequence(QKeySequence.SelectAll)],
-                       [QIcon(":logo.png"),
+                       [QIcon(":logo.svg"),
                         "Function keywords", self.insertParameters,
                         QKeySequence("Ctrl+P")],
-                       [QIcon(":edit-paste.png"),
+                       [QIcon(":edit-paste.svg"),
                         "Paste", self.paste,
                         QKeySequence(QKeySequence.Paste)],
-                       [QIcon(":edit-cut.png"),
+                       [QIcon(":edit-cut.svg"),
                         "Cut", self.cut, QKeySequence(QKeySequence.Cut)]]
             menu = QMenu()
             if not cursor.hasSelection():
@@ -1237,18 +1238,18 @@ class RConsole(PlainTextEdit):
     def mousePressEvent(self, e):
         cursor = self.textCursor()
         if e.button() == Qt.RightButton:
-            actions = [[QIcon(":edit-copy.png"),
+            actions = [[QIcon(":edit-copy.svg"),
                         "Copy", self.copy, QKeySequence(QKeySequence.Copy)],
-                       [QIcon(":edit-select-all.png"),
+                       [QIcon(":edit-select-all.svg"),
                         "Select all", self.selectAll,
                         QKeySequence(QKeySequence.SelectAll)],
-                       [QIcon(":logo.png"),
+                       [QIcon(":logo.svg"),
                         "Function keywords", self.insertParameters,
                         QKeySequence("Ctrl+P")],
-                       [QIcon(":edit-paste.png"),
+                       [QIcon(":edit-paste.svg"),
                         "Paste", self.paste,
                         QKeySequence(QKeySequence.Paste)],
-                       [QIcon(":edit-cut.png"),
+                       [QIcon(":edit-cut.svg"),
                         "Cut", self.cut, QKeySequence(QKeySequence.Cut)]]
             menu = QMenu()
             if self.isCursorInEditionZone():
@@ -1363,19 +1364,19 @@ class SearchBar(QWidget):
         self.closeButton = QToolButton(self)
         self.closeButton.setText("Close")
         self.closeButton.setToolButtonStyle(Qt.ToolButtonIconOnly)
-        self.closeButton.setIcon(QIcon(":process-stop.png"))
+        self.closeButton.setIcon(QIcon(":process-stop.svg"))
         self.closeButton.setToolTip("Close search bar")
         self.searchEdit = QLineEdit(self)
         self.searchEdit.setToolTip("Find text")
         self.nextButton = QToolButton(self)
         self.nextButton.setText("Next")
         self.nextButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.nextButton.setIcon(QIcon(":go-next.png"))
+        self.nextButton.setIcon(QIcon(":go-next.svg"))
         self.nextButton.setToolTip("Find next")
         self.previousButton = QToolButton(self)
         self.previousButton.setToolTip("Find previous")
         self.previousButton.setText("Previous")
-        self.previousButton.setIcon(QIcon(":go-previous.png"))
+        self.previousButton.setIcon(QIcon(":go-previous.svg"))
         self.previousButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.wholeCheckbox = QCheckBox()
         self.wholeCheckbox.setText("Whole words")
@@ -1757,7 +1758,7 @@ class AboutBrowser(QDialog):
     def __init__(self, parent=None):
         QDialog.__init__(self, parent)
         iconLabel = QLabel()
-        icon = QPixmap(":mActionLogo.png")
+        icon = QPixmap(":logo.png")
         iconLabel.setPixmap(icon)
         nameLabel = QLabel(
             "<font size=8 color=#0066CC>&nbsp;<b>manageR</b></font>")
@@ -2331,7 +2332,7 @@ class HtmlBrowser(QWidget):
         homeAction = QAction("&Home", self)
         homeAction.setToolTip("Return to start page")
         homeAction.setWhatsThis("Return to start page")
-        homeAction.setIcon(QIcon(":go-home.png"))
+        homeAction.setIcon(QIcon(":go-home.svg"))
         homeButton.setDefaultAction(homeAction)
         homeAction.setEnabled(True)
         homeButton.setAutoRaise(True)
@@ -2340,7 +2341,7 @@ class HtmlBrowser(QWidget):
         backwardAction = QAction("&Back", self)
         backwardAction.setToolTip("Move to previous page")
         backwardAction.setWhatsThis("Move to previous page")
-        backwardAction.setIcon(QIcon(":go-previous.png"))
+        backwardAction.setIcon(QIcon(":go-previous.svg"))
         backwardButton.setDefaultAction(backwardAction)
         backwardAction.setEnabled(False)
         backwardButton.setAutoRaise(True)
@@ -2349,7 +2350,7 @@ class HtmlBrowser(QWidget):
         forwardAction = QAction("&Forward", self)
         forwardAction.setToolTip("Move to next page")
         forwardAction.setWhatsThis("Move to next page")
-        forwardAction.setIcon(QIcon(":go-next.png"))
+        forwardAction.setIcon(QIcon(":go-next.svg"))
         forwardButton.setDefaultAction(forwardAction)
         forwardAction.setEnabled(False)
         forwardButton.setAutoRaise(True)
@@ -2413,7 +2414,7 @@ class WorkingDirectoryWidget(RWidget):
         self.setwdButton = QToolButton(self)
         self.setwdButton.setToolTip("Set working directory")
         self.setwdButton.setWhatsThis("Set working directory")
-        self.setwdButton.setIcon(QIcon(":folder.png"))
+        self.setwdButton.setIcon(QIcon(":folder.svg"))
         self.setwdButton.setText("setwd")
         self.setwdButton.setAutoRaise(True)
 
@@ -2479,37 +2480,37 @@ class DirectoryWidget(RWidget):
         upAction = QAction("&Up", self)
         upAction.setStatusTip("Move to parent directory")
         upAction.setToolTip("Move to parent directory")
-        upAction.setIcon(QIcon(":go-up.png"))
+        upAction.setIcon(QIcon(":go-up.svg"))
         upAction.setEnabled(True)
         self.actions.append(upAction)
         newAction = QAction("&New Directory", self)
         newAction.setStatusTip("Create new directory")
         newAction.setToolTip("Create new directory")
-        newAction.setIcon(QIcon(":folder-new.png"))
+        newAction.setIcon(QIcon(":folder-new.svg"))
         newAction.setEnabled(True)
         self.actions.append(newAction)
         synchAction = QAction("&Synch", self)
         synchAction.setStatusTip("Synch with current working directory")
         synchAction.setToolTip("Synch with current working directory")
-        synchAction.setIcon(QIcon(":go-jump.png"))
+        synchAction.setIcon(QIcon(":go-jump.svg"))
         synchAction.setEnabled(True)
         self.actions.append(synchAction)
         rmAction = QAction("&Delete", self)
         rmAction.setStatusTip("Delete selected item")
         rmAction.setToolTip("delete selected item")
-        rmAction.setIcon(QIcon(":edit-delete.png"))
+        rmAction.setIcon(QIcon(":edit-delete.svg"))
         rmAction.setEnabled(True)
         self.actions.append(rmAction)
         openAction = QAction("&Open", self)
         openAction.setStatusTip("Open selected R script")
         openAction.setToolTip("Open selected R script")
-        openAction.setIcon(QIcon(":document-open.png"))
+        openAction.setIcon(QIcon(":document-open.svg"))
         openAction.setEnabled(True)
         self.actions.append(openAction)
         loadAction = QAction("&Load", self)
         loadAction.setStatusTip("Load selected R data")
         loadAction.setToolTip("Load selected R data")
-        loadAction.setIcon(QIcon(":document-open.png"))
+        loadAction.setIcon(QIcon(":document-open.svg"))
         loadAction.setEnabled(True)
         self.actions.append(loadAction)
         self.rootChanged()
@@ -2667,18 +2668,18 @@ class HistoryWidget(RWidget):
         self.copyAction = QAction("&Copy command(s)", self)
         self.copyAction.setStatusTip("Copy the selected command(s) to the clipboard")
         self.copyAction.setToolTip("Copy the selected command(s) to the clipboard")
-        self.copyAction.setIcon(QIcon(":edit-copy.png"))
+        self.copyAction.setIcon(QIcon(":edit-copy.svg"))
         self.copyAction.setEnabled(False)
 
         self.selectAction = QAction("Select &all", self)
         self.selectAction.setStatusTip("Select all commands")
         self.selectAction.setToolTip("Select all commands")
-        self.selectAction.setIcon(QIcon(":edit-select-all.png"))
+        self.selectAction.setIcon(QIcon(":edit-select-all.svg"))
 
         self.runAction = QAction("&Run command(s)", self)
         self.runAction.setStatusTip("Run the selected command(s) in the console")
         self.runAction.setToolTip("Run the selected command(s) in the console")
-        self.runAction.setIcon(QIcon(":utilities-terminal.png"))
+        self.runAction.setIcon(QIcon(":utilities-terminal.svg"))
         self.runAction.setEnabled(False)
 
         vbox = QVBoxLayout(self)
@@ -2778,49 +2779,49 @@ class WorkspaceWidget(RWidget):
         self.refreshAction = QAction("Re&fresh variables", self)
         self.refreshAction.setToolTip("Refresh environment browser")
         self.refreshAction.setWhatsThis("Refresh environment browser")
-        self.refreshAction.setIcon(QIcon(":view-refresh.png"))
+        self.refreshAction.setIcon(QIcon(":view-refresh.svg"))
         self.refreshAction.setEnabled(True)
         self.actions.append(self.refreshAction)
 
-        self.loadAction = QAction("&Load variable", self)
+        self.loadAction = QAction("&Load data", self)
         self.loadAction.setToolTip("Load R variable(s) from file")
         self.loadAction.setWhatsThis("Load R variable(s) from file")
-        self.loadAction.setIcon(QIcon(":document-open.png"))
+        self.loadAction.setIcon(QIcon(":package-x-generic.svg"))
         self.loadAction.setEnabled(True)
         self.actions.append(self.loadAction)
         
         self.exportAction = QAction("Export to &file", self)
         self.exportAction.setToolTip("Export data to file")
         self.exportAction.setWhatsThis("Export data to file")
-        self.exportAction.setIcon(QIcon(":document-save.png"))
+        self.exportAction.setIcon(QIcon(":document-save.svg"))
         self.exportAction.setEnabled(False)
         self.actions.append(self.exportAction)
 
         self.saveAction = QAction("&Save variable", self)
         self.saveAction.setToolTip("Save R variable to file")
         self.saveAction.setWhatsThis("Save R variable to file")
-        self.saveAction.setIcon(QIcon(":document-save-as.png"))
+        self.saveAction.setIcon(QIcon(":document-save-as.svg"))
         self.saveAction.setEnabled(False)
         self.actions.append(self.saveAction)
 
         self.methodAction = QAction("&Print available methods", self)
         self.methodAction.setToolTip("Print available methods for object class")
         self.methodAction.setWhatsThis("Print available methods for object class")
-        self.methodAction.setIcon(QIcon(":dialog-information.png"))
+        self.methodAction.setIcon(QIcon(":dialog-information.svg"))
         self.methodAction.setEnabled(False)
         self.actions.append(self.methodAction)
 
         self.attributeAction = QAction("Print object &attributes", self)
         self.attributeAction.setToolTip("Print available attributes for object class")
         self.attributeAction.setWhatsThis("Print available attributes for object class")
-        self.attributeAction.setIcon(QIcon(":dialog-question.png"))
+        self.attributeAction.setIcon(QIcon(":dialog-question.svg"))
         self.attributeAction.setEnabled(False)
         self.actions.append(self.attributeAction)
 
         self.rmAction = QAction("&Remove", self)
         self.rmAction.setToolTip("Remove selected variable")
         self.rmAction.setWhatsThis("Removed selected variable")
-        self.rmAction.setIcon(QIcon(":edit-delete.png"))
+        self.rmAction.setIcon(QIcon(":edit-delete.svg"))
         self.rmAction.setEnabled(False)
         self.actions.append(self.rmAction)
         

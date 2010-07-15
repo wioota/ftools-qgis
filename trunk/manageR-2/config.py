@@ -20,9 +20,10 @@ class ConfigDialog(QDialog):
         QDialog.__init__(self, parent)
         self.contentsWidget = QListWidget()
         self.contentsWidget.setViewMode(QListView.IconMode)
-        self.contentsWidget.setIconSize(QSize(96, 84))
+        self.contentsWidget.setIconSize(QSize(76, 66))
         self.contentsWidget.setMovement(QListView.Static)
-        self.contentsWidget.setMaximumWidth(128)
+        self.contentsWidget.setMaximumWidth(106)
+        self.contentsWidget.setMinimumWidth(106)
         self.contentsWidget.setSpacing(12)
 
         self.pagesWidget = QStackedWidget()
@@ -62,19 +63,19 @@ class ConfigDialog(QDialog):
         generalButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
         highlightingButton = QListWidgetItem(self.contentsWidget)
-        highlightingButton.setIcon(QIcon(":applications-graphics.png"));
+        highlightingButton.setIcon(QIcon(":applications-graphics.svg"));
         highlightingButton.setText("Highlighting")
         highlightingButton.setTextAlignment(Qt.AlignHCenter)
         highlightingButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
         consoleButton = QListWidgetItem(self.contentsWidget)
-        consoleButton.setIcon(QIcon(":utilities-terminal-32.png"))
+        consoleButton.setIcon(QIcon(":utilities-terminal.svg"))
         consoleButton.setText("Console")
         consoleButton.setTextAlignment(Qt.AlignHCenter)
         consoleButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
         editorButton = QListWidgetItem(self.contentsWidget)
-        editorButton.setIcon(QIcon(":accessories-text-editor.png"));
+        editorButton.setIcon(QIcon(":accessories-text-editor.svg"));
         editorButton.setText("Editor")
         editorButton.setTextAlignment(Qt.AlignHCenter)
         editorButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
@@ -100,17 +101,6 @@ class GeneralPage(QWidget):
                 "window and one editR window.</p>")
         self.rememberGeometryCheckBox.setChecked(settings.value("manageR/remembergeometry", True).toBool())
 
-        self.tabWidthSpinBox = QSpinBox()
-        self.tabWidthSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
-        self.tabWidthSpinBox.setRange(2, 20)
-        self.tabWidthSpinBox.setSuffix(" spaces")
-        self.tabWidthSpinBox.setFont(monofont)
-        self.tabWidthSpinBox.setValue(settings.value("manageR/tabwidth", 4).toInt()[0])
-        self.tabWidthSpinBox.setToolTip("<p>Specify the number of "
-                "spaces that a single tab should span.</p>")
-        tabWidthLabel = QLabel("&Tab width:")
-        tabWidthLabel.setBuddy(self.tabWidthSpinBox)
-
         self.fontComboBox = QFontComboBox()
         self.fontComboBox.setCurrentFont(monofont)
         self.fontComboBox.setFont(monofont)
@@ -127,6 +117,18 @@ class GeneralPage(QWidget):
         self.fontSpinBox.setValue(settings.value("manageR/fontsize", 10).toInt()[0])
         self.fontSpinBox.setToolTip("<p>Specify the font size for  "
                 "the manageR console, and all EditR windows.</p>")
+                
+        self.tabWidthSpinBox = QSpinBox()
+        self.tabWidthSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
+        self.tabWidthSpinBox.setRange(2, 20)
+        self.tabWidthSpinBox.setSuffix(" spaces")
+        self.tabWidthSpinBox.setFont(monofont)
+        self.tabWidthSpinBox.setMaximumWidth(100)
+        self.tabWidthSpinBox.setValue(settings.value("manageR/tabwidth", 4).toInt()[0])
+        self.tabWidthSpinBox.setToolTip("<p>Specify the number of "
+                "spaces that a single tab should span.</p>")
+        tabWidthLabel = QLabel("&Tab width:")
+        tabWidthLabel.setBuddy(self.tabWidthSpinBox)
 
         self.timeoutSpinBox = QSpinBox()
         self.timeoutSpinBox.setAlignment(Qt.AlignVCenter|Qt.AlignRight)
@@ -163,28 +165,39 @@ class GeneralPage(QWidget):
                 "auto-insert of brackets and parentheses when typing R functions and commands.</p>")
         self.autocompleteBrackets.setChecked(settings.value("manageR/bracketautocomplete", True).toBool())
 
-        vbox = QVBoxLayout()
-        grid = QGridLayout()
-        grid.addWidget(self.rememberGeometryCheckBox,0,0,1,3)
-        grid.addWidget(fontLabel,1,0,1,1)
-        grid.addWidget(self.fontComboBox,1,1,1,1)
-        grid.addWidget(self.fontSpinBox,1,2,1,1)
-        grid.addWidget(tabWidthLabel,2,0,1,1)
-        grid.addWidget(self.tabWidthSpinBox,2,2,1,1,Qt.AlignRight)
-        vbox.addLayout(grid)
+        #grid = QGridLayout()
+        box = QVBoxLayout()
+        box.addWidget(self.rememberGeometryCheckBox)
+        hbox = QHBoxLayout()
+        hbox.addWidget(fontLabel)
+        hbox.addStretch()
+        hbox.addWidget(self.fontComboBox)
+        hbox.addWidget(self.fontSpinBox)
+        box.addLayout(hbox)
+        hbox = QHBoxLayout()
+        hbox.addWidget(tabWidthLabel)
+        hbox.addStretch()
+        hbox.addWidget(self.tabWidthSpinBox, Qt.AlignRight)
+        box.addLayout(hbox)
 
         gbox = QGroupBox("Autocompletion")
-        grid = QGridLayout()
-        grid.addWidget(timeoutLabel,0,0,1,1)
-        grid.addWidget(self.timeoutSpinBox,0,1,1,1,Qt.AlignRight)
-        grid.addWidget(mincharsLabel,1,0,1,1)
-        grid.addWidget(self.mincharsSpinBox,1,1,1,1,Qt.AlignRight)
-        grid.addWidget(self.autocompleteCheckBox,2,0,1,2)
-        grid.addWidget(self.autocompleteBrackets,3,0,1,2)
-        gbox.setLayout(grid)
+        vbox = QVBoxLayout()
+        hbox = QHBoxLayout()
+        hbox.addWidget(timeoutLabel)
+        hbox.addStretch()
+        hbox.addWidget(self.timeoutSpinBox,Qt.AlignRight)
+        vbox.addLayout(hbox)
+        hbox = QHBoxLayout()
+        hbox.addWidget(mincharsLabel)
+        hbox.addStretch()
+        hbox.addWidget(self.mincharsSpinBox,Qt.AlignRight)
+        vbox.addLayout(hbox)
+        vbox.addWidget(self.autocompleteCheckBox)
+        vbox.addWidget(self.autocompleteBrackets)
+        gbox.setLayout(vbox)
 
-        vbox.addWidget(gbox)
-        self.setLayout(vbox)
+        box.addWidget(gbox)
+        self.setLayout(box)
 
 class ConsolePage(QWidget):
     def __init__(self, parent=None):
@@ -324,7 +337,6 @@ class HighlightingPage(QWidget):
             gbox.addWidget(colorButton,count+2,3,1,1)
             self.connect(colorButton, SIGNAL("clicked()"),
                 lambda button=colorButton, name=name: self.setColor(button, name))
-
         self.setLayout(gbox)
 
     def setColor(self, button, name):

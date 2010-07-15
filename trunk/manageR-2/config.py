@@ -114,6 +114,7 @@ class GeneralPage(QWidget):
         self.fontSpinBox.setRange(6, 20)
         self.fontSpinBox.setSuffix(" pt")
         self.fontSpinBox.setFont(monofont)
+        self.tabWidthSpinBox.setFixedWidth(100)
         self.fontSpinBox.setValue(settings.value("manageR/fontsize", 10).toInt()[0])
         self.fontSpinBox.setToolTip("<p>Specify the font size for  "
                 "the manageR console, and all EditR windows.</p>")
@@ -123,7 +124,7 @@ class GeneralPage(QWidget):
         self.tabWidthSpinBox.setRange(2, 20)
         self.tabWidthSpinBox.setSuffix(" spaces")
         self.tabWidthSpinBox.setFont(monofont)
-        self.tabWidthSpinBox.setMaximumWidth(100)
+        self.tabWidthSpinBox.setFixedWidth(100)
         self.tabWidthSpinBox.setValue(settings.value("manageR/tabwidth", 4).toInt()[0])
         self.tabWidthSpinBox.setToolTip("<p>Specify the number of "
                 "spaces that a single tab should span.</p>")
@@ -136,6 +137,7 @@ class GeneralPage(QWidget):
         self.timeoutSpinBox.setFont(monofont)
         self.timeoutSpinBox.setSingleStep(100)
         self.timeoutSpinBox.setSuffix(" ms")
+        self.timeoutSpinBox.setFixedWidth(100)
         self.timeoutSpinBox.setValue(settings.value("manageR/delay", 500).toInt()[0])
         self.timeoutSpinBox.setToolTip("<p>Specify the time (in milliseconds) "
                 "to wait before displaying the autocomplete popup when a set of "
@@ -148,6 +150,7 @@ class GeneralPage(QWidget):
         self.mincharsSpinBox.setRange(1, 100)
         self.mincharsSpinBox.setFont(monofont)
         self.mincharsSpinBox.setSuffix(" chars")
+        self.mincharsSpinBox.setFixedWidth(100)
         self.mincharsSpinBox.setValue(settings.value("manageR/minimumchars", 3).toInt()[0])
         self.mincharsSpinBox.setToolTip("<p>Specify the minimum number of characters "
                 "that must be typed before displaying the autocomplete popup when a "

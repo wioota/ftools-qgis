@@ -64,30 +64,47 @@ WELCOME = unicode("Welcome to manageR version %s\n"
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, parent=None, console=True, tabwidth=4,
-                 autobracket=True, autopopup=True, sidepanel=True):
+    def __init__(self, parent=None, console=True, sidepanel=True):
         QMainWindow.__init__(self, parent)
-        #super(MainWindow, self).__init__(parent)
+        self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowIcon(QIcon(":icon.png"))
-        font = QFont("DejaVu Sans Mono",10)
+        fontfamily = QSettings().value("manageR/fontfamily", "DejaVu Sans Mono").toString()
+        fontsize = QSettings().value("manageR/fontsize", 10).toInt()[0]
+        tabwidth = QSettings().value("manageR/tabwidth", 4).toInt()[0]
+        autobracket = QSettings().value("manageR/bracketautocomplete", True).toBool()
+        autopopup = QSettings().value("manageR/enableautocomplete", True).toBool()
+
+        font = QFont(fontfamily, fontsize)
         self.setFont(font)
         self.setMinimumSize(50, 50)
         self.startTimer(30)
-        self.main = BaseFrame(self, tabwidth, autobracket,
-                              autopopup, sidepanel, console)
+        self.main = BaseFrame(self, tabwidth, autobracket, autopopup, sidepanel, console)
         if console:
             self.setWindowTitle("manageR")
+            if QSettings().value("manageR/remembergeometry", True).toBool():
+                width = QSettings().value("manageR/consolewidth", 50).toInt()[0]
+                height = QSettings().value("manageR/consoleheight", 50).toInt()[0]
+                x = QSettings().value("manageR/consolex", 0).toInt()[0]
+                y = QSettings().value("manageR/consoley", 0).toInt()[0]
+                self.resize(width, height)
+                self.move(x, y)
             self.main.editor().setCheckSyntax(False)
             data = QMimeData()
             data.setText(WELCOME)
             self.main.editor().insertFromMimeData(data)
-            #self.main.editor().insertPlainText("\n")
             self.main.editor().setCheckSyntax(True)
             self.main.editor().setHistory(HISTORY)
-            #QShortcut(QKeySequence("F5"), self, self.fileNew)
-            #QShortcut(QKeySequence("F6"), self, self.fileOpen)
-            #QShortcut(QKeySequence("F7"), self, self.openData)
+            prompts = (QSettings().value("manageR/beforeinput", ">").toString(),
+                QSettings().value("manageR/afteroutput", "+").toString())
+            self.main.editor().setPrompt(*prompts)
         else:
+            if QSettings().value("manageR/remembergeometry", True).toBool():
+                width = QSettings().value("manageR/windowwidth", 50).toInt()[0]
+                height = QSettings().value("manageR/windowheight", 50).toInt()[0]
+                x = QSettings().value("manageR/windowx", 0).toInt()[0]
+                y = QSettings().value("manageR/windowy", 0).toInt()[0]
+                self.resize(width, height)
+                self.move(x, y)
             self.setWindowTitle("editR - untitled")
             self.columnCountLabel = QLabel("Column 1")
             self.statusBar().addPermanentWidget(self.columnCountLabel)
@@ -97,7 +114,7 @@ class MainWindow(QMainWindow):
                 self.updateIndicators)
             self.connect(self.main.editor().document(), SIGNAL("blockCountChanged(int)"),
                 self.updateIndicators)
-            #QShortcut(QKeySequence("F5"), self, self.fileSave)
+            self.main.editor().setPlainText(QSettings().value("manageR/newfile", "").toString())
         self.setCentralWidget(self.main)
         self.paths = QStringList(os.path.join(CURRENTDIR, "icons"))
         self.createFileActions(console)
@@ -107,11 +124,6 @@ class MainWindow(QMainWindow):
         self.createWindowActions(console)
         self.createDockWigets(console)
         self.createHelpActions(console)
-
-        #QShortcut(QKeySequence("F1"), self, self.helpBrowser)
-        #QShortcut(QKeySequence("F2"), self, self.repositoryBrowser)
-        #QShortcut(QKeySequence("F3"), self, self.searchBar)
-        #QShortcut(QKeySequence("F4"), self, self.libraryBrowser)
         self.statusBar().showMessage("Ready", 5000)
 
     def createDockWigets(self, console=True):
@@ -318,6 +330,16 @@ class MainWindow(QMainWindow):
             self.connect(self.windowMenu, SIGNAL("aboutToShow()"),
                  self.updateWindowMenu)
 
+    def prepareEnvironment(self):
+        folder = QSettings().value("manageR/setwd", ".").toString()
+        commands = QSettings().value("manageR/consolestartup", "").toString()
+        load = settings.value("manageR/loadenvironment", True).toBool()
+        robjects.r.setwd(unicode(folder))
+        robjects.r(unicode(commands))
+        if load:
+            self.openWorkspace(path=".RData", visible=False)
+            self.main().editor().history().loadHistory()
+
     def updateIndicators(self):
         lines = self.main.editor().document().blockCount()
         cursor = self.main.editor().textCursor()
@@ -410,7 +432,7 @@ class MainWindow(QMainWindow):
     def saveWorkspace(self, path=None, filter="R workspace (*.RData)"):
         self.saveData(path, filter)
 
-    def openWorkspace(self, path=None, filter="R workspace (*.RData)"):
+    def openWorkspace(self, path=None, filter="R workspace (*.RData)", visible=True):
         self.openData(path, filter)
 
     def saveData(self, path=None, objects="ls(all=TRUE)", filter=None):
@@ -433,7 +455,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Saved R Data %s" % path, 5000)
         QApplication.restoreOverrideCursor()
 
-    def openData(self, path=None, filter=None):
+    def openData(self, path=None, filter=None, visible=True):
         command = ""
         if filter is None:
             filter = "R data (*.Rdata *.Rda *.RData);;All files (*)"
@@ -446,11 +468,17 @@ class MainWindow(QMainWindow):
         if not path.isEmpty():
             path = QDir(path).absolutePath()
             command = "load(file='%s')" % unicode(path)
-            try:
-                self.execute(command)
-            except Exception, err:
-                QMessageBox.warning(self, "manageR - Load Error",
-                "Unable to load data file %s!\n%s" % (path,err))
+            if visible:
+                try:
+                    self.execute(command)
+                except Exception, err:
+                    QMessageBox.warning(self, "manageR - Load Error",
+                    "Unable to load data file %s!\n%s" % (path,err))
+            else:
+                try:
+                    robjects.r.load(file=unicode(path))
+                except:
+                    pass
             self.statusBar().showMessage("Loaded R Data %s" % path, 5000)
         QApplication.restoreOverrideCursor()
 
@@ -536,21 +564,21 @@ class MainWindow(QMainWindow):
             return self.fileSaveAs()
         path = QDir(path).absolutePath()
         if QFile.exists(path):
-            backup = "%s.backup" % path
+            backup = "%s%s" % (path, settings().value("manageR/backupsuffix", "~").toString())
             ok = True
             if QFile.exists(backup):
                 ok = QFile.remove(backup)
                 if not ok:
                     QMessageBox.information(self,
                             "editR - Save Warning",
-                            "Failed to remove existing backup file %s")
+                            "Failed to remove existing backup file %s" % backup)
             if ok:
                 # Must use copy rather than rename to preserve file
                 # permissions; could use rename on Windows though
                 if not QFile.copy(path, backup):
                     QMessageBox.information(self,
                             "editR - Save Warning",
-                            "Failed to save backup file %s")
+                            "Failed to save backup file %s" % backup)
         fh = None
         try:
             try:
@@ -1083,7 +1111,7 @@ class RConsole(PlainTextEdit):
     def __init__(self, parent=None, tabwidth=4, autobracket=True, prompts=(">","+")):
         PlainTextEdit.__init__(self, parent, tabwidth, autobracket)
         self.setUndoRedoEnabled(False)
-        self.setPrompt(prompts[0],prompts[1])
+        self.setPrompt(*prompts)
         self.__HIST = History()
         self.__started = False
         self.__tabwidth = tabwidth
@@ -1529,7 +1557,7 @@ class SearchBar(QWidget):
 
 class CompletePopup(QObject):
 
-    def __init__(self, parent, delay=500, minchars=3):
+    def __init__(self, parent, delay=1000, minchars=3):
         QObject.__init__(self, parent)
         self.editor = parent
         self.popup = QTreeWidget()
@@ -1553,7 +1581,7 @@ class CompletePopup(QObject):
         if isinstance(delay,int):
             self.timer.setInterval(delay)
         else:
-            self.timer.setInterval(500)
+            self.timer.setInterval(1000)
         self.currentItem = ""
         #self.DICT = Dictionary()
         self.connect(self.timer, SIGNAL("timeout()"), self.suggest, minchars)
@@ -1656,7 +1684,7 @@ class CompletePopup(QObject):
     def preventSuggest(self):
         self.timer.stop()
 
-    def suggest(self, minchars=3):
+    def suggest(self, minchars=1):
         block = self.editor.textCursor().block()
         text = block.text()
         if len(text) < minchars:
@@ -1703,7 +1731,9 @@ class BaseFrame(QFrame):
         else:
             self.edit = REditor(self)
         self.searchBar = SearchBar(self.edit, (not console))
-        self.completePopup = CompletePopup(self.edit)
+        delay = QSettings().value("manageR/delay", 1000).toInt()[0]
+        chars = QSettings().value("manageR/minimumchars", 3).toInt()[0]
+        self.completePopup = CompletePopup(self.edit, delay, chars)
         if autopopup:
             self.connect(self.completePopup,
             SIGNAL("doneCompletion(QString, QString)"), self.doneCompletion)

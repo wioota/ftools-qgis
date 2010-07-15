@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import glob, os
-icons = glob.glob("icons/default/*.png")
+icons = glob.glob("icons/default/*.*g")
 f = open("resources.qrc", "w")
 f.write("<RCC>\n")
 f.write("    <qresource>\n")

@@ -930,18 +930,19 @@ class PlainTextEdit(QPlainTextEdit):
 
     def currentCommand(self, block):
         command = QString(block.text())
+        pos2 = block.position()
         block = block.previous()
         pos1 = self.textCursor().position()
-        pos2 = block.position()
         while block.isValid():
             try:
                 if not block.userData().data() == PlainTextEdit.CONTINUE:
                     break
             except: # this means there is no user data, assume ok
                 break
-            command.prepend("%s\n" % block.text())
-            block = block.previous()
+            if not block.text().trimmed().isEmpty():
+                command.prepend("%s\n" % block.text())
             pos2 = block.position()
+            block = block.previous()
         return (command, pos1-pos2)
 
     def insertParameters(self):
@@ -1664,9 +1665,9 @@ class CompletePopup(QObject):
         linebuffer = command[0]
         if QString(linebuffer).trimmed().isEmpty():
             return
-        cursor = command[1]-1
+        cursor = command[1]
+        print cursor, linebuffer
         token, start, end = complete.guessTokenFromLine(linebuffer, cursor)
-        print len(token)
         if len(token) < minchars:
             return
         self.move = len(token)

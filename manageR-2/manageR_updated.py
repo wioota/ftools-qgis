@@ -238,7 +238,7 @@ class MainWindow(QMainWindow):
                 self.main.toggleReplace, QKeySequence.Replace,
                 "edit-find-replace", "Replace text")
             editGotoLineAction =  self.createAction("&Go to line",
-                self.main.editor().gotoLine, "Ctrl+G", "gp-jump",
+                self.main.editor().gotoLine, "Ctrl+G", "go-bottom",
                 "Move cursor to line")
             editIndentRegionAction = self.createAction("&Indent Region",
                 self.main.editor().indentRegion, "Tab", "format-indent-more",
@@ -248,11 +248,11 @@ class MainWindow(QMainWindow):
                 "Shift+Tab", "format-indent-less",
                 "Unindent the selected text or the current line")
             editCommentRegionAction = self.createAction("C&omment Region",
-                self.main.editor().commentRegion, "Ctrl+D", "mActionEditComment",
+                self.main.editor().commentRegion, "Ctrl+D", "list-add",
                 "Comment out the selected text or the current line")
             editUncommentRegionAction = self.createAction(
                 "Uncomment Re&gion", self.main.editor().uncommentRegion,
-                "Ctrl+Shift+D", "mActionEditUncomment",
+                "Ctrl+Shift+D", "list-remove",
                 "Uncomment the selected text or the current line")
             self.addActions(editMenu, (editReplaceNextAction, None,
                 editGotoLineAction, editIndentRegionAction, editUnindentRegionAction,
@@ -282,22 +282,22 @@ class MainWindow(QMainWindow):
         if console:
             workspaceMenu = self.menuBar().addMenu("Wo&rkspace")
             workspaceLoadAction = self.createAction(
-                "Load R workspace", self.openWorkspace,
-                "Ctrl+W", "mActionWorkspaceLoad",
+                "&Load R workspace", self.openWorkspace,
+                "Ctrl+W", "system-file-manager",
                 "Load R workspace")
             workspaceSaveAction = self.createAction(
-                "Save R workspace", self.saveWorkspace,
-                "Ctrl+Shift+W", "mActionWorkspaceSave",
+                "&Save R workspace", self.saveWorkspace,
+                "Ctrl+Shift+W", "document-save",
                 "Save R workspace")
             workspaceDataAction = self.createAction(
-                "Load R data", self.openData,
-                "Ctrl+D", "mActionWorkspaceData",
+                "Load R &data", self.openData,
+                "Ctrl+D", "package-x-generic",
                 "Load R data")
-            workspaceLibraryAction = self.createAction("&Library browser",
+            workspaceLibraryAction = self.createAction("Library &browser",
                 self.libraryBrowser, "Ctrl+H", icon="help-contents",
                 tip="Browse R package library")
             workspaceRepositoryAction = self.createAction("&Install packages",
-                self.repositoryBrowser, icon="emblem-downloads",
+                self.repositoryBrowser, icon="system-software-install",
                 tip="Install R packages")
             self.addActions(workspaceMenu, (workspaceLoadAction,
                 workspaceSaveAction, workspaceDataAction, None,
@@ -350,7 +350,7 @@ class MainWindow(QMainWindow):
             i += 1
             action = menu.addAction(text, window.raise_)
             action.setData(QVariant(long(id(window))))
-            action.setIcon(QIcon(":window-new.png"))
+            action.setIcon(QIcon(":preferences-system-windows.png"))
 
     def addActions(self, target, actions):
         for action in actions:
@@ -1038,9 +1038,9 @@ class REditor(PlainTextEdit):
             try:
                 if block.userData().data() == PlainTextEdit.SYNTAX:
                     if block == self.textCursor().block():
-                        pixmap = QPixmap(":mActionWarning.png")
+                        pixmap = QPixmap(":media-record-orange.png")
                     else:
-                        pixmap = QPixmap(":mActionError.png")
+                        pixmap = QPixmap(":media-record.png")
                     painter.drawPixmap(rect, pixmap)
                 else:
                     painter.drawText(rect, Qt.AlignRight, unicode(count))
@@ -1942,7 +1942,8 @@ class AboutBrowser(QDialog):
 class RMirrorBrowser(QDialog):
     def __init__(self, parent=None):
         QDialog.__init__(self, parent)
-        m = robjects.r.getCRANmirrors(all=False, local_only=False)
+        kwargs = {"local.only":False}
+        m = robjects.r.getCRANmirrors(all=False, **kwargs)
         names = QStringList(list(m.rx('Name')[0]))
         urls = list(m.rx('URL')[0])
         self.links = dict(zip(names, urls))
@@ -2412,7 +2413,7 @@ class WorkingDirectoryWidget(RWidget):
         self.setwdButton = QToolButton(self)
         self.setwdButton.setToolTip("Set working directory")
         self.setwdButton.setWhatsThis("Set working directory")
-        self.setwdButton.setIcon(QIcon(":go-jump.png"))
+        self.setwdButton.setIcon(QIcon(":folder.png"))
         self.setwdButton.setText("setwd")
         self.setwdButton.setAutoRaise(True)
 
@@ -2490,7 +2491,7 @@ class DirectoryWidget(RWidget):
         synchAction = QAction("&Synch", self)
         synchAction.setStatusTip("Synch with current working directory")
         synchAction.setToolTip("Synch with current working directory")
-        synchAction.setIcon(QIcon(":view-refresh.png"))
+        synchAction.setIcon(QIcon(":go-jump.png"))
         synchAction.setEnabled(True)
         self.actions.append(synchAction)
         rmAction = QAction("&Delete", self)

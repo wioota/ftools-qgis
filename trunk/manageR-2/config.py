@@ -28,17 +28,21 @@ class ConfigDialog(QDialog):
         self.contentsWidget.setSpacing(12)
 
         self.pagesWidget = QStackedWidget()
-        self.pagesWidget.addWidget(GeneralPage())
-        self.pagesWidget.addWidget(HighlightingPage())
-        self.pagesWidget.addWidget(ConsolePage())
-        self.pagesWidget.addWidget(EditorPage())
+        self.generalPage = GeneralPage(self)
+        self.pagesWidget.addWidget(self.generalPage)
+        self.highlightingPage = HighlightingPage(self)
+        self.pagesWidget.addWidget(self.highlightingPage)
+        self.consolePage = ConsolePage(self)
+        self.pagesWidget.addWidget(self.consolePage)
+        self.editorPage = EditorPage(self)
+        self.pagesWidget.addWidget(self.editorPage)
 
         closeButton = QPushButton("Close")
 
         self.createIcons()
         self.contentsWidget.setCurrentRow(0)
 
-        self.connect(closeButton, SIGNAL("clicked()"), self, SLOT("close()"))
+        self.connect(closeButton, SIGNAL("clicked()"), self, SLOT("accept()"))
 
         horizontalLayout = QHBoxLayout()
         horizontalLayout.addWidget(self.contentsWidget)
@@ -54,8 +58,11 @@ class ConfigDialog(QDialog):
         mainLayout.addSpacing(12)
         mainLayout.addLayout(buttonsLayout)
         self.setLayout(mainLayout)
-
         self.setWindowTitle("Configure manageR")
+
+    def accept(self):
+        self.saveSettings()
+        QDialog.close(self)
 
     def createIcons(self):
         generalButton = QListWidgetItem(self.contentsWidget)
@@ -91,17 +98,28 @@ class ConfigDialog(QDialog):
             current = previous
         self.pagesWidget.setCurrentIndex(self.contentsWidget.row(current))
 
+    def saveSettings(self):
+        sets = QSettings()
+        settings = self.generalPage.settings()
+        settings.extend(self.highlightingPage.settings())
+        settings.extend(self.consolePage.settings())
+        settings.extend(self.editorPage.settings())
+        for name, setting in settings:
+            sets.setValue("manageR/%s" % name, setting)
+
 class GeneralPage(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent)
         settings = QSettings()
+        
         monofont = QFont(settings.value("manageR/fontfamily", "DejaVu Sans Mono").toString(),
         settings.value("manageR/fontsize", 10).toInt()[0])
         self.rememberGeometryCheckBox = QCheckBox("&Remember geometry")
         self.rememberGeometryCheckBox.setToolTip("<p>Check this to make "
                 "manageR remember the size and position of the console "
                 "window and one editR window.</p>")
-        self.rememberGeometryCheckBox.setChecked(settings.value("manageR/remembergeometry", True).toBool())
+        remember = settings.value("manageR/remembergeometry", True).toBool()
+        self.rememberGeometryCheckBox.setChecked(remember)
 
         self.fontComboBox = QFontComboBox()
         self.fontComboBox.setCurrentFont(monofont)
@@ -127,7 +145,8 @@ class GeneralPage(QWidget):
         self.tabWidthSpinBox.setSuffix(" spaces")
         self.tabWidthSpinBox.setFont(monofont)
         self.tabWidthSpinBox.setFixedWidth(100)
-        self.tabWidthSpinBox.setValue(settings.value("manageR/tabwidth", 4).toInt()[0])
+        tabwidth = settings.value("manageR/tabwidth", 4).toInt()[0]
+        self.tabWidthSpinBox.setValue(tabwidth)
         self.tabWidthSpinBox.setToolTip("<p>Specify the number of "
                 "spaces that a single tab should span.</p>")
         tabWidthLabel = QLabel("&Tab width:")
@@ -140,7 +159,8 @@ class GeneralPage(QWidget):
         self.timeoutSpinBox.setSingleStep(100)
         self.timeoutSpinBox.setSuffix(" ms")
         self.timeoutSpinBox.setFixedWidth(100)
-        self.timeoutSpinBox.setValue(settings.value("manageR/delay", 500).toInt()[0])
+        delay = settings.value("manageR/delay", 500).toInt()[0]
+        self.timeoutSpinBox.setValue(delay)
         self.timeoutSpinBox.setToolTip("<p>Specify the time (in milliseconds) "
                 "to wait before displaying the autocomplete popup when a set of "
                 "possible matches are found.</p>")
@@ -153,7 +173,8 @@ class GeneralPage(QWidget):
         self.mincharsSpinBox.setFont(monofont)
         self.mincharsSpinBox.setSuffix(" chars")
         self.mincharsSpinBox.setFixedWidth(100)
-        self.mincharsSpinBox.setValue(settings.value("manageR/minimumchars", 3).toInt()[0])
+        minchars = settings.value("manageR/minimumchars", 3).toInt()[0]
+        self.mincharsSpinBox.setValue(minchars)
         self.mincharsSpinBox.setToolTip("<p>Specify the minimum number of characters "
                 "that must be typed before displaying the autocomplete popup when a "
                 "set of possible matches are found.</p>")
@@ -163,12 +184,14 @@ class GeneralPage(QWidget):
         self.autocompleteCheckBox = QCheckBox("Enable autocomplete/tooltips")
         self.autocompleteCheckBox.setToolTip("<p>Check this to enable "
                 "autocompletion of R commands.</p>")
-        self.autocompleteCheckBox.setChecked(settings.value("manageR/enableautocomplete", True).toBool())
+        complete = settings.value("manageR/enableautocomplete", True).toBool()
+        self.autocompleteCheckBox.setChecked(complete)
 
         self.autocompleteBrackets = QCheckBox("Enable auto-insert of brackets/parentheses")
         self.autocompleteBrackets.setToolTip("<p>Check this to enable "
                 "auto-insert of brackets and parentheses when typing R functions and commands.</p>")
-        self.autocompleteBrackets.setChecked(settings.value("manageR/bracketautocomplete", True).toBool())
+        brackets = settings.value("manageR/bracketautocomplete", True).toBool()
+        self.autocompleteBrackets.setChecked(brackets)
 
         #grid = QGridLayout()
         box = QVBoxLayout()
@@ -204,6 +227,18 @@ class GeneralPage(QWidget):
         box.addWidget(gbox)
         self.setLayout(box)
 
+    def settings(self):
+        settings = []
+        settings.append(("remembergeometry",self.rememberGeometryCheckBox.isChecked()))
+        settings.append(("fontfamily",self.fontComboBox.currentFont()))
+        settings.append(("fontsize",self.fontSpinBox.value()))
+        settings.append(("tabwidth",self.tabWidthSpinBox.value()))
+        settings.append(("delay",self.timeoutSpinBox.value()))
+        settings.append(("minimumchars",self.mincharsSpinBox.value()))
+        settings.append(("enableautocomplete",self.autocompleteCheckBox.isChecked()))
+        settings.append(("bracketautocomplete",self.autocompleteBrackets.isChecked()))
+        return settings
+
 class ConsolePage(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent)
@@ -211,7 +246,8 @@ class ConsolePage(QWidget):
         monofont = QFont(settings.value("manageR/fontfamily", "DejaVu Sans Mono").toString(),
         settings.value("manageR/fontsize", 10).toInt()[0])
         
-        self.inputLineEdit = QLineEdit(settings.value("manageR/beforeinput", ">").toString())
+        before = settings.value("manageR/beforeinput", ">").toString()
+        self.inputLineEdit = QLineEdit(before)
         self.inputLineEdit.setMaxLength(3)
         self.inputLineEdit.setFont(monofont)
         self.inputLineEdit.setFixedWidth(100)
@@ -221,7 +257,8 @@ class ConsolePage(QWidget):
         inputPromptLabel = QLabel("&Input prompt:")
         inputPromptLabel.setBuddy(self.inputLineEdit)
 
-        self.outputLineEdit = QLineEdit(settings.value("manageR/afteroutput", "+").toString())
+        after = settings.value("manageR/afteroutput", "+").toString()
+        self.outputLineEdit = QLineEdit(after)
         self.outputLineEdit.setMaxLength(3)
         self.outputLineEdit.setFont(monofont)
         self.outputLineEdit.setFixedWidth(100)
@@ -232,7 +269,8 @@ class ConsolePage(QWidget):
         outputPromptLabel = QLabel("&Continuation prompt:")
         outputPromptLabel.setBuddy(self.outputLineEdit)
 
-        self.workingFolderLineEdit = QLineEdit(settings.value("manageR/setwd", ".").toString())
+        folder = settings.value("manageR/setwd", ".").toString()
+        self.workingFolderLineEdit = QLineEdit(folder)
         self.workingFolderLineEdit.setFont(monofont)
         workingFolderLabel = QLabel("&Default working directory:")
         workingFolderLabel.setBuddy(self.workingFolderLineEdit)
@@ -247,22 +285,25 @@ class ConsolePage(QWidget):
                 "<p>Check this to make manageR automatically load any '.RData' and "
                 "'.Rhistory' files in the current working directory "
                 "on startup.</p>")
-        self.loadEnvironmentCheckBox.setChecked(settings.value("manageR/loadenvironment", True).toBool())
+        load = settings.value("manageR/loadenvironment", True).toBool()
+        self.loadEnvironmentCheckBox.setChecked(load)
 
         self.useRasterPackage = QCheckBox("Use 'raster' package for importing rasters")
         self.useRasterPackage.setToolTip(
                 "<p>Check this to make manageR use the 'raster' "
                 "package for loading raster layers</p>")
-        self.useRasterPackage.setChecked(settings.value("manageR/useraster", True).toBool())
+        raster = settings.value("manageR/useraster", True).toBool()
+        self.useRasterPackage.setChecked(raster)
 
         gbox = QGroupBox("&At startup")
-        editor = QPlainTextEdit(self)
-        editor.setPlainText(settings.value("manageR/consolestartup", "").toString())
-        editor.setTabChangesFocus(True)
-        editor.document().setDefaultFont(monofont)
+        self.editor = QPlainTextEdit(self)
+        startup = settings.value("manageR/consolestartup", "").toString()
+        self.editor.setPlainText(startup)
+        self.editor.setTabChangesFocus(True)
+        self.editor.document().setDefaultFont(monofont)
         #Highlighter(editor.document())
         vbox = QVBoxLayout()
-        vbox.addWidget(editor)
+        vbox.addWidget(self.editor)
         vbox.addWidget(QLabel("<font color=green><i><p>manageR executes the lines above "
                  "whenever the R interpreter is started.<br/>"
                  "Use them to add custom functions and/or load "
@@ -291,6 +332,16 @@ class ConsolePage(QWidget):
         vbox.addWidget(gbox)
         self.setLayout(vbox)
 
+    def settings(self):
+        settings = []
+        settings.append(("beforeinput", self.inputLineEdit.text()))
+        settings.append(("afteroutput", self.outputLineEdit.text()))
+        settings.append(("sewd", self.workingFolderLineEdit.text()))
+        settings.append(("loadenvironment", self.loadEnvironmentCheckBox.isChecked()))
+        settings.append(("useraster", self.useRasterPackage.isChecked()))
+        settings.append(("consolestartup", self.editor.toPlainText()))
+        return settings
+
 class HighlightingPage(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent)
@@ -302,7 +353,9 @@ class HighlightingPage(QWidget):
         self.highlightingCheckBox.setToolTip("<p>Check this to enable "
                 "syntax highlighting in the console and EditR windows."
                 "Changes made here only take effect when manageR is next run.</p>")
-        self.highlightingCheckBox.setChecked(settings.value("manageR/enablehighlighting", True).toBool())
+        highlighting = settings.value("manageR/enablehighlighting", True).toBool()
+        self.highlightingCheckBox.setChecked(highlighting)
+
         minButtonWidth = 0
         minWidth = 0
         label = QLabel("Background:")
@@ -373,6 +426,9 @@ class HighlightingPage(QWidget):
             pixmap.fill(QColor(color.name()))
             button.setIcon(QIcon(pixmap))
 
+    def settings(self):
+        return [("enablehighlighting", self.highlightingCheckBox.isChecked())]
+
 class EditorPage(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent)
@@ -380,7 +436,8 @@ class EditorPage(QWidget):
         monofont = QFont(settings.value("manageR/fontfamily", "DejaVu Sans Mono").toString(),
         settings.value("manageR/fontsize", 10).toInt()[0])
 
-        self.backupLineEdit = QLineEdit(settings.value("manageR/backupsuffix", "~").toString())
+        suffix = settings.value("manageR/backupsuffix", "~").toString()
+        self.backupLineEdit = QLineEdit(suffix)
         self.backupLineEdit.setToolTip("<p>If non-empty, a backup will be "
                 "kept with the given suffix. If empty, no backup will be made.</p>")
         regex = QRegExp(r"[~.].*")
@@ -391,13 +448,14 @@ class EditorPage(QWidget):
         backupLabel.setBuddy(self.backupLineEdit)
 
         gbox = QGroupBox("On &new file")
-        editor = QPlainTextEdit(self)
-        editor.setPlainText(settings.value("manageR/newfile", "").toString())
-        editor.setTabChangesFocus(True)
-        editor.document().setDefaultFont(monofont)
+        self.editor = QPlainTextEdit(self)
+        newfile = settings.value("manageR/newfile", "").toString()
+        self.editor.setPlainText(newfile)
+        self.editor.setTabChangesFocus(True)
+        self.editor.document().setDefaultFont(monofont)
         #Highlighter(editor.document())
         vbox = QVBoxLayout()
-        vbox.addWidget(editor)
+        vbox.addWidget(self.editor)
         vbox.addWidget(QLabel("<font color=green><i>The text here is automatically "
                  "inserted into new R scripts.<br>It may be convenient to add "
                  "your standard libraries and copyright notice here."))
@@ -411,6 +469,12 @@ class EditorPage(QWidget):
         vbox.addLayout(hbox)
         vbox.addWidget(gbox)
         self.setLayout(vbox)
+
+    def settings(self):
+        settings = []
+        settings.append(("backupsuffix", self.backupLineEdit.text()))
+        settings.append(("newfile", self.editor.toPlainText()))
+        return settings
 
 
 def main():

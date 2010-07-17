@@ -68,12 +68,13 @@ def browseEnv():
     for objName in objlist:
         Spatial = False
         obj = robjects.r.get(objName)
-        if not robjects.r['is.null'](robjects.r['class'](obj))[0] and robjects.r.inherits(obj, "Spatial")[0]:
+        if not robjects.r['is.null'](robjects.r['class'](obj))[0] \
+            and robjects.r.inherits(obj, "Spatial")[0]:
             tmpClass = robjects.r.oldClass(obj)[0]
             obj = robjects.r['@'](obj, 'data')
         props = properties(obj)
         node = Node(objName, **props)
-        node.addChild(recurse(obj, objName))
+        #node.addChild(recurse(obj, objName))
         if robjects.r['is.recursive'](obj)[0] \
             and not robjects.r['is.function'](obj)[0] \
             and not robjects.r['is.environment'](obj)[0]:
@@ -104,10 +105,10 @@ def browseEnv():
     return nodes
 
 def main():
-    robjects.r.load("/home/cfarmer/temp/.RData")
-    i = browseEnv()[0]
-    while i.hasChildren():
-        print [i.name() for i in i.children()]
+    robjects.r.load(".RData")
+    print robjects.r.ls()
+    a = browseEnv()
+    print [i.hasChildren() for i in a]
 
 if __name__ == '__main__':
     main()

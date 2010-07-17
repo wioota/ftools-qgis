@@ -38,7 +38,7 @@ def properties(obj):
             dim = "levels: %s" % robjects.r.length(robjects.r.levels(obj))[0]
     return {"className":md, "dimension":dim}
 
-def recurse(obj, name):
+def recurse(obj, name, level):
     lg = robjects.r.length(obj)[0]
     nm = robjects.r.names(obj)
     props = properties(obj)
@@ -47,15 +47,16 @@ def recurse(obj, name):
         name == 'call' or robjects.r['is.function'](obj)[0] or \
         robjects.r['is.environment'](obj)[0]:
         return node
-    print name, props
     if robjects.r['is.null'](nm)[0]:
         nm = ["[[%s]]" % str(j+1) for j in range(lg)]
     for i in range(lg):
+        if level > 0 and i == level:
+            print "now: %s" % i
         dub = robjects.r['[[']
         node.addChild(recurse(dub(obj, i+1), nm[i]))
     return node
 
-def browseEnv():
+def browseEnv(level=0):
     objlist = list(robjects.r.ls())
     ix = objlist.count("last.warning")
     if ix > 0:

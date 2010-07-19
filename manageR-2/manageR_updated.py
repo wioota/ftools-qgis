@@ -131,7 +131,6 @@ class MainWindow(QMainWindow):
             self.main.editor().setPlainText(QSettings().value("manageR/newfile", "").toString())
         self.setCentralWidget(self.main)
         self.paths = QStringList(os.path.join(CURRENTDIR, "doc", "html"))
-        print self.paths[0]
         self.createFileActions(console)
         self.createEditActions(console)
         self.createActionActions(console)
@@ -139,6 +138,7 @@ class MainWindow(QMainWindow):
         self.createWindowActions(console)
         self.createDockWigets(console)
         self.createHelpActions(console)
+        self.restoreState(QSettings().value("manageR/toolbars").toByteArray())
         self.statusBar().showMessage("Ready", 5000)
 
     def createDockWigets(self, console=True):
@@ -254,8 +254,8 @@ class MainWindow(QMainWindow):
             editPasteAction, editSelectAllAction, None))
         if autocomplete:
             editCompleteAction = self.createAction("Com&plete",
-                self.main.completer().suggest, "Tab", "help-faq",
-                "Initiate autocomplete suggestions")
+                self.main.completer().suggest, icon="help-faq",
+                tip="Initiate autocomplete suggestions")
             self.addActions(editMenu, (editCompleteAction, None,))
         editFindNextAction = self.createAction("&Find",
             self.main.toggleSearch, QKeySequence.Find,
@@ -269,11 +269,11 @@ class MainWindow(QMainWindow):
                 self.main.editor().gotoLine, "Ctrl+G", "go-bottom",
                 "Move cursor to line")
             editIndentRegionAction = self.createAction("&Indent Region",
-                self.main.editor().indentRegion, "Tab", "format-indent-more",
+                self.main.editor().indentRegion, "Ctrl+I", "format-indent-more",
                 "Indent the selected text or the current line")
             editUnindentRegionAction = self.createAction(
                 "Unin&dent Region", self.main.editor().unindentRegion,
-                "Shift+Tab", "format-indent-less",
+                "Ctrl+Shift+I", "format-indent-less",
                 "Unindent the selected text or the current line")
             editCommentRegionAction = self.createAction("C&omment Region",
                 self.main.editor().commentRegion, "Ctrl+D", "list-add",
@@ -652,24 +652,47 @@ class MainWindow(QMainWindow):
         QApplication.restoreOverrideCursor()
 
     def fileClose(self):
-        self.fileQuit()
+        self.close()
 
     def fileQuit(self):
+        windows = QApplication.findChildren(self, MainWindow)
+        for window in windows:
+            if not window == self:
+                window.close()
+        QSettings().setValue("manageR/toolbars", self.saveState())
         self.close()
-        del self
 
     def closeEvent(self, event):
         if self.main.editor().document().isModified():
-            reply = QMessageBox.question(self,
-                        "editR - Unsaved Changes",
-                        "Save unsaved changes in %s" % self.windowTitle().remove("editR - "),
-                        QMessageBox.Save|QMessageBox.Discard|QMessageBox.Cancel)
-            if reply == QMessageBox.Save:
-                self.fileSave()
-            elif reply == QMessageBox.Cancel:
-                event.ignore()
-                return
-        self.fileQuit()
+            if self.windowTitle() == "manageR":
+                reply = QMessageBox.question(self, "manageR - Quit",
+                "Save workspace image?",
+                QMessageBox.Save|QMessageBox.Discard|QMessageBox.Cancel)
+                if reply == QMessageBox.Cancel:
+                    event.ignore()
+                    return
+                if reply == QMessageBox.Save:
+                    self.saveWorkspace(path=".RData")
+                    self.main.editor().history().saveHistory()
+                try:
+                    robjects.r('graphics.off()')
+                except:
+                    try:
+                      for i in list(robjects.r('dev.list()')):
+                        robjects.r('dev.next()')
+                        robjects.r('dev.off()')
+                    except:
+                      pass
+            else:
+                reply = QMessageBox.question(self,
+                            "editR - Unsaved Changes",
+                            "Save unsaved changes in %s" % self.windowTitle().remove("editR - "),
+                            QMessageBox.Save|QMessageBox.Discard|QMessageBox.Cancel)
+                if reply == QMessageBox.Save:
+                    self.fileSave()
+                elif reply == QMessageBox.Cancel:
+                    event.ignore()
+                    return
         event.accept()
 
     def source(self):
@@ -711,15 +734,17 @@ class PlainTextEdit(QPlainTextEdit):
         indent = " "*self.__tabwidth
         cursor = self.textCursor()
         if event.key() == Qt.Key_Tab:
-            if not cursor.hasSelection():
-                cursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor)
-                text = cursor.selectedText().trimmed()
-                if not text.isEmpty():
-                    self.emit(SIGNAL("requestSuggestion(int)"), 1)
+            if not self.tabChangesFocus():
+                if not cursor.hasSelection():
+                    cursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor)
+                    text = cursor.selectedText().trimmed()
+                    if not text.isEmpty():
+                        self.emit(SIGNAL("requestSuggestion(int)"), 1)
+                        pass
+                    else:
+                        self.insertPlainText(indent)
                 else:
-                    self.insertPlainText(indent)
-            else:
-                self.indentRegion()
+                    self.indentRegion()
 
         elif event.key() in (Qt.Key_Enter, Qt.Key_Return):
             insert = "\n"
@@ -1183,13 +1208,14 @@ class RConsole(PlainTextEdit):
                     return
                 PlainTextEdit.keyPressEvent(self, e)
             elif e.key() == Qt.Key_Tab:
-                if not cursor.hasSelection():
-                    cursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor)
-                    text = cursor.selectedText().trimmed()
-                    if not text.isEmpty():
-                        self.emit(SIGNAL("requestSuggestion(int)"), 1)
-                    else:
-                        self.insertPlainText(" "*self.__tabwidth)
+                if not self.tabChangesFocus():
+                    if not cursor.hasSelection():
+                        cursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor)
+                        text = cursor.selectedText().trimmed()
+                        if not text.isEmpty():
+                            self.emit(SIGNAL("requestSuggestion(int)"), 1)
+                        else:
+                            self.insertPlainText(" "*self.__tabwidth)
             elif e.key() == Qt.Key_Return:
                 cursor = self.textCursor()
                 cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
@@ -1420,6 +1446,7 @@ class SearchBar(QWidget):
         self.closeButton.setToolButtonStyle(Qt.ToolButtonIconOnly)
         self.closeButton.setIcon(QIcon(":process-stop.svg"))
         self.closeButton.setToolTip("Close search bar")
+        self.closeButton.setAutoRaise(True)
         self.searchEdit = QLineEdit(self)
         self.searchEdit.setToolTip("Find text")
         self.nextButton = QToolButton(self)
@@ -1427,24 +1454,33 @@ class SearchBar(QWidget):
         self.nextButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.nextButton.setIcon(QIcon(":go-next.svg"))
         self.nextButton.setToolTip("Find next")
+        self.nextButton.setAutoRaise(True)
         self.previousButton = QToolButton(self)
         self.previousButton.setToolTip("Find previous")
-        self.previousButton.setText("Previous")
+        self.previousButton.setText("Prev")
         self.previousButton.setIcon(QIcon(":go-previous.svg"))
         self.previousButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.previousButton.setAutoRaise(True)
         self.wholeCheckbox = QCheckBox()
         self.wholeCheckbox.setText("Whole words")
         self.caseCheckbox = QCheckBox()
         self.caseCheckbox.setText("Case sensitive")
         # add search elements to widget
-        grid = QGridLayout(self)
-        grid.addWidget(findLabel,1,0,1,1)
-        grid.addWidget(self.searchEdit, 1,1,1,2)
-        grid.addWidget(self.closeButton, 0,0,1,1)
-        grid.addWidget(self.nextButton, 1,3,1,1)
-        grid.addWidget(self.previousButton, 1,4,1,1)
-        grid.addWidget(self.wholeCheckbox, 0,3,1,1)
-        grid.addWidget(self.caseCheckbox, 0,4,1,1)
+
+        vbox = QVBoxLayout(self)
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.closeButton)
+        hbox.addWidget(findLabel)
+        hbox.addWidget(self.searchEdit)
+        hbox.addWidget(self.previousButton)
+        hbox.addWidget(self.nextButton)
+        vbox.addLayout(hbox)
+        hbox = QHBoxLayout()
+        hbox.addStretch()
+        hbox.addWidget(self.wholeCheckbox)
+        hbox.addWidget(self.caseCheckbox)
+        vbox.addLayout(hbox)
+
         # create replace elements
         self.replaceLabel = QLabel("Replace:")
         self.replaceLabel.setMaximumWidth(80)
@@ -1453,14 +1489,18 @@ class SearchBar(QWidget):
         self.replaceButton = QToolButton(self)
         self.replaceButton.setText("Replace")
         self.replaceButton.setToolTip("Replace text")
+        self.replaceButton.setAutoRaise(True)
         self.allButton = QToolButton(self)
         self.allButton.setToolTip("Replace all")
         self.allButton.setText("Replace all")
+        self.allButton.setAutoRaise(True)
         # add replace elements to widget
-        grid.addWidget(self.replaceLabel, 2, 0, 1, 1)
-        grid.addWidget(self.replaceEdit, 2, 1, 1, 2)
-        grid.addWidget(self.replaceButton, 2, 3, 1, 1)
-        grid.addWidget(self.allButton, 2, 4, 1, 1)
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.replaceLabel)
+        hbox.addWidget(self.replaceEdit)
+        hbox.addWidget(self.replaceButton)
+        hbox.addWidget(self.allButton)
+        vbox.addLayout(hbox)
         self.setFocusProxy(self.searchEdit)
         self.hide()
         # setup connections
@@ -1475,12 +1515,15 @@ class SearchBar(QWidget):
         text = self.editor.textCursor().selectedText()
         if not text.isEmpty():
             self.searchEdit.setText(text)
-            if self.isVisible():
-                return
         if not self.isVisible():
             self.show(False)
+            self.setFocus(True)
+        elif self.replaceLabel.isVisible():
+            self.hideReplace()
+        elif not self.hasFocus():
+            self.setFocus(True)
         else:
-            self.hide()
+            self.editor.setFocus(True)
 
     def toggleReplace(self):
         text = self.editor.textCursor().selectedText()
@@ -1488,10 +1531,13 @@ class SearchBar(QWidget):
             self.searchEdit.setText(text)
             if self.isVisible():
                 return
-        if not self.isVisible():
+        if not self.replaceLabel.isVisible():
             self.show(True)
+            self.setFocus(True)
+        elif not self.hasFocus():
+            self.setFocus(True)
         else:
-            self.hide()
+            self.editor.setFocus(True)
 
     def show(self, replace=False):
         self.setVisible(True)
@@ -1578,7 +1624,9 @@ class SearchBar(QWidget):
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
-            self.parent.setFocus()
+            self.editor.setFocus(True)
+        elif e.key() == Qt.Key_Tab:
+            self.focusNextChild()
 
 class CompletePopup(QObject):
 
@@ -2164,7 +2212,7 @@ def main():
     app.setOrganizationDomain("ftools.ca")
     app.setApplicationName("manageR")
     app.setWindowIcon(QIcon(":icon.png"))
-    app.connect(app, SIGNAL('lastWindowClosed()'), app, SLOT('quit()'))
+    #app.connect(app, SIGNAL('lastWindowClosed()'), app, SLOT('quit()'))
     window = MainWindow(None, True)
     window.show()
     sys.exit(app.exec_())

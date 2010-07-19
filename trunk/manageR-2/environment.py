@@ -59,7 +59,7 @@ def recurse(obj, name, cur, level):
         return node
     for i in range(lg):
         dub = robjects.r['[[']
-        node.addChild(recurse(dub(obj, i+1), nm[i], i, level))
+        node.addChild(recurse(dub(obj, i+1), nm[i], (i+1)+cur, level))
     return node
 
 def browseEnv(level=0):

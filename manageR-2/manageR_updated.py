@@ -84,6 +84,13 @@ class MainWindow(QMainWindow):
         self.startTimer(30)
         self.main = BaseFrame(self, tabwidth, autobracket, autopopup, sidepanel, console)
         if QSettings().value("manageR/enablehighlighting", True).toBool():
+            backcolor = QColor(QSettings().value("manageR/backgroundfontcolor", "#FFFFFF").toString())
+            fontcolor = QColor(QSettings().value("manageR/normalfontcolor", "#000000").toString())
+            palette = QPalette(backcolor)
+            palette.setColor(QPalette.Active, QPalette.Base, backcolor)
+            palette.setColor(QPalette.Active, QPalette.WindowText, QColor(fontcolor))
+            palette.setColor(QPalette.Inactive, QPalette.WindowText, QColor(fontcolor))
+            self.main.setPalette(palette)
             self.highlighter = Highlighter(self.main.editor())
         if console:
             self.setWindowTitle("manageR")
@@ -486,7 +493,8 @@ class MainWindow(QMainWindow):
                 try:
                     robjects.r.load(file=unicode(path))
                 except Exception, e:
-                    raise Exception(str(e))
+                    #raise Exception(str(e))
+                    pass
             self.statusBar().showMessage("Loaded R Data %s" % path, 5000)
         QApplication.restoreOverrideCursor()
 

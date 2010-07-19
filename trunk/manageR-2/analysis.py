@@ -66,7 +66,7 @@ class GenericVerticalUI(object):
             widget.setFixedHeight(26)
             self.hasRComboBox = True
             widget.setEditable(True)
-        elif widgetType=="rListWidget":
+        elif widgetType=="RListWidget":
             widget = RListWidget(ParentClass,
             default.split(';'), notnull)
             widget.setMinimumHeight(116)

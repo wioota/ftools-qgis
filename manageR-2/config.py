@@ -414,6 +414,10 @@ class HighlightingPage(QWidget):
             gbox.addWidget(colorButton,count+2,3,1,1)
             self.connect(colorButton, SIGNAL("clicked()"),
                 lambda button=colorButton, name=name: self.setColor(button, name))
+            self.connect(boldCheckBox, SIGNAL("stateChanged(int)"),
+                lambda state, name=name: self.setWeight(state, name))
+            self.connect(italicCheckBox, SIGNAL("stateChanged(int)"),
+                lambda state, name=name: self.setItalic(state, name))
         self.setLayout(gbox)
 
     def setColor(self, button, name):
@@ -425,6 +429,15 @@ class HighlightingPage(QWidget):
             pixmap = QPixmap(16, 16)
             pixmap.fill(QColor(color.name()))
             button.setIcon(QIcon(pixmap))
+
+    def setWeight(self, state, name):
+        settings = QSettings()
+        settings.setValue("manageR/%sfontbold" % name, state)
+            
+            
+    def setItalic(self, state, name):
+        settings = QSettings()
+        settings.setValue("manageR/%sfontitalic" % name, state)
 
     def settings(self):
         return [("enablehighlighting", self.highlightingCheckBox.isChecked())]

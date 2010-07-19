@@ -44,7 +44,7 @@ class Plugin:
         self.version = version
         
     def initGui(self):
-        self.action = QAction(QIcon( ":mActionIcon.png" ), "manageR", self.iface.mainWindow())
+        self.action = QAction(QIcon( ":icon.png" ), "manageR", self.iface.mainWindow())
         self.action.setWhatsThis("Interface to the R statistical programming language")
         self.action.setStatusTip("Interface to the R statistical programming language")
         QObject.connect(self.action, SIGNAL("triggered()"), self.run)
@@ -55,7 +55,5 @@ class Plugin:
         self.iface.removeToolBarIcon(self.action)
 
     def run(self):
-        from manageR import MainWindow, loadConfig, saveConfig
-        loadConfig()
-        if not MainWindow.Instances:
-            MainWindow(self.iface, self.version,isConsole=True, isStandalone=False).show()
+        from manageR_updated import MainWindow
+        MainWindow(self.iface.mainWindow(), True).show()

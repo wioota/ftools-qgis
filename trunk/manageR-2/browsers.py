@@ -346,14 +346,14 @@ class RRepositoryBrowser(QDialog):
                     self.printOutput(output)
                 else:
                     self.p.join()
-                    self.started = False
-                    self.killTimer(e.timerId())
-                    if self.closeCheckbox.isChecked():
-                        self.reject()
+                    #self.started = False
+                    #self.killTimer(e.timerId())
+                    #if self.closeCheckbox.isChecked():
+                        #self.reject()
             except EOFError:
                 pass
-        else:
-            self.killTimer(e.timerId())
+        #else:
+            #self.killTimer(e.timerId())
         QApplication.processEvents()
 
     def printOutput(self, output):

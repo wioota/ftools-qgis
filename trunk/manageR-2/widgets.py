@@ -4,13 +4,14 @@
 import rpy2.robjects as robjects
 
 #PyQt imports
-from PyQt4.QtCore import (Qt, SIGNAL, QStringList, QString, QDir, )
+from PyQt4.QtCore import (Qt, SIGNAL, QStringList, QString, QDir, QSettings )
 from PyQt4.QtGui import (QTreeWidget, QAbstractItemView, QAction, QVBoxLayout,
                          QMenu, QWidget, QListView, QIcon, QLineEdit, QToolButton,
                          QHBoxLayout, QTreeWidgetItem, QFileSystemModel, QCheckBox,
-                         QTextEdit, QFileDialog, QDialog, QSpinBox, QLabel)
+                         QTextEdit, QFileDialog, QDialog, QSpinBox, QLabel,
+                         QApplication, QCursor, QInputDialog)
 # local imports
-import resources
+import resources, os, sys
 from environment import browseEnv
 
 class RWidget(QWidget):
@@ -414,6 +415,7 @@ class WorkspaceWidget(RWidget):
                 "for individual objects. Use zero (0) to display "
                 "full recursion.</p>")
         levelLabel.setBuddy(self.levelSpinBox)
+        self.levelSpinBox.setValue(QSettings().value("manageR/recursion", 0).toInt()[0])
 
         self.actions = []
         self.refreshAction = QAction("Re&fresh variables", self)
@@ -482,6 +484,10 @@ class WorkspaceWidget(RWidget):
         self.connect(self.attributeAction, SIGNAL("triggered()"), self.printAttributes)
         self.connect(self.workspaceTree, SIGNAL("itemSelectionChanged()"), self.selectionChanged)
         self.updateVariables()
+        self.connect(self.levelSpinBox, SIGNAL("valueChanged(int)"), self.saveSettings)
+
+    def saveSettings(self, value):
+        QSettings().setValue("manageR/recursion", value)
 
     def mousePressEvent(self, event):
         item = self.workspaceTree.itemAt(event.globalPos())
@@ -567,7 +573,7 @@ class WorkspaceWidget(RWidget):
             name = parent.text(0)
             parent = parent.parent()
         fd = QFileDialog(self.parent, "Save data to file",
-        str(robjects.r.getwd()), "R data file (*.Rda)")
+        str(robjects.r.getwd()[0]), "R data file (*.Rdata)")
         fd.setAcceptMode(QFileDialog.AcceptSave)
         if not fd.exec_() == QDialog.Accepted:
             return False
@@ -586,8 +592,9 @@ class WorkspaceWidget(RWidget):
 
     def loadRVariable(self):
         fd = QFileDialog(self.parent, "Load R variable(s) from file",
-        str(robjects.r.getwd()), "R data (*.Rda);;All files (*.*)")
+        str(robjects.r.getwd()[0]), "R data (*.Rdata);;All files (*.*)")
         fd.setAcceptMode(QFileDialog.AcceptOpen)
+        fd.setFileMode(QFileDialog.ExistingFile)
         if fd.exec_() == QDialog.Rejected:
             return False
         files = fd.selectedFiles()
@@ -622,10 +629,12 @@ class WorkspaceWidget(RWidget):
             self.emitCommands(command)
 
     def updateVariables(self):
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         self.workspaceTree.clear()
         data = browseEnv(self.levelSpinBox.value())
         for node in data:
             self.showRecurse(node, self.workspaceTree)
+        QApplication.restoreOverrideCursor()
         return True
 
     def showRecurse(self, node, parent):

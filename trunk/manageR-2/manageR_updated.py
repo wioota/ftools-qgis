@@ -45,7 +45,7 @@ from PyQt4.QtGui import *
 from PyQt4.QtNetwork import QHttp
 
 # extra resources
-import complete, resources
+import complete, resources, converters
 from widgets import *
 from browsers import *
 from config import ConfigDialog
@@ -54,6 +54,9 @@ from config import ConfigDialog
 import rpy2
 import rpy2.robjects as robjects
 import rpy2.rlike.container as rlc
+
+from qgis.core import QgsMapLayer
+from qgis.utils import iface
 
 # constants
 CURRENTDIR = unicode(os.path.abspath(os.path.dirname(__file__)))
@@ -710,6 +713,57 @@ class MainWindow(QMainWindow):
         if not commands.isEmpty():
             commands.replace(u'\u2029',"\n")
             self.emit(SIGNAL("requestExecuteCommands(QString)"), commands)
+            
+    def importMapLayer(self, layer=None, geom=True):
+        if layer is None:
+            layer = iface.mapCanvas().currentLayer()
+            if layer is None:
+                filters = QgsProviderRegistry.instance().fileVectorFilters()
+                dialog = QgsEncodingFileDialog(self, "manageR - Open Vector File",
+                    unicode(robjects.r.getwd()[0]), filters)
+                if not dialog.exec_() == QDialog.Accepted:
+                    return False
+                files = dialog.selectedFiles()
+                file = files.first().trimmed()
+                encoding = dialog.encoding()
+                base = QFileInfo(file).completeBaseName()
+                layer = QgsVectorLayer(file.trimmed(), base, 'org')
+        elif isinstance(layer, int):
+            layer =  iface.mapCanvas().layer(layer)
+        else:
+            QMessageBox.warning(self, "manageR - Import Error",
+                "Unable to determine layer for import")
+            return False
+        if not robjects.r.require('sp')[0]:
+            QMessageBox.warning(self, "manageR - Import Error",
+                "Missing R package 'sp', please install via install.packages()
+                or Workspace > Install Packages")
+            return False
+        if layer.type() == QgsMapLayer.VectorLayer:
+            try:
+                return converters.qVectorDataFrameObject(layer, geom)
+            except Exception, e:
+                QMessageBox.warning(self, "manageR - Import Error",
+                    "Unable to import layer:\n%s" % unicode(e))
+                return False
+        elif layer.type() == QgsMapLayer.RasterLayer:
+            if QSettigns().value("manageR/useraster", True).toBool():
+                package = 'raster'
+            else:
+                package = 'rgdal'
+            try:
+                return converters.qRasterDataFrameObject(layer, package)
+            except Exception, e:
+                QMessageBox.warning(self, "manageR - Import Error",
+                    "Unable to import layer:\n%s" % unicode(e))
+                return False
+        else:
+            QMessageBox.warning(self, "manageR - Import Error",
+                "Unknown spatial data type, unable to import layer into manageR")
+            return False
+    return True
+        
+            
         
 #------------------------------------------------------------------------------#
 #-------------------------- Main Console and Editor ---------------------------#

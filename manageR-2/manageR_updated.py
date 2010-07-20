@@ -55,7 +55,8 @@ import rpy2
 import rpy2.robjects as robjects
 import rpy2.rlike.container as rlc
 
-from qgis.core import QgsMapLayer
+from qgis.core import (QgsMapLayer,QgsProviderRegistry,QgsVectorLayer)
+from qgis.gui import QgsEncodingFileDialog
 from qgis.utils import iface
 
 # constants
@@ -141,6 +142,7 @@ class MainWindow(QMainWindow):
         self.createWindowActions(console)
         self.createDockWigets(console)
         self.createHelpActions(console)
+        QShortcut(QKeySequence("Ctrl+L"), self, self.importMapLayer)
         self.restoreState(QSettings().value("manageR/toolbars").toByteArray())
         self.statusBar().showMessage("Ready", 5000)
 
@@ -736,8 +738,8 @@ class MainWindow(QMainWindow):
             return False
         if not robjects.r.require('sp')[0]:
             QMessageBox.warning(self, "manageR - Import Error",
-                "Missing R package 'sp', please install via install.packages()
-                or Workspace > Install Packages")
+                "Missing R package 'sp', please install via install.packages()"
+                "or Workspace > Install Packages")
             return False
         if layer.type() == QgsMapLayer.VectorLayer:
             try:
@@ -761,7 +763,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "manageR - Import Error",
                 "Unknown spatial data type, unable to import layer into manageR")
             return False
-    return True
+        return True
         
             
         

@@ -15,7 +15,7 @@ from qgis.core import    (QgsVectorLayer, QgsVectorDataProvider, QgsMapLayer,
                           QgsFeature,)
 
 # ---------------------------   VECTOR LAYERS   -------------------------------#
-def qSpatialDataFrameObject(layer, keep=False):
+def qVectorDataFrameObject(layer, keep=False):
     provider = layer.dataProvider()
     selection = layer.selectedFeatureCount()>0
     if keep:

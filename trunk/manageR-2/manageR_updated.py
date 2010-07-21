@@ -55,9 +55,10 @@ import rpy2
 import rpy2.robjects as robjects
 import rpy2.rlike.container as rlc
 
-from qgis.core import (QgsMapLayer,QgsProviderRegistry,QgsVectorLayer)
+from qgis.core import (QgsApplication, QgsMapLayer,QgsProviderRegistry,
+                       QgsVectorLayer, )
 from qgis.gui import QgsEncodingFileDialog
-from qgis.utils import iface
+import qgis.utils
 
 # constants
 CURRENTDIR = unicode(os.path.abspath(os.path.dirname(__file__)))
@@ -72,10 +73,11 @@ WELCOME = unicode("Welcome to manageR version %s\n"
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, parent=None, console=True, sidepanel=True):
+    def __init__(self, parent=None, iface=None, console=True, sidepanel=True):
         QMainWindow.__init__(self, parent)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowIcon(QIcon(":icon.png"))
+        self.iface = iface
         fontfamily = QSettings().value("manageR/fontfamily", "DejaVu Sans Mono").toString()
         fontsize = QSettings().value("manageR/fontsize", 10).toInt()[0]
         tabwidth = QSettings().value("manageR/tabwidth", 4).toInt()[0]
@@ -718,7 +720,8 @@ class MainWindow(QMainWindow):
             
     def importMapLayer(self, layer=None, geom=True):
         if layer is None:
-            layer = iface.mapCanvas().currentLayer()
+            if not self.iface is None:
+                layer = self.iface.mapCanvas().currentLayer()
             if layer is None:
                 filters = QgsProviderRegistry.instance().fileVectorFilters()
                 dialog = QgsEncodingFileDialog(self, "manageR - Open Vector File",
@@ -729,7 +732,7 @@ class MainWindow(QMainWindow):
                 file = files.first().trimmed()
                 encoding = dialog.encoding()
                 base = QFileInfo(file).completeBaseName()
-                layer = QgsVectorLayer(file.trimmed(), base, 'org')
+                layer = QgsVectorLayer(file.trimmed(), base, 'ogr')
         elif isinstance(layer, int):
             layer =  iface.mapCanvas().layer(layer)
         else:
@@ -818,17 +821,16 @@ class PlainTextEdit(QPlainTextEdit):
                              Qt.Key_BracketLeft,
                              Qt.Key_BraceLeft):
             if self.__autobracket:
-                cursor.movePosition(QTextCursor.NextCharacter,
-                    QTextCursor.KeepAnchor)
+                cursor.movePosition(QTextCursor.NextCharacter, QTextCursor.KeepAnchor)
                 insert = ""
                 if event.key() == Qt.Key_ParenLeft and \
-                    not cursor.selectedText() == QString(Qt.Key_ParenRight):
+                    cursor.selectedText().trimmed().isEmpty():
                     insert = QString(Qt.Key_ParenRight)
                 elif event.key() == Qt.Key_BracketLeft and \
-                    not cursor.selectedText() == QString(Qt.Key_BracketRight):
+                    cursor.selectedText().trimmed().isEmpty():
                     insert = QString(Qt.Key_BracketRight)
                 elif event.key() == Qt.Key_BraceLeft and \
-                    not cursor.selectedText() == QString(Qt.Key_BraceRight):
+                    cursor.selectedText().trimmed().isEmpty():
                     insert = QString(Qt.Key_BraceRight)
                 cursor = self.textCursor()
                 cursor.insertText("%s%s" % (QString(event.key()),insert))
@@ -2268,8 +2270,10 @@ def main():
     app.setOrganizationDomain("ftools.ca")
     app.setApplicationName("manageR")
     app.setWindowIcon(QIcon(":icon.png"))
+    QgsApplication.setPrefixPath('/usr/local', True)
+    QgsApplication.initQgis()
     #app.connect(app, SIGNAL('lastWindowClosed()'), app, SLOT('quit()'))
-    window = MainWindow(None, True)
+    window = MainWindow(parent=None, iface=None, console=True)
     window.show()
     sys.exit(app.exec_())
 

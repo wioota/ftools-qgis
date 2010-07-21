@@ -14,6 +14,8 @@ from qgis.core import    (QgsVectorLayer, QgsVectorDataProvider, QgsMapLayer,
                           QgsCoordinateReferenceSystem, QgsField, QgsPoint,
                           QgsFeature,)
 
+import traceback
+
 # ---------------------------   VECTOR LAYERS   -------------------------------#
 def qVectorDataFrameObject(layer, keep=False):
     provider = layer.dataProvider()
@@ -34,7 +36,7 @@ def qVectorDataFrameObject(layer, keep=False):
     layer.select(attrs, QgsRectangle())
     fields = qFields(provider)
     if len(fields) < 1:
-        raise Exception("Error: Attribute table must have at least one field")
+        raise Exception("Error: attribute table must have at least one field")
     if selection:
         feats = layer.selectedFeatures()
     else:
@@ -118,7 +120,7 @@ def qPolygons(polys, fid):
     try:
         Polygon = robjects.r.get('Polygon', mode='function')
         Polygons = robjects.r.get('Polygons', mode='function')
-        result = Polygons([Polygon([qPoints(line) for line in poly]) for poly in polys], fid)
+        result = Polygons(sum([[Polygon(qPoints(line)) for line in poly] for poly in polys], []), str(fid))
         return result
     except Exception, e:
         raise Exception("unable to extract polygon geomety (%s)" % unicode(e))
@@ -135,7 +137,7 @@ def qLines(lines, fid):
     try:
         Line = robjects.r.get('Line', mode='function')
         Lines = robjects.r.get('Lines', mode='function')
-        result = Lines([Line(qPoints(line)) for line in lines], fid)
+        result = Lines([Line(qPoints(line)) for line in lines], str(fid))
         return result
     except Exception, e:
         raise Exception("unable to extract polyline geomety (%s)" % unicode(e))
@@ -144,16 +146,17 @@ def qGeometry(feature):
     try:
         geom = QgsGeometry(feature.geometry())
         fid = feature.id()
-        if not geom.convertToMultiType():
-            return None
-        elif geom.type() == 0:
-            return qPoints(geom.asMultiPoint(), fid)
+        if not geom.isMultipart():
+            if not geom.convertToMultiType():
+                raise Exception("unable to extract feature geometry (invalid geometry type)")
+        if geom.type() == 0:
+            return qPoints(geom.asMultiPoint())
         elif geom.type() == 1:
             return qLines(geom.asMultiPolyline(), fid)
         elif geom.type() == 2:
             return qPolygons(geom.asMultiPolygon(), fid)
         else:
-            return None
+            raise Exception("unable to extract feature geometry (unknown geometry type)")
     except Exception, e:
         raise Exception("unable to extract feature geometry: %s" % unicode(e))
 
@@ -164,7 +167,7 @@ def qSpatial(geometries, type, proj="NULL"):
         SpatialPoints = robjects.r.get('SpatialPoints', mode='function')
         CRS = robjects.r.get('CRS', mode='function')
         if type == 0:
-            return SpatialPoints(geometries, proj4string = CRS(proj))
+            return SpatialPoints(reduce(robjects.r.rbind, geometries), proj4string = CRS(proj))
         elif type == 1:
             return SpatialLines(geometries, proj4string = CRS(proj))
         elif type == 2:
@@ -179,7 +182,7 @@ def qSpatialDataFrame(spatial, data, type):
         SpatialPolygonsDataFrame = robjects.r.get('SpatialPolygonsDataFrame', mode='function')
         SpatialLinesDataFrame = robjects.r.get('SpatialLinesDataFrame', mode='function')
         SpatialPointsDataFrame = robjects.r.get('SpatialPointsDataFrame', mode='function')
-        kwargs = {'match.ID':"FALSE"}
+        kwargs = {'match.ID':False}
         if type == 0:
             return SpatialPointsDataFrame(spatial, data, **kwargs)
         elif type == 1:
@@ -332,18 +335,14 @@ def spFeature(attrs, geom):
 def main():
     QgsApplication.setPrefixPath('/usr/local', True)
     QgsApplication.initQgis()
-    layer = QgsVectorLayer("/home/cfarmer/temp/test_buffer_1.shp", "test_buffer_1", "ogr")
+    layer = QgsVectorLayer("/home/cfarmer/Downloads/qgis_sample_data/vmap0_shapefiles/majrivers.shp", "majrivers", "ogr")
     provider = layer.dataProvider()
+    print dir(provider)
     if not robjects.r.require('sp')[0]:
         raise Exception("Error: missing 'sp' package: classes and methods for spatial data")
-    t1 = time.time()
-    output = qSpatialDataFrameObject(layer, True)
-    t2 = time.time()
-    print t2-t1
-    t1 = time.time()
-    output = spQgsVectorLayer("test_buffer_1")
-    t2 = time.time()
-    print t2-t1
+    output = qVectorDataFrameObject(layer, True)
+    robjects.r.plot(robjects.r.get("majrivers"))
+    s = raw_input('Waiting for input... (Return)')
     
 
 if __name__ == '__main__':

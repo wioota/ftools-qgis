@@ -56,4 +56,4 @@ class Plugin:
 
     def run(self):
         from manageR_updated import MainWindow
-        MainWindow(self.iface.mainWindow(), True).show()
+        MainWindow(self.iface.mainWindow(), iface=self.iface, console=True).show()

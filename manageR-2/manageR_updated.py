@@ -117,6 +117,10 @@ class MainWindow(QMainWindow):
                 QSettings().value("manageR/afteroutput", "+").toString())
             self.main.editor().setPrompt(*prompts)
             self.prepareEnvironment()
+            QShortcut(QKeySequence("Ctrl+L"), self, self.importMapLayer)
+            QShortcut(QKeySequence("Ctrl+T"), self, self.importMapTable)
+            QShortcut(QKeySequence("Ctrl+M"), self, self.exportCanvasLayer)
+            QShortcut(QKeySequence("Ctrl+E"), self, self.exportFileLayer)
         else:
             if QSettings().value("manageR/remembergeometry", True).toBool():
                 width = QSettings().value("manageR/windowwidth", 50).toInt()[0]
@@ -144,7 +148,6 @@ class MainWindow(QMainWindow):
         self.createWindowActions(console)
         self.createDockWigets(console)
         self.createHelpActions(console)
-        QShortcut(QKeySequence("Ctrl+L"), self, self.importMapLayer)
         self.restoreState(QSettings().value("manageR/toolbars").toByteArray())
         self.statusBar().showMessage("Ready", 5000)
 
@@ -511,7 +514,7 @@ class MainWindow(QMainWindow):
 
     def fileNew(self):
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        window = MainWindow(self, False)
+        window = MainWindow(self, iface=None, console=False)
         self.connect(window, SIGNAL("requestExecuteCommands(QString)"),
             self.main.editor().acceptCommands)
         window.show()
@@ -717,7 +720,17 @@ class MainWindow(QMainWindow):
         if not commands.isEmpty():
             commands.replace(u'\u2029',"\n")
             self.emit(SIGNAL("requestExecuteCommands(QString)"), commands)
-            
+
+    def importMapTable(self, layer=None):
+        self.importMapLayer(layer, geom=False)
+        return True
+
+    def exportCanvasLayer(self):
+        pass
+
+    def exportFileLayer(self):
+        pass
+
     def importMapLayer(self, layer=None, geom=True):
         if layer is None:
             if not self.iface is None:
@@ -746,7 +759,13 @@ class MainWindow(QMainWindow):
             return False
         if layer.type() == QgsMapLayer.VectorLayer:
             try:
-                return converters.qVectorDataFrameObject(layer, geom)
+                if layer.selectedFeatureCount() < 1:
+                    if robjects.r.require('rgdal'):
+                        return converters.qOGRVectorDataFrame(layer, geom)
+                    robjects.r['print']("An error occured while attempting to "
+                    "speed up import by using 'RGDAL' package (%s)\n" 
+                    "Using internal conversion utilities instead...\n" % unicode(e))
+                return converters.qQGISVectorDataFrame(layer, geom)
             except Exception, e:
                 QMessageBox.warning(self, "manageR - Import Error",
                     "Unable to import layer:\n%s" % unicode(e))
@@ -783,6 +802,7 @@ class PlainTextEdit(QPlainTextEdit):
         self.__parent = parent
         self.__autobracket = autobracket
         self.__checkSyntax = True
+        self.__suspended = False
         #self.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.setFrameShape(QTextEdit.NoFrame)
         self.setAcceptDrops(False)
@@ -1090,6 +1110,15 @@ class PlainTextEdit(QPlainTextEdit):
                 self.setTextCursor(cursor)
                 self.insertPlainText(args)
 
+    def suspendHighlighting(self):
+        self.__suspended = True
+
+    def resumeHighlighting(self):
+        self.__suspended = False
+
+    def isHighlightingSuspended(self):
+        return self.__suspended
+
 class REditor(PlainTextEdit):
 
     def __init__(self, parent=None, tabwidth=4, autobracket=True):
@@ -1356,21 +1385,26 @@ class RConsole(PlainTextEdit):
 
     def printOutput(self, output):
         error = False
+        
         if len(output) > 0:
             for line in output:
                 if not line == "":
                     if line.startsWith("Error") or error:
                         error = True
-                        line = "Error: %s\n" % line.split(":",
-                        QString.SkipEmptyParts)[1:].join("").trimmed()
+                        line = QString("Error: %s\n" % line.split(":",
+                        QString.SkipEmptyParts)[1:].join("").trimmed())
                         self.textCursor().block().setUserData(
                             UserData(PlainTextEdit.ERROR, QString("Error")))
                     else:
+                        self.suspendHighlighting()
                         self.textCursor().block().setUserData(
                             UserData(PlainTextEdit.OUTPUT, QString("Output")))
+                    line = QString(line)
+                    line.replace('\xe2\x9c\x93', "").replace('\xe2\x80\x98', "'").replace('\xe2\x80\x99', "'")
                     self.insertPlainText(line)
         #self.textCursor().block().setUserData(
             #UserData(PlainTextEdit.OUTPUT, QString("Output")))
+        self.resumeHighlighting()
         self.ensureCursorVisible()
 
     def mousePressEvent(self, e):
@@ -1926,9 +1960,9 @@ class Highlighter(QSyntaxHighlighter):
 
     def __init__(self, parent=None):
         QSyntaxHighlighter.__init__(self, parent)
-        self.parent = parent
-        if isinstance(self.parent, QPlainTextEdit):
-            self.setDocument(self.parent.document())
+        #self.parent = parent
+        if isinstance(parent, QPlainTextEdit):
+            self.setDocument(parent.document())
         self.initializeFormats()
         Highlighter.Rules.append((QRegExp(
                 r"[a-zA-Z_]+[a-zA-Z_\.0-9]*(?=[\s]*[(])"), "keyword"))
@@ -2012,10 +2046,13 @@ class Highlighter(QSyntaxHighlighter):
         textLength = text.length()
         prevState = self.previousBlockState()
 
-        cursor = self.parent.textCursor()
+        cursor = self.parent().textCursor()
         block = cursor.block()
 
         self.setFormat(0, textLength, Highlighter.Formats["normal"])
+
+        if self.parent().isHighlightingSuspended():
+            return
 
         for regex, format in Highlighter.Rules:
             i = regex.indexIn(text)

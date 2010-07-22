@@ -17,7 +17,7 @@ from qgis.core import    (QgsVectorLayer, QgsVectorDataProvider, QgsMapLayer,
 import traceback
 
 # ---------------------------   VECTOR LAYERS   -------------------------------#
-def qVectorDataFrameObject(layer, keep=False):
+def qQGISVectorDataFrame(layer, keep=False):
     provider = layer.dataProvider()
     selection = layer.selectedFeatureCount()>0
     if keep:
@@ -194,20 +194,27 @@ def qSpatialDataFrame(spatial, data, type):
     except Exception, e:
         raise Exception("unable to create spatial dataset: %s" % unicode(e))
 
-#dsn = self.mlayer.source()
-#name = self.mlayer.name()
-#encode = provider.encoding()
-#readOGR_ = robjects.r.get('readOGR', mode='function')
-#try:
-    ##print unicode(dsn,encoding=str(encode)), unicode(name,encoding=str(encode)), str(encode)
-    #spds = readOGR_(dsn=unicode(dsn,encoding=str(encode)),layer=unicode(name,encoding=str(encode)),
-    #input_field_name_encoding=str(encode))
-#except Exception, err:
-    #spds = None
-    #name = "Error"
-    #print str(err)
-#if self.data_only:
-    #spds = robjects.r["@"](spds,"data")
+def qOGRVectorDataFrame(layer, keep=True):
+    source = unicode(layer.publicSource())
+    source.replace("\\", "/")
+    encode = layer.dataProvider().encoding()
+    print encode
+    name = unicode(layer.name())
+    make_names = robjects.r.get('make.names', mode='function')
+    newname = make_names(name)[0]
+    try:
+        rcode = "%s <- readOGR(dsn='%s', layer='%s')" % (unicode(newname), unicode(source), unicode(name))
+        if not keep:
+            rcode += "@data"
+        robjects.r(rcode)
+    except Exception, e:
+        raise Exception("Error: unable to read vector dataset (%s)" % unicode(e))
+    #length, width = list(robjects.r.dim(result))
+    #robjects.r['print']("Name: %s\nSource: %s\n" % (unicode(newname), unicode(source)))
+    #robjects.r['print']("with %s rows and %s columns\n" % (unicode(length), unicode(width)))
+    if not newname == name:
+        robjects.r['print']("**Note: layer name syntax changed")
+    return True
 
 # ---------------------------   RASTER LAYERS   -------------------------------#
 
@@ -337,10 +344,11 @@ def main():
     QgsApplication.initQgis()
     layer = QgsVectorLayer("/home/cfarmer/Downloads/qgis_sample_data/vmap0_shapefiles/majrivers.shp", "majrivers", "ogr")
     provider = layer.dataProvider()
-    print dir(provider)
     if not robjects.r.require('sp')[0]:
         raise Exception("Error: missing 'sp' package: classes and methods for spatial data")
-    output = qVectorDataFrameObject(layer, True)
+    if not robjects.r.require('rgdal')[0]:
+        raise Exception("Error: missing 'rgdal' package: classes and methods for spatial data")
+    output = qOGRVectorDataFrame(layer, True)
     robjects.r.plot(robjects.r.get("majrivers"))
     s = raw_input('Waiting for input... (Return)')
     

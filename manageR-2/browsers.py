@@ -56,23 +56,19 @@ class LayerImportBrowser(QDialog):
                 unicode(robjects.r.getwd()[0]), self.filters)
             if not dialog.exec_() == QDialog.Accepted:
                 return
+            print dialog.selectedFilter()
             files = dialog.selectedFiles()
             file = files.first().trimmed()
             self.layerLineEdit.setText(file)
-            self.parent().__filePath = file
+            self.emit(SIGNAL("filePathChanged(QString)"), file)
 
         def changeEncoding(self, text):
-            self.parent().__encoding = text
-
-        def filePath(self):
-            return self.layerLineEdit.text()
-
-        def encoding(self):
-            return self.encodingComboBox.currentText()
+            self.emit(SIGNAL("encodingChanged(QString)"), text)
 
     class RasterPage(QWidget):
         def __init__(self, parent=None, filters=""):
             QWidget.__init__(self, parent)
+            self.parent = parent
             self.filters = filters
             self.layerLineEdit = QLineEdit()
             self.browseToolButton = QToolButton()
@@ -92,18 +88,14 @@ class LayerImportBrowser(QDialog):
             self.connect(self.browseToolButton, SIGNAL("clicked()"), self.browseToFile)
 
         def browseToFile(self):
-            dialog = QFileDialog(self, "manageR - Open Vector File",
+            dialog = QFileDialog(self, "manageR - Open Raster File",
                 unicode(robjects.r.getwd()[0]), self.filters)
             if not dialog.exec_() == QDialog.Accepted:
                 return
             files = dialog.selectedFiles()
             file = files.first().trimmed()
             self.layerLineEdit.setText(file)
-            self.parent().__filePath = file
-            self.parent().__encoding = ""
-
-        def filePath(self):
-            return self.layerLineEdit.text()
+            self.emit(SIGNAL("filePathChanged(QString)"), file)
 
     def __init__(self, parent=None, vectors="", rasters="", encodings=[]):
         QDialog.__init__(self, parent)
@@ -116,19 +108,23 @@ class LayerImportBrowser(QDialog):
         self.contentsWidget.setMinimumHeight(220)
         self.contentsWidget.setSpacing(12)
         self.__filePath = ""
-        self.__encoding = ""
+        self.__encoding = "System"
         self.__type = 0
 
         self.pagesWidget = QStackedWidget()
-        self.vectorPage = self.VectorPage(self, vectors, encodings)
-        self.pagesWidget.addWidget(self.vectorPage)
-        self.rasterPage = self.RasterPage(self, rasters)
-        self.pagesWidget.addWidget(self.rasterPage)
+        vectorPage = self.VectorPage(self, vectors, encodings)
+        self.pagesWidget.addWidget(vectorPage)
+        rasterPage = self.RasterPage(self, rasters)
+        self.pagesWidget.addWidget(rasterPage)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel, parent=self)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel,
+            Qt.Horizontal, self)
 
         self.connect(buttons, SIGNAL("accepted()"), self.accept)
         self.connect(buttons, SIGNAL("rejected()"), self.reject)
+        self.connect(vectorPage, SIGNAL("filePathChanged(QString)"), self.setFilePath)
+        self.connect(vectorPage, SIGNAL("encodingChanged(QString)"), self.setEncoding)
+        self.connect(rasterPage, SIGNAL("filePathChanged(QString)"), self.setFilePath)
 
         self.createIcons()
         self.contentsWidget.setCurrentRow(0)
@@ -169,9 +165,21 @@ class LayerImportBrowser(QDialog):
 
     def filePath(self):
         return self.__filePath
+        
+    def setFilePath(self, filePath):
+        self.__filePath = filePath
 
     def encoding(self):
         return self.__encoding
+    
+    def setEncoding(self, encoding):
+        self.__encoding = encoding
+        
+    def layerType(self):
+        return self.__type
+        
+    def setLayerType(self, type):
+        self.__type = type
 
     def accept(self):
         self.__type = self.pagesWidget.currentIndex()

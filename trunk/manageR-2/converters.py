@@ -194,12 +194,7 @@ def qSpatialDataFrame(spatial, data, type):
     except Exception, e:
         raise Exception("unable to create spatial dataset: %s" % unicode(e))
 
-def qOGRVectorDataFrame(layer, keep=True):
-    source = unicode(layer.publicSource())
-    source.replace("\\", "/")
-    encode = layer.dataProvider().encoding()
-    print encode
-    name = unicode(layer.name())
+def qOGRVectorDataFrame(source, name, encode="", keep=True):
     make_names = robjects.r.get('make.names', mode='function')
     newname = make_names(name)[0]
     try:
@@ -218,10 +213,7 @@ def qOGRVectorDataFrame(layer, keep=True):
 
 # ---------------------------   RASTER LAYERS   -------------------------------#
 
-def qRasterDataFrameObject(layer, package='raster'):
-    dsn = unicode(layer.publicSource())
-    dsn.replace("\\", "/")
-    name = unicode(layer.name())
+def qGDALRasterDataFrame(dsn, name, package='raster'):
     make_names = robjects.r.get('make.names', mode='function')
     newname = make_names(name)[0]
     try:
@@ -240,7 +232,7 @@ def qRasterDataFrameObject(layer, package='raster'):
     slot = robjects.r.get('@', mode='function')
     robjects.r['print']("QGIS Raster Layer\n")
     robjects.r['print']("Name: %s\n" % unicode(newname))
-    robjects.r['print']("Source: %s\n" % unicode(source))
+    robjects.r['print']("Source: %s\n" % unicode(dsn))
     if package == 'raster':
         robjects.r['print']("Used package 'raster'\n")
     else:

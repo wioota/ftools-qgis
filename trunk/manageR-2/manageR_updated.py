@@ -55,10 +55,14 @@ import rpy2
 import rpy2.robjects as robjects
 import rpy2.rlike.container as rlc
 
-from qgis.core import (QgsApplication, QgsMapLayer,QgsProviderRegistry,
-                       QgsVectorLayer, QgsVectorDataProvider,QgsRasterLayer)
-from qgis.gui import (QgsEncodingFileDialog, QgisInterface)
-import qgis.utils
+try:
+    from qgis.core import (QgsApplication, QgsMapLayer,QgsProviderRegistry,
+                          QgsVectorLayer, QgsVectorDataProvider,QgsRasterLayer)
+    from qgis.gui import (QgsEncodingFileDialog, QgisInterface)
+    import qgis.utils
+    WITHQGIS = True
+except Exception, e:
+    WITHQGIS = False
 
 # constants
 CURRENTDIR = unicode(os.path.abspath(os.path.dirname(__file__)))
@@ -732,58 +736,93 @@ class MainWindow(QMainWindow):
         pass
 
     def importMapLayer(self, layer=None, geom=True):
-        if layer is None:
-            if isinstance(self.iface, QgisInterface):
-                layer = self.iface.mapCanvas().currentLayer()
-            if layer is None:
-                vFilters = QgsProviderRegistry.instance().fileVectorFilters()
-                encodings = QgsVectorDataProvider.availableEncodings()
-                rFilters = QString()
-                QgsRasterLayer.buildSupportedRasterFileFilter(rFilters)
-                dialog = LayerImportBrowser(self, vFilters, rFilters, encodings)
-                dialog.exec_()
-        elif isinstance(layer, int) and isinstance(self.iface, QgisInterface):
-            layer =  self.iface.mapCanvas().layer(layer)
-        else:
-            QMessageBox.warning(self, "manageR - Import Error",
-                "Unable to determine layer for import")
-            return False
         if not robjects.r.require('sp')[0]:
             QMessageBox.warning(self, "manageR - Import Error",
                 "Missing R package 'sp', please install via install.packages()"
                 "or Workspace > Install Packages")
             return False
-        if layer.type() == QgsMapLayer.VectorLayer:
-            try:
-                if layer.selectedFeatureCount() < 1:
-                    if robjects.r.require('rgdal'):
-                        return converters.qOGRVectorDataFrame(layer, geom)
-                    robjects.r['print']("An error occured while attempting to "
-                    "speed up import by using 'RGDAL' package (%s)\n" 
-                    "Using internal conversion utilities instead...\n" % unicode(e))
-                return converters.qQGISVectorDataFrame(layer, geom)
-            except Exception, e:
-                QMessageBox.warning(self, "manageR - Import Error",
-                    "Unable to import layer:\n%s" % unicode(e))
-                return False
-        elif layer.type() == QgsMapLayer.RasterLayer:
-            if QSettigns().value("manageR/useraster", True).toBool():
-                package = 'raster'
+        encodings = ['System', 'BIG5', 'BIG5-HKSCS', 'EUCJP', 'EUCKR', 'GB2312', 
+                      'GBK', 'GB18030', 'JIS7', 'SHIFT-JIS', 'TSCII', 'UTF-8', 
+                      'UTF-16', 'KOI8-R', 'KOI8-', 'ISO8859-1', 'ISO8859-2', 'ISO8859-3', 
+                      'ISO8859-4', 'ISO8859-5', 'ISO8859-6', 'ISO8859-7', 'ISO8859-8', 
+                      'ISO8859-8-I', 'ISO8859-9', 'ISO8859-10', 'ISO8859-11', 'ISO8859-12', 
+                      'ISO8859-13', 'ISO8859-14', 'ISO8859-15', 'IBM 850', 'IBM 866', 'CP874', 
+                      'CP1250', 'CP1251', 'CP1252', 'CP1253', 'CP1254', 'CP1255', 'CP1256', 
+                      'CP1257', 'CP1258', 'Apple Roman', 'TIS-620']
+        if WITHQGIS:
+            if layer is None:
+                if isinstance(self.iface, QgisInterface):
+                    layer = self.iface.mapCanvas().currentLayer()
+                if layer is None:
+                    vFilters = QgsProviderRegistry.instance().fileVectorFilters()
+                    rFilters = QString()
+                    QgsRasterLayer.buildSupportedRasterFileFilter(rFilters)
+                    dialog = LayerImportBrowser(self, vFilters, rFilters, encodings)
+                    if not dialog.exec_() == QDialog.Accepted:
+                        return False
+                    path = QString(dialog.filePath())
+                    name = QFileInfo(path).completeBaseName()
+                    if path.trimmed().isEmpty():
+                        return False
+                    if dialog.layerType() == 0:
+                        layer = QgsVectorLayer(path, name, 'ogr')
+                    else:
+                        layer = QgsRasterLayer(path, name)
+            elif isinstance(layer, int) and isinstance(self.iface, QgisInterface):
+                layer =  self.iface.mapCanvas().layer(layer)
             else:
-                package = 'rgdal'
-            try:
-                return converters.qRasterDataFrameObject(layer, package)
-            except Exception, e:
                 QMessageBox.warning(self, "manageR - Import Error",
-                    "Unable to import layer:\n%s" % unicode(e))
+                    "Unable to determine layer for import")
+                return False
+            if layer.type() == QgsMapLayer.VectorLayer:
+                try:
+                    if layer.selectedFeatureCount() < 1:
+                        if robjects.r.require('rgdal'):
+                            source = unicode(layer.publicSource())
+                            source.replace("\\", "/")
+                            name = unicode(layer.name())
+                            return converters.qOGRVectorDataFrame(source, name, keep=geom)
+                        robjects.r['print']("An error occured while attempting to "
+                        "speed up import by using 'RGDAL' package (%s)\n" 
+                        "Using internal conversion utilities instead...\n" % unicode(e))
+                    return converters.qQGISVectorDataFrame(layer, geom)
+                except Exception, e:
+                    QMessageBox.warning(self, "manageR - Import Error",
+                        "Unable to import layer:\n%s" % unicode(e))
+                    return False
+            elif layer.type() == QgsMapLayer.RasterLayer:
+                if QSettings().value("manageR/useraster", True).toBool():
+                    package = 'raster'
+                else:
+                    package = 'rgdal'
+                source = unicode(layer.publicSource())
+                source.replace("\\", "/")
+                name = unicode(layer.name())
+                try:
+                    return converters.qGDALRasterDataFrame(source, name, package)
+                except Exception, e:
+                    QMessageBox.warning(self, "manageR - Import Error",
+                        "Unable to import layer:\n%s" % unicode(e))
+                    return False
+            else:
+                QMessageBox.warning(self, "manageR - Import Error",
+                    "Unknown spatial data type, unable to import layer into manageR")
                 return False
         else:
-            QMessageBox.warning(self, "manageR - Import Error",
-                "Unknown spatial data type, unable to import layer into manageR")
-            return False
-        return True
-        
-            
+            vFilters = "All files (*);;Comma Separated (*.csv)"
+            rFilters = "All files (*)"
+            dialog = LayerImportBrowser(self, vFilters, rFilters, encodings)
+            if not dialog.exec_() == QDialog.Accepted:
+                return False
+            path = QString(dialog.filePath())
+            if path.trimmed().isEmpty():
+                return False
+            name = QFileInfo(path).completeBaseName()
+            if dialog.layerType() == 0:
+                return converters.qOGRVectorDataFrame(path, name, keep=geom)
+            else:
+                return converters.qGDALRasterDataFrame(path, name)
+        return True            
         
 #------------------------------------------------------------------------------#
 #-------------------------- Main Console and Editor ---------------------------#

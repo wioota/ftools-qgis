@@ -1,18 +1,181 @@
 # -*- coding: utf-8 -*-
 
 from PyQt4.QtCore import (QString, QStringList, QUrl, SIGNAL, SLOT, QFileInfo,
-                          QEventLoop, Qt, QVariant, QRegExp, QObject)
+                          QEventLoop, Qt, QVariant, QRegExp, QObject, QSize,)
 from PyQt4.QtGui import (QPixmap, QDialog, QLabel, QIcon, QTextBrowser, QTabWidget,
                          QToolButton, QAction, QWidget, QShortcut, QKeySequence,
                          QVBoxLayout, QHBoxLayout, QCheckBox, QPushButton,
                          QAbstractItemView, QListWidget, QTableWidget, QTextDocument,
                          QLineEdit, QGroupBox, QApplication, QTableWidgetItem,
-                         QDialogButtonBox, QTextEdit, )
+                         QDialogButtonBox, QTextEdit, QListView,QStackedWidget,
+                         QComboBox,QListWidgetItem, QFileDialog)
 from PyQt4.QtNetwork import QHttp
 
 import rpy2.robjects as robjects
-import sys, os
+import sys, os, resources
 from multiprocessing import Process, Queue, Lock, Pipe
+
+class LayerImportBrowser(QDialog):
+
+    class VectorPage(QWidget):
+        def __init__(self, parent=None, filters="", encodings=[]):
+            QWidget.__init__(self, parent)
+            self.filters = filters
+            self.layerLineEdit = QLineEdit()
+            self.browseToolButton = QToolButton()
+            self.browseToolButton.setAutoRaise(True)
+            self.browseToolButton.setIcon(QIcon(":document-open.svg"))
+            layerLabel = QLabel("&Dataset:")
+            layerLabel.setBuddy(self.layerLineEdit)
+
+            self.encodingComboBox = QComboBox()
+            self.encodingComboBox.addItems(encodings)
+            encodingLabel = QLabel("&Encoding:")
+            encodingLabel.setBuddy(self.encodingComboBox)
+
+            hbox = QHBoxLayout()
+            hbox.addWidget(layerLabel)
+            hbox.addWidget(self.layerLineEdit)
+            hbox.addWidget(self.browseToolButton)
+            vbox = QVBoxLayout()
+            vbox.addLayout(hbox)
+            hbox = QHBoxLayout()
+            hbox.addWidget(encodingLabel)
+            hbox.addWidget(self.encodingComboBox)
+            vbox.addLayout(hbox)
+            self.setLayout(vbox)
+            self.encodingComboBox.setCurrentIndex(self.encodingComboBox.findText("System"))
+
+            self.connect(self.browseToolButton,
+                SIGNAL("clicked()"), self.browseToFile)
+            self.connect(self.encodingComboBox,
+                SIGNAL("currentIndexChanged(QString)"), self.changeEncoding)
+
+        def browseToFile(self):
+            dialog = QFileDialog(self, "manageR - Open Vector File",
+                unicode(robjects.r.getwd()[0]), self.filters)
+            if not dialog.exec_() == QDialog.Accepted:
+                return
+            files = dialog.selectedFiles()
+            file = files.first().trimmed()
+            self.layerLineEdit.setText(file)
+            self.parent().__filePath = file
+
+        def changeEncoding(self, text):
+            self.parent().__encoding = text
+
+        def filePath(self):
+            return self.layerLineEdit.text()
+
+        def encoding(self):
+            return self.encodingComboBox.currentText()
+
+    class RasterPage(QWidget):
+        def __init__(self, parent=None, filters=""):
+            QWidget.__init__(self, parent)
+            self.filters = filters
+            self.layerLineEdit = QLineEdit()
+            self.browseToolButton = QToolButton()
+            self.browseToolButton.setAutoRaise(True)
+            self.browseToolButton.setIcon(QIcon(":document-open.svg"))
+            layerLabel = QLabel("&Dataset:")
+            layerLabel.setBuddy(self.layerLineEdit)
+
+            hbox = QHBoxLayout()
+            hbox.addWidget(layerLabel)
+            hbox.addWidget(self.layerLineEdit)
+            hbox.addWidget(self.browseToolButton)
+            vbox = QVBoxLayout()
+            vbox.addLayout(hbox)
+            self.setLayout(vbox)
+
+            self.connect(self.browseToolButton, SIGNAL("clicked()"), self.browseToFile)
+
+        def browseToFile(self):
+            dialog = QFileDialog(self, "manageR - Open Vector File",
+                unicode(robjects.r.getwd()[0]), self.filters)
+            if not dialog.exec_() == QDialog.Accepted:
+                return
+            files = dialog.selectedFiles()
+            file = files.first().trimmed()
+            self.layerLineEdit.setText(file)
+            self.parent().__filePath = file
+            self.parent().__encoding = ""
+
+        def filePath(self):
+            return self.layerLineEdit.text()
+
+    def __init__(self, parent=None, vectors="", rasters="", encodings=[]):
+        QDialog.__init__(self, parent)
+        self.contentsWidget = QListWidget()
+        self.contentsWidget.setViewMode(QListView.IconMode)
+        self.contentsWidget.setIconSize(QSize(76, 66))
+        self.contentsWidget.setMovement(QListView.Static)
+        self.contentsWidget.setMaximumWidth(106)
+        self.contentsWidget.setMinimumWidth(106)
+        self.contentsWidget.setMinimumHeight(220)
+        self.contentsWidget.setSpacing(12)
+        self.__filePath = ""
+        self.__encoding = ""
+        self.__type = 0
+
+        self.pagesWidget = QStackedWidget()
+        self.vectorPage = self.VectorPage(self, vectors, encodings)
+        self.pagesWidget.addWidget(self.vectorPage)
+        self.rasterPage = self.RasterPage(self, rasters)
+        self.pagesWidget.addWidget(self.rasterPage)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel, parent=self)
+
+        self.connect(buttons, SIGNAL("accepted()"), self.accept)
+        self.connect(buttons, SIGNAL("rejected()"), self.reject)
+
+        self.createIcons()
+        self.contentsWidget.setCurrentRow(0)
+
+        horizontalLayout = QHBoxLayout()
+        horizontalLayout.addWidget(self.contentsWidget)
+        horizontalLayout.addWidget(self.pagesWidget, 1)
+
+        mainLayout = QVBoxLayout()
+        mainLayout.addLayout(horizontalLayout)
+        mainLayout.addStretch(1)
+        mainLayout.addSpacing(12)
+        mainLayout.addWidget(buttons)
+        self.setLayout(mainLayout)
+        self.setWindowTitle("manageR - Import Layer")
+
+    def createIcons(self):
+        vectorButton = QListWidgetItem(self.contentsWidget)
+        vectorButton.setIcon(QIcon(":preferences-system.svg"))
+        vectorButton.setText("Vector Layer")
+        vectorButton.setTextAlignment(Qt.AlignHCenter)
+        vectorButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+
+        rasterButton = QListWidgetItem(self.contentsWidget)
+        rasterButton.setIcon(QIcon(":applications-graphics.svg"));
+        rasterButton.setText("Raster Layer")
+        rasterButton.setTextAlignment(Qt.AlignHCenter)
+        rasterButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+
+        self.connect(self.contentsWidget,
+            SIGNAL("currentItemChanged(QListWidgetItem*, QListWidgetItem*)"),
+            self.changePage)
+
+    def changePage(self, current, previous):
+        if not current:
+            current = previous
+        self.pagesWidget.setCurrentIndex(self.contentsWidget.row(current))
+
+    def filePath(self):
+        return self.__filePath
+
+    def encoding(self):
+        return self.__encoding
+
+    def accept(self):
+        self.__type = self.pagesWidget.currentIndex()
+        QDialog.accept(self)
 
 class AboutBrowser(QDialog):
     def __init__(self, parent=None, version=0.1, license="", currentdir="."):

@@ -56,8 +56,8 @@ import rpy2.robjects as robjects
 import rpy2.rlike.container as rlc
 
 from qgis.core import (QgsApplication, QgsMapLayer,QgsProviderRegistry,
-                       QgsVectorLayer, )
-from qgis.gui import QgsEncodingFileDialog
+                       QgsVectorLayer, QgsVectorDataProvider,QgsRasterLayer)
+from qgis.gui import (QgsEncodingFileDialog, QgisInterface)
 import qgis.utils
 
 # constants
@@ -733,21 +733,17 @@ class MainWindow(QMainWindow):
 
     def importMapLayer(self, layer=None, geom=True):
         if layer is None:
-            if not self.iface is None:
+            if isinstance(self.iface, QgisInterface):
                 layer = self.iface.mapCanvas().currentLayer()
             if layer is None:
-                filters = QgsProviderRegistry.instance().fileVectorFilters()
-                dialog = QgsEncodingFileDialog(self, "manageR - Open Vector File",
-                    unicode(robjects.r.getwd()[0]), filters)
-                if not dialog.exec_() == QDialog.Accepted:
-                    return False
-                files = dialog.selectedFiles()
-                file = files.first().trimmed()
-                encoding = dialog.encoding()
-                base = QFileInfo(file).completeBaseName()
-                layer = QgsVectorLayer(file.trimmed(), base, 'ogr')
-        elif isinstance(layer, int):
-            layer =  iface.mapCanvas().layer(layer)
+                vFilters = QgsProviderRegistry.instance().fileVectorFilters()
+                encodings = QgsVectorDataProvider.availableEncodings()
+                rFilters = QString()
+                QgsRasterLayer.buildSupportedRasterFileFilter(rFilters)
+                dialog = LayerImportBrowser(self, vFilters, rFilters, encodings)
+                dialog.exec_()
+        elif isinstance(layer, int) and isinstance(self.iface, QgisInterface):
+            layer =  self.iface.mapCanvas().layer(layer)
         else:
             QMessageBox.warning(self, "manageR - Import Error",
                 "Unable to determine layer for import")

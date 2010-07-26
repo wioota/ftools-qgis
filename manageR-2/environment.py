@@ -103,7 +103,7 @@ class TreeModel(QAbstractItemModel):
     def flags(self, index):
         if not index.isValid():
             return False
-        return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
     def getItem(self, index):
         if index.isValid():
@@ -201,10 +201,12 @@ class TreeModel(QAbstractItemModel):
     def updateData(self, item, count):
         if item == self.rootItem:
             return
-        dim = item.data(2)
-        prefix, first, x, last = dim.split(" ")
-        last = int(last)-count
-        item.setData(2, "%s %s %s %s" % (prefix, first, x, last))
+        dim = QString(item.data(2))
+        regexp = QRegExp(r"\s\d+")
+        index = dim.lastIndexOf(regexp)
+        prefix = dim[0:index]
+        suffix = int(dim[index:])-count
+        item.setData(2, "%s %s" % (prefix, suffix))
 
     def parentTree(self, index):
         item = self.getItem(index)

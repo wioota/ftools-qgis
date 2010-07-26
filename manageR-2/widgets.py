@@ -4,15 +4,17 @@
 import rpy2.robjects as robjects
 
 #PyQt imports
-from PyQt4.QtCore import (Qt, SIGNAL, QStringList, QString, QDir, QSettings )
+from PyQt4.QtCore import (Qt, SIGNAL, SLOT, QStringList, QString, QDir, QSettings,
+                          QModelIndex, QObject, QCoreApplication, QEventLoop )
 from PyQt4.QtGui import (QTreeWidget, QAbstractItemView, QAction, QVBoxLayout,
                          QMenu, QWidget, QListView, QIcon, QLineEdit, QToolButton,
                          QHBoxLayout, QTreeWidgetItem, QFileSystemModel, QCheckBox,
                          QTextEdit, QFileDialog, QDialog, QSpinBox, QLabel,
-                         QApplication, QCursor, QInputDialog)
+                         QApplication, QCursor, QInputDialog, QTreeView,
+                         )
 # local imports
 import resources, os, sys
-from environment import browseEnv
+from environment import TreeModel
 
 class RWidget(QWidget):
 
@@ -383,39 +385,31 @@ class HistoryWidget(RWidget):
 
 class WorkspaceWidget(RWidget):
 
-    class TreeWidget(QTreeWidget):
+    class TreeView(QTreeView):
         def __init__(self, parent):
             QTreeWidget.__init__(self, parent)
             self.setAlternatingRowColors(True)
             self.setSelectionBehavior(QAbstractItemView.SelectRows)
             self.setSelectionMode(QAbstractItemView.SingleSelection)
+            self.connect(self, SIGNAL("expanded(QModelIndex)"), self.expanded)
+
+        def expanded(self, index):
+            self.model().updateEntry(index)
 
         def mousePressEvent(self, event):
-            item = self.itemAt(event.globalPos())
+            item = self.childAt(event.globalPos())
             if not item and event.button() == Qt.LeftButton:
                 self.clearSelection()
-            QTreeWidget.mousePressEvent(self, event)
+            QTreeView.mousePressEvent(self, event)
 
         def selectionChanged(self, new, old):
             self.emit(SIGNAL("itemSelectionChanged()"))
-            QTreeWidget.selectionChanged(self, new, old)
+            QTreeView.selectionChanged(self, new, old)
 
     def __init__(self, parent=None):
         RWidget.__init__(self, parent)
-        self.workspaceTree = self.TreeWidget(self)
-        self.workspaceTree.setColumnCount(3)
-        self.workspaceTree.setHeaderLabels(QStringList(["Name", "Type", "Size", "Memory"]))
-
-        self.levelSpinBox = QSpinBox()
-        self.levelSpinBox.setRange(0,99)
-        self.levelSpinBox.setSuffix(" level(s)")
-        self.levelSpinBox.setValue(0)
-        levelLabel = QLabel("Depth of object recursion:")
-        self.levelSpinBox.setToolTip("<p>Specify depth of recursion "
-                "for individual objects. Use zero (0) to display "
-                "full recursion.</p>")
-        levelLabel.setBuddy(self.levelSpinBox)
-        self.levelSpinBox.setValue(QSettings().value("manageR/recursion", 0).toInt()[0])
+        self.workspaceTree = self.TreeView(self)
+        self.updateEnvironment()
 
         self.actions = []
         self.refreshAction = QAction("Re&fresh variables", self)
@@ -468,10 +462,6 @@ class WorkspaceWidget(RWidget):
         self.actions.append(self.rmAction)
 
         vbox = QVBoxLayout(self)
-        hbox = QHBoxLayout()
-        hbox.addWidget(levelLabel)
-        hbox.addWidget(self.levelSpinBox)
-        vbox.addLayout(hbox)
         vbox.addWidget(self.workspaceTree)
 
         self.variables = dict()
@@ -480,14 +470,10 @@ class WorkspaceWidget(RWidget):
         self.connect(self.saveAction, SIGNAL("triggered()"), self.saveVariable)
         self.connect(self.loadAction, SIGNAL("triggered()"), self.loadRVariable)
         self.connect(self.methodAction, SIGNAL("triggered()"), self.printMethods)
-        self.connect(self.refreshAction, SIGNAL("triggered()"), self.updateVariables)
+        self.connect(self.refreshAction, SIGNAL("triggered()"), self.updateEnvironment)
         self.connect(self.attributeAction, SIGNAL("triggered()"), self.printAttributes)
         self.connect(self.workspaceTree, SIGNAL("itemSelectionChanged()"), self.selectionChanged)
-        self.updateVariables()
-        self.connect(self.levelSpinBox, SIGNAL("valueChanged(int)"), self.saveSettings)
-
-    def saveSettings(self, value):
-        QSettings().setValue("manageR/recursion", value)
+        self.updateEnvironment()
 
     def mousePressEvent(self, event):
         item = self.workspaceTree.itemAt(event.globalPos())
@@ -504,7 +490,7 @@ class WorkspaceWidget(RWidget):
         menu.exec_(event.globalPos())
 
     def selectionChanged(self):
-        items = self.workspaceTree.selectedItems()
+        items = self.workspaceTree.selectedIndexes()
         if len(items) < 1:
             for action in self.actions[2:]:
                 action.setEnabled(False)
@@ -513,33 +499,35 @@ class WorkspaceWidget(RWidget):
                 action.setEnabled(True)
 
     def printMethods(self):
-        items = self.workspaceTree.selectedItems()
+        items = self.workspaceTree.selectedIndexes()
         if len(items) < 1:
             return False
-        itemName, itemType = self.getVariableInfo(items[0])
+        itemType = self.workspaceTree.model().getItem(items[0]).data(1)
         self.runCommand('methods(class=%s)' % (itemType,))
 
     def printAttributes(self):
-        items = self.workspaceTree.selectedItems()
+        items = self.workspaceTree.selectedIndexes()
         if len(items) < 1:
             return False
-        tree = self.variablePath(items[0])
+        tree = self.workspaceTree.model().parentTree(items[0])
         self.runCommand('names(attributes(%s))' % tree)
 
     def removeVariable(self):
-        items = self.workspaceTree.selectedItems()
+        items = self.workspaceTree.selectedIndexes()
         if len(items) < 1:
             return False
         item = items[0]
-        tree = self.variablePath(item)
+        tree = self.workspaceTree.model().parentTree(item)
         command = "rm(%s)" % tree
-        if item.parent():
+        if not item.parent() == QModelIndex():
             command = "%s <- NULL" % tree
+        waiter = SignalWaiter(self.parent, SIGNAL("errorOutput()"))
         self.runCommand(command)
-        self.updateVariables()
+        if not waiter.wait(50):
+            self.workspaceTree.model().removeRows(item.row(),1, item.parent())
 
     def exportVariable(self):
-        items = self.workspaceTree.selectedItems()
+        items = self.workspaceTree.selectedIndexes()
         if len(items) < 1:
             return False
         tree = self.variablePath(items[0])
@@ -564,7 +552,7 @@ class WorkspaceWidget(RWidget):
         self.runCommand(command)
 
     def saveVariable(self):
-        items = self.workspaceTree.selectedItems()
+        items = self.workspaceTree.selectedIndexes()
         if len(items) < 1:
             return False
         parent = item[0].parent()
@@ -602,50 +590,55 @@ class WorkspaceWidget(RWidget):
         if selectedFile.length() == 0:
             return False
         self.runCommand(QString('load("%s")' % (selectedFile)))
-        self.updateVariables()
-
-    def getVariableInfo(self, item):
-        item_name = item.text(0)
-        item_type = item.text(1)
-        return (item_name, item_type)
-
-    def variablePath(self, item):
-        name = item.text(0)
-        name.remove("[[").remove("]]")
-        parent = item.parent()
-        #pname = parent.text(0)
-        names = []
-        while parent:
-            tmp = parent.text(0)
-            tmp.remove("[[").remove("]]")
-            names.insert(0,tmp)
-            parent = parent.parent()
-        names.append(name)
-        path = [ "[['%s']]" % name if not name.startsWith("@") else unicode(name) for name in names[1:]]
-        return unicode(names[0])+str.join("", path)
+        self.updateEnvironment()
 
     def runCommand(self, command):
         if not command == "":
             self.emitCommands(command)
 
-    def updateVariables(self):
+    def updateEnvironment(self):
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        self.workspaceTree.clear()
-        data = browseEnv(self.levelSpinBox.value())
-        for node in data:
-            self.showRecurse(node, self.workspaceTree)
+        model = TreeModel()
+        self.workspaceTree.setModel(model)
         QApplication.restoreOverrideCursor()
         return True
 
-    def showRecurse(self, node, parent):
-        a = QTreeWidgetItem(parent)
-        a.setText(0, QString(node.name()))
-        a.setText(1, QString(node.className()))
-        a.setText(2, QString(node.dimensions()))
-        a.setText(3, QString(node.memory()))
-        if not node.hasChildren():
-            return
-        else:
-            for j in node.children():
-                self.showRecurse(j, a)
-        return True
+# This class is based on the QxtSignalWaiter
+# from http://qtnode.net/wiki/QxtSignalWaiter
+# Released under the GPL/LGPL/QPL
+class SignalWaiter(QObject):
+
+    def __init__(self, sender, signal):
+        QObject.__init__(self)
+        self.connect(sender, signal, self.signalCaught)
+        self.ready = False
+        self.timeout = False
+
+    #def wait(sender, signal, msec):
+        ##Returns true if the signal was caught, returns false if the wait timed out
+        #w = SignalWaiter(sender, signal)
+        #return w.wait(msec)
+
+    def wait(self, msec):
+        # Returns true if the signal was caught, returns false if the wait timed out
+        # Check input parameters
+        if msec < -1:
+            return False
+        # activate the timeout
+        if not msec == -1:
+            self.timerID = self.startTimer(msec)
+
+        # Begin waiting
+        while not self.ready and not self.timeout:
+            QCoreApplication.processEvents(QEventLoop.WaitForMoreEvents)
+
+        # Return status
+        self.killTimer(self.timerID)
+        return self.ready or not self.timeout
+
+    def signalCaught(self):
+        self.ready = True
+
+    def timerEvent(self, event):
+        self.killTimer(self.timerID)
+        self.timeout = True

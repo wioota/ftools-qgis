@@ -306,10 +306,13 @@ class MainWindow(QMainWindow):
             actionRunAction = self.createAction("E&xecute",
                 self.send, "Ctrl+Return", "utilities-terminal",
                 "Execute the (selected) text in the manageR console")
+            actionLineAction = self.createAction("Execute &Line",
+                self.sendLine,"Ctrl+Shift+Return", "utilities-terminal",
+                "Execute the current line in the manageR console")
             actionSourceAction = self.createAction("Run S&cript",
                 self.source,"", "system-run",
                 "Run the current EditR script")
-            self.addActions(actionMenu, (actionRunAction, actionSourceAction, None,))
+            self.addActions(actionMenu, (actionRunAction, actionLineAction, None, actionSourceAction,))
         else:
             actionShowPrevAction = self.createAction(
                 "Show Previous Command", self.main.editor().previous,
@@ -720,8 +723,15 @@ class MainWindow(QMainWindow):
             commands = self.main.editor().toPlainText()
         self.execute(commands)
 
-    def execute(self, commands):
+    def sendLine(self):
+        cursor = self.main.editor().textCursor()
+        cursor.select(QTextCursor.LineUnderCursor)
+        commands = cursor.selectedText()
         if not commands.isEmpty():
+            self.execute(commands)
+
+    def execute(self, commands):
+        if not commands == "":
             commands.replace(u'\u2029',"\n")
             self.emit(SIGNAL("requestExecuteCommands(QString)"), commands)
 
@@ -1420,11 +1430,12 @@ class RConsole(PlainTextEdit):
 
     def printOutput(self, output):
         error = False
-        
         if len(output) > 0:
             for line in output:
                 if not line == "":
                     if line.startsWith("Error") or error:
+                        if not error:
+                            self.emit(SIGNAL("errorOutput()"))
                         error = True
                         line = QString("Error: %s\n" % line.split(":",
                         QString.SkipEmptyParts)[1:].join("").trimmed())

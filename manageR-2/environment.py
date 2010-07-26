@@ -2,134 +2,345 @@
 
 # rpy2 (R) imports
 import rpy2.robjects as robjects
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
+import sys
 
-class Node:
-    def __init__(self, name, className="", dimension="", memory=""):
-        self.__name = name
-        self.__class = className
-        self.__dim = dimension
-        self.__memory = memory
-        self.__children = []
-    def addChild(self, child):
-        self.__children.append(child)
+# -*- coding: utf-8 -*-
+class Node(QObject):
+
+    def __init__(self, data=[], parent=None):
+        QObject.__init__(self)
+        self.parentItem = parent
+        self.itemData = data
+        self.childItems = []
+
+    def appendChild(self, item):
+        self.childItems.append(item)
+
+    def child(self, row):
+        try:
+            return self.childItems[row]
+        except:
+            return None
+
+    def childCount(self):
+        return len(self.childItems)
+
+    def childNumber(self):
+        if self.parentItem:
+            return self.parentItem.childItems.index(self)
+
     def children(self):
-        return self.__children
-    def hasChildren(self):
-        return len(self.__children)>0
-    def name(self):
-        return self.__name
-    def className(self):
-        return self.__class
-    def dimensions(self):
-        return self.__dim
-    def memory(self):
-        return self.__memory
+        return [self.child(row) for row in range(self.childCount())]
 
-def properties(obj):
-    md = robjects.r.mode(obj)[0]
-    lg = robjects.r.length(obj)[0]
-    try:
-        objdim = list(robjects.r.dim(obj))
-        dim = "dim: %s x %s" % (str(objdim[0]),str(objdim[1]))
-        if robjects.r["is.matrix"](obj)[0]:
-            md = "matrix"
-    except TypeError, e:
-        dim = "length: %s" % str(lg)
-    cls = robjects.r.oldClass(obj)
-    if not robjects.r['is.null'](cls)[0]:
-        md = cls[0]
-        if robjects.r.inherits(obj, "factor")[0]:
-            dim = "levels: %s" % robjects.r.length(robjects.r.levels(obj))[0]
-    memory = robjects.r.get("object.size", mode="function")
-    mem = memory(obj)
-    return {"className":md, "dimension":dim, "memory":str(mem)}
+    def columnCount(self):
+        return len(self.itemData)
 
-def recurse(obj, name, cur, level):
-    lg = robjects.r.length(obj)[0]
-    nm = robjects.r.names(obj)
-    props = properties(obj)
-    node = Node(name, **props)
-    if not robjects.r['is.recursive'](obj)[0] or lg < 1 or \
-        name == 'call' or robjects.r['is.function'](obj)[0] or \
-        robjects.r['is.environment'](obj)[0]:
-        return node
-    if robjects.r['is.null'](nm)[0]:
-        nm = ["[[%s]]" % str(j+1) for j in range(lg)]
-    if level > 0 and cur >= level:
-        return node
-    for i in range(lg):
-        dub = robjects.r['[[']
-        node.addChild(recurse(dub(obj, i+1), nm[i], (i+1)+cur, level))
-    return node
+    def data(self, column):
+        return self.itemData[column]
 
-def browseEnv(level=0):
-    # level: how deep do we dig into recursive variables?
-    # note: zero (0) means we do full recursion
-    objlist = list(robjects.r.ls())
-    ix = objlist.count("last.warning")
-    if ix > 0:
-        objlist.remove("last.warning")
-    n = len(objlist)
-    if n == 0: # do nothing!
-        return list()
-    nodes = []
+    def insertChildren(self, position, count, columns):
+        if position < 0 or position > len(self.childItems):
+            return False
+        for i in range(count):
+            item = Node([self.data(i) for i in range(self.columnCount())], self)
+            self.childItems.insert(position, item)
 
-    for objName in objlist:
-        spatial = False
-        obj = robjects.r.get(objName)
-        if not robjects.r['is.null'](robjects.r['class'](obj))[0] \
-            and robjects.r.inherits(obj, "Spatial")[0]:
-            spatClass = robjects.r.oldClass(obj)[0]
-            spatName = objName
-            objName = "@data"
-            memory = robjects.r.get("object.size", mode="function")
-            spatMem = memory(obj)
-            obj = robjects.r['@'](obj, 'data')
-            spatial = True
+    def insertColumns(self, position, columns):
+        if position < 0 or position > len(self.itemData):
+            return False
+        for column in range(columns):
+            self.itemData.insert(position, QVariant())
+        for child in self.childItems:
+            child.insertColumns(position, columns)
+        return True
 
-        props = properties(obj)
-        node = Node(objName, **props)
-        #node.addChild(recurse(obj, objName))
-        if robjects.r['is.recursive'](obj)[0] \
-            and not robjects.r['is.function'](obj)[0] \
-            and not robjects.r['is.environment'](obj)[0]:
-            node = recurse(obj, objName, 1, level)
-        elif not robjects.r['is.null'](robjects.r['class'](obj))[0]:
-            if robjects.r.inherits(obj, "table")[0]:
-                nms = robjects.r.attr(obj, "dimnames")
-                lg = robjects.r.length(nms)
-                props = properties(obj)
-                node = Node(objName, **props)
-                if len(robjects.r.names(nms)) > 0:
-                    nm <- robjects.r.names(nms)
-                else:
-                    nm = ["" for k in range(lg)]
-                for i in range(lg):
-                    dub = robjects.r['[[']
-                    node.addChild(Node(nm[i], **properties(dub(obj, i+1))))
-            elif robjects.r.inherits(obj, "mts")[0]:
-                props = properties(obj)
-                node = Node(objName, **props)
-                nm = robjects.r.dimnames(obj)[1]
-                lg = len(nm)
-                for k in range(lg):
-                    dim = "length: %s" % robjects.r.dim(obj)[0]
-                    md = "ts"
-                    memory = robjects.r.get("object.size", mode="function")
-                    mem = memory(obj)
-                    node.addChild(Node(nm[k], md, dim, str(mem)))
-        if spatial:
-            spatNode = Node(spatName, spatClass, node.dimensions(), str(spatMem))
-            spatNode.addChild(node)
-            node = spatNode
-        nodes.append(node)
-    return nodes
+    def parent(self):
+        return self.parentItem
+
+    def removeChildren(self, position, count):
+        if position < 0 or position+count > len(self.childItems):
+            return False
+        for row in range(count):
+            self.childItems.pop(position)
+        return True
+
+    def removeColumns(self, position, columns):
+        if position < 0 or position+columns > len(self.itemData):
+            return False
+        for column in range(columns):
+            self.itemData.remove(position)
+        for item in self.childItems:
+            item.removeColumns(position, columns)
+        return True
+
+    def setData(self, column, value):
+        if column < 0 or column >= len(self.itemData):
+            return False
+        self.itemData[column] = value
+        return True
+
+class TreeModel(QAbstractItemModel):
+
+    def __init__(self, headers=["Name", "Type", "Size", "Memory"], parent=None):
+        QAbstractItemModel.__init__(self, parent)
+        self.rootData = headers
+        self.rootItem = Node(self.rootData)
+        self.browseEnv(self.rootItem)
+
+    def columnCount(self, index):
+        return self.rootItem.columnCount()
+
+    def data(self, index, role):
+        if not index.isValid():
+            return QVariant()
+        if not role in (Qt.DisplayRole, Qt.EditRole):
+            return QVariant()
+        item = self.getItem(index)
+        return item.data(index.column())
+
+    def flags(self, index):
+        if not index.isValid():
+            return False
+        return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
+    def getItem(self, index):
+        if index.isValid():
+            item = index.internalPointer()
+            if item:
+                return item
+        return self.rootItem
+
+    def headerData(self, section, orientation, role):
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self.rootItem.data(section)
+        return QVariant()
+
+    def index(self, row, column, parent):
+        if parent.isValid() and not parent.column() == 0:
+            return QModelIndex()
+        parentItem = self.getItem(parent)
+        childItem = parentItem.child(row)
+        if childItem:
+            return self.createIndex(row, column, childItem)
+        else:
+            return QModelIndex()
+
+    def insertColumns(self, position, columns, parent):
+        success = False
+        self.beginInsertColumns(parent, position, position+columns-1)
+        success = self.rootItem.insertColumns(position, columns)
+        self.endInsertColumns()
+        return success
+
+    def insertRows(self, position, rows, parent):
+        parentItem = self.getItem(parent)
+        success = False
+        self.beginInsertRows(parent, position, position+rows-1)
+        success = parentItem.insertChildren(position, rows, self.rootItem.columnCount())
+        self.endInsertRows()
+        return success
+
+    def parent(self, index):
+        if not index.isValid():
+            return QModelIndex()
+        childItem = self.getItem(index)
+        parentItem = childItem.parent()
+        if parentItem == self.rootItem or parentItem is None:
+            return QModelIndex()
+        return self.createIndex(parentItem.childNumber(), 0, parentItem)
+
+    def removeColumns(self, position, columns, parent):
+        success = False
+        self.beginRemoveColumns(parent, position, position+columns-1)
+        success = self.rootItem.removeColumns(position, columns)
+        self.endRemoveColumns()
+        if self.rootItem.columnCount() == 0:
+            self.removeRows(0, self.rowCount())
+        return success
+
+    def removeRows(self, position, rows, parent):
+        parentItem = self.getItem(parent)
+        success = True
+        self.beginRemoveRows(parent, position, position+rows-1)
+        success = parentItem.removeChildren(position, rows)
+        self.endRemoveRows()
+        self.updateData(parentItem, rows)
+        return success
+
+    def rowCount(self, parent):
+        parentItem = self.getItem(parent)
+        return parentItem.childCount()
+
+    def setData(self, index, value):
+        item = self.getItem(index)
+        result = item.setData(index.column(), value)
+        if result:
+            self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), index, index)
+        return result
+
+    def setHeaderData(self, section, orientation, value):
+        if not orientation == Qt.Horizontal:
+            return False
+        result = self.rootItem.setData(section, value)
+        if result:
+            self.emit(SIGNAL("headerDataChanged(Qt.Orientation, int, int)"), orientation, section, section)
+        return result
+
+    def updateEntry(self, index):
+        item = self.getItem(index)
+        for row in range(item.childCount()):
+            idx = self.index(row, 0, index)
+            objName = self.parentTree(idx)
+            obj = robjects.r(objName)
+            tmp = self.getItem(idx)
+            if tmp.childCount() < 1 and \
+                not objName == "call":
+                self.browseObject(obj, idx)
+
+    def updateData(self, item, count):
+        if item == self.rootItem:
+            return
+        dim = item.data(2)
+        prefix, first, x, last = dim.split(" ")
+        last = int(last)-count
+        item.setData(2, "%s %s %s %s" % (prefix, first, x, last))
+
+    def parentTree(self, index):
+        item = self.getItem(index)
+        name = QString(item.data(0))
+        name.remove("[[").remove("]]")
+        parent = item.parent()
+        names = []
+        while not parent is None:
+            tmp = QString(parent.data(0))
+            tmp.remove("[[").remove("]]")
+            names.insert(0,tmp)
+            parent = parent.parent()
+        names.append(name)
+        names.pop(0)
+        path = [ "[['%s']]" % name if not name.startsWith("@") else unicode(name) for name in names[1:]]
+        return unicode(names[0])+str.join("", path)
+
+    def properties(self, obj, name):
+        md = robjects.r.mode(obj)[0]
+        lg = robjects.r.length(obj)[0]
+        try:
+            objdim = list(robjects.r.dim(obj))
+            dim = "dim: %s x %s" % (str(objdim[0]),str(objdim[1]))
+            if robjects.r["is.matrix"](obj)[0]:
+                md = "matrix"
+        except TypeError, e:
+            dim = "length: %s" % str(lg)
+        cls = robjects.r.oldClass(obj)
+        if not robjects.r['is.null'](cls)[0]:
+            md = cls[0]
+            if robjects.r.inherits(obj, "factor")[0]:
+                dim = "levels: %s" % robjects.r.length(robjects.r.levels(obj))[0]
+        memory = robjects.r.get("object.size", mode="function")
+        mem = memory(obj)
+        return [name, md, dim, str(mem)]
+
+    def browseObject(self, obj, index):
+        lg = robjects.r.length(obj)[0]
+        nm = robjects.r.names(obj)
+        item = self.getItem(index)
+        if item.childNumber() > 0:
+            return
+        if not robjects.r['is.recursive'](obj)[0] or \
+            lg < 1 or \
+            robjects.r['is.function'](obj)[0] or \
+            robjects.r['is.environment'](obj)[0]:
+            return
+        if robjects.r['is.null'](nm)[0]:
+            nm = ["[[%s]]" % str(j+1) for j in range(lg)]
+        self.insertRows(0, len(nm), index)
+        for i in range(lg):
+            dub = robjects.r['[[']
+            props = self.properties(dub(obj, i+1), nm[i])
+            [self.setData(self.index(i, col, index), val) for col, val in enumerate(props)]
+
+    def browseEnv(self, parent):
+        objlist = list(robjects.r.ls())
+        ix = objlist.count("last.warning")
+        if ix > 0:
+            objlist.remove("last.warning")
+        n = len(objlist)
+        if n == 0: # do nothing!
+            return list()
+        nodes = []
+        for row, objName in enumerate(objlist):
+            spatial = False
+            obj = robjects.r.get(objName)
+            if not robjects.r['is.null'](robjects.r['class'](obj))[0] \
+                and robjects.r.inherits(obj, "Spatial")[0]:
+                spatClass = robjects.r.oldClass(obj)[0]
+                memory = robjects.r.get("object.size", mode="function")
+                spatMem = memory(obj)
+                obj = robjects.r['@'](obj, 'data')
+                objdim = robjects.r.dim(obj)
+                spatDim = "features: %s" % (objdim[0])
+                props = [objName, spatClass, spatDim, str(spatMem)]
+                objName = "@data"
+                node = Node(props, parent)
+                props = self.properties(obj, objName)
+                node.appendChild(Node(props, node))
+                parent.appendChild(node)
+            else:
+                props = self.properties(obj, objName)
+                node = Node(props, parent)
+                parent.appendChild(node)
+                if robjects.r['is.recursive'](obj)[0] \
+                    and not robjects.r['is.function'](obj)[0] \
+                    and not robjects.r['is.environment'](obj)[0]:
+                    lg = robjects.r.length(obj)[0]
+                    nm = robjects.r.names(obj)
+                    if robjects.r['is.null'](nm)[0]:
+                        nm = ["[[%s]]" % str(j+1) for j in range(lg)]
+                    for i in range(lg):
+                        dub = robjects.r['[[']
+                        props = self.properties(dub(obj, i+1), nm[i])
+                        node.appendChild(Node(props, node))
+                elif not robjects.r['is.null'](robjects.r['class'](obj))[0]:
+                    if robjects.r.inherits(obj, "table")[0]:
+                        nms = robjects.r.attr(obj, "dimnames")
+                        lg = robjects.r.length(nms)
+                        props = self.properties(obj, objName)
+                        node = Node(props, parent)
+                        if len(robjects.r.names(nms)) > 0:
+                            nm <- robjects.r.names(nms)
+                        else:
+                            nm = ["" for k in range(lg)]
+                        for i in range(lg):
+                            dub = robjects.r['[[']
+                            node.appendChild(Node(self.properties(dub(obj, i+1), nm[i]), node))
+                            parent.appendChild(node)
+                    elif robjects.r.inherits(obj, "mts")[0]:
+                        props = self.properties(obj, objName)
+                        node = Node(props, parent)
+                        nm = robjects.r.dimnames(obj)[1]
+                        lg = len(nm)
+                        for k in range(lg):
+                            dim = "length: %s" % robjects.r.dim(obj)[0]
+                            md = "ts"
+                            memory = robjects.r.get("object.size", mode="function")
+                            mem = memory(obj)
+                            props = [nm[k], md, dim, str(mem)]
+                            node.appendChild(Node(props, node))
+                            parent.appendChild(node)
+            
 
 def main():
     robjects.r.load(".RData")
     print robjects.r.ls()
-    a = browseEnv()
-    print [i.hasChildren() for i in a]
+    app = QApplication(sys.argv)
+    model = TreeModel()
+    view = QTreeView()
+    view.setModel(model)
+    view.setWindowTitle("Simple Tree Model")
+    view.show()
+    app.exec_()
 
 if __name__ == '__main__':
     main()

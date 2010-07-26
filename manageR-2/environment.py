@@ -195,8 +195,7 @@ class TreeModel(QAbstractItemModel):
             objName = self.parentTree(idx)
             obj = robjects.r(objName)
             tmp = self.getItem(idx)
-            if tmp.childCount() < 1 and \
-                not objName == "call":
+            if tmp.childCount() < 1 and not QString(objName).endsWith("[['call']]"):
                 self.browseObject(obj, idx)
 
     def updateData(self, item, count):
@@ -210,17 +209,18 @@ class TreeModel(QAbstractItemModel):
     def parentTree(self, index):
         item = self.getItem(index)
         name = QString(item.data(0))
-        name.remove("[[").remove("]]")
+        #name.remove("[[").remove("]]")
         parent = item.parent()
         names = []
         while not parent is None:
             tmp = QString(parent.data(0))
-            tmp.remove("[[").remove("]]")
+            #tmp.remove("[[").remove("]]")
             names.insert(0,tmp)
             parent = parent.parent()
         names.append(name)
         names.pop(0)
-        path = [ "[['%s']]" % name if not name.startsWith("@") else unicode(name) for name in names[1:]]
+        path = ["[['%s']]" % name if not name.contains(QRegExp(r"\[\[.*\]\]")) 
+            else unicode(name) for name in names[1:]]
         return unicode(names[0])+str.join("", path)
 
     def properties(self, obj, name):
@@ -246,7 +246,7 @@ class TreeModel(QAbstractItemModel):
         lg = robjects.r.length(obj)[0]
         nm = robjects.r.names(obj)
         item = self.getItem(index)
-        if item.childNumber() > 0:
+        if item.childCount() > 0:
             return
         if not robjects.r['is.recursive'](obj)[0] or \
             lg < 1 or \

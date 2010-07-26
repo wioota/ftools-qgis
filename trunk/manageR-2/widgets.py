@@ -503,7 +503,7 @@ class WorkspaceWidget(RWidget):
         if len(items) < 1:
             return False
         itemType = self.workspaceTree.model().getItem(items[0]).data(1)
-        self.runCommand('methods(class=%s)' % (itemType,))
+        self.runCommand("methods(class='%s')" % (itemType,))
 
     def printAttributes(self):
         items = self.workspaceTree.selectedIndexes()

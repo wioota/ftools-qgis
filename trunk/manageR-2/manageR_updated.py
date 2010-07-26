@@ -154,6 +154,8 @@ class MainWindow(QMainWindow):
         self.createHelpActions(console)
         self.restoreState(QSettings().value("manageR/toolbars").toByteArray())
         self.statusBar().showMessage("Ready", 5000)
+        self.connect(self.main, SIGNAL("doneCompletion(QString, QString)"),   
+            self.updateStatusbar)
 
     def createDockWigets(self, console=True):
         if console:
@@ -382,6 +384,12 @@ class MainWindow(QMainWindow):
         else:
             text = "Line %d of %d " % (cursor.blockNumber()+1, lines)
         self.lineCountLabel.setText(text)
+        
+    def updateStatusbar(self, text, extra):
+        if text.endsWith("("):
+            text = text[0:-1]
+        args = self.main.editor().functionArguments(text)
+        self.statusBar().showMessage(args)
 
     def updateWindowMenu(self):
         self.windowMenu.clear()
@@ -912,10 +920,10 @@ class PlainTextEdit(QPlainTextEdit):
                     QTextCursor.KeepAnchor)
                 insert = ""
                 if event.key() == Qt.Key_QuoteDbl and \
-                    not cursor.selectedText() == QString(Qt.Key_QuoteDbl):
+                    cursor.selectedText().trimmed().isEmpty():
                     insert = QString(Qt.Key_QuoteDbl)
                 elif event.key() == Qt.Key_Apostrophe and \
-                    not cursor.selectedText() == QString(Qt.Key_Apostrophe):
+                    cursor.selectedText().trimmed().isEmpty():
                     insert = QString(Qt.Key_Apostrophe)
                 cursor = self.textCursor()
                 cursor.insertText("%s%s" % (QString(event.key()),insert))
@@ -1048,26 +1056,36 @@ class PlainTextEdit(QPlainTextEdit):
 
     def event(self, e):
         if e.type() == QEvent.ToolTip:
-            userCursor = self.textCursor()
             cursor = self.cursorForPosition(e.pos())
-            if cursor.position() > min([userCursor.position(), userCursor.anchor()]) and \
-                cursor.position() < max([userCursor.position(), userCursor.anchor()]) and \
-                userCursor.hasSelection():
-                word = userCursor.selectedText()
-            else:
-                cursor.select(QTextCursor.WordUnderCursor)
-                word = cursor.selectedText()
+            #if cursor.position() > min([userCursor.position(), userCursor.anchor()]) and \
+                #cursor.position() < max([userCursor.position(), userCursor.anchor()]) and \
+                #userCursor.hasSelection():
+                #word = userCursor.selectedText()
+            #else:
+                #cursor.select(QTextCursor.WordUnderCursor)
+                #word = cursor.selectedText()
+            word = QString(word)
             if not word.isEmpty():
-                try:
-                    args = QString(str(robjects.r(
-                        'do.call(argsAnywhere, list("%s"))' % word)))
-                    args = args.remove("NULL").replace(QRegExp(r'^function'), word)
-                    args = args.trimmed().split("\n",QString.SkipEmptyParts).join("\n")
-                except:
-                    args = QString()
+                args = self.functionArguments(word)
                 if not args.isEmpty():
                     QToolTip.showText(e.globalPos(), args)
         return QPlainTextEdit.event(self, e)
+        
+    def functionArguments(self, fun):
+        try:
+            args = QString(str(robjects.r(
+                'do.call(argsAnywhere, list("%s"))' % fun)))
+            if args.contains("function"):
+                regexp = QRegExp(r"function\s\(")
+                start = regexp.indexIn(args)
+                regexp = QRegExp(r"\)")
+                end = regexp.indexIn(args)
+                args = args[start:end+1].replace("function ", fun)
+            else:
+                args = args.replace("\n\n", "\n").remove("NULL")
+        except:
+            args = QString()
+        return args
 
     def lastLine(self):
         line = QString()
@@ -1124,11 +1142,14 @@ class PlainTextEdit(QPlainTextEdit):
     def entered(self):
         pass
 
-    def currentCommand(self, block):
+    def currentCommand(self, block, cursor=None):
         command = QString(block.text())
+        if not cursor is None:
+            pos1 = cursor.position()
+        else:
+            pos1 = self.textCursor().position()
         pos2 = block.position()
         block = block.previous()
-        pos1 = self.textCursor().position()
         while block.isValid():
             try:
                 if not block.userData().data() == PlainTextEdit.CONTINUE:

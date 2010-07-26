@@ -45,7 +45,6 @@ class TreeItem(QObject):
     def parent(self):
         return self.parentItem
 
-
     def removeChildren(self, position, count):
         if position < 0 or position+count > len(self.childItems):
             return False
@@ -178,38 +177,3 @@ class TreeModel(QAbstractItemModel):
         return result
 
     def setupModelData(self, lines, parent):
-        parents = []
-        indentations = []
-        parents.append(parent)
-        indentations.append(0)
-        number = 0
-        while number < len(lines):
-            position = 0;
-            while position < len(lines[number]):
-                if not lines[number].mid(position, 1) == " ":
-                    break
-                position += 1
-            lineData = lines[number].mid(position).trimmed()
-            if not lineData.isEmpty():
-                # Read the column data from the rest of the line.
-                columnStrings = lineData.split("\t", QString.SkipEmptyParts)
-                columnData = []
-                for column in columnStrings:
-                    columnData.append(column)
-                if position > indentations[-1]:
-                    # The last child of the current parent is now the new parent
-                    # unless the current parent has no children.
-                    if parents[-1].childCount() > 0:
-                        parents.append(parents[-1].child(parents[-1].childCount()-1))
-                        indentations.append(position)
-                else:
-                    while position < indentations[-1] and len(parents) > 0:
-                        parents.pop()
-                        indentations.pop()
-
-                # Append a new item to the current parents list of children.
-                parent = parents[-1]
-                parent.insertChildren(parent.childCount(), 1, self.rootItem.columnCount())
-                for count, column in enumerate(columnData):
-                    parent.child(parent.childCount()-1).setData(count, column)
-            number += 1

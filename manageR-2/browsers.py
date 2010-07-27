@@ -24,7 +24,7 @@ class LayerImportBrowser(QDialog):
             self.layerLineEdit = QLineEdit()
             self.browseToolButton = QToolButton()
             self.browseToolButton.setAutoRaise(True)
-            self.browseToolButton.setIcon(QIcon(":document-open.svg"))
+            self.browseToolButton.setIcon(QIcon(":document-open"))
             layerLabel = QLabel("&Dataset:")
             layerLabel.setBuddy(self.layerLineEdit)
 
@@ -73,7 +73,7 @@ class LayerImportBrowser(QDialog):
             self.layerLineEdit = QLineEdit()
             self.browseToolButton = QToolButton()
             self.browseToolButton.setAutoRaise(True)
-            self.browseToolButton.setIcon(QIcon(":document-open.svg"))
+            self.browseToolButton.setIcon(QIcon(":document-open"))
             layerLabel = QLabel("&Dataset:")
             layerLabel.setBuddy(self.layerLineEdit)
 
@@ -100,6 +100,7 @@ class LayerImportBrowser(QDialog):
     def __init__(self, parent=None, vectors="", rasters="", encodings=[]):
         QDialog.__init__(self, parent)
         self.contentsWidget = QListWidget()
+        self.setWindowIcon(QIcon(":icon"))
         self.contentsWidget.setViewMode(QListView.IconMode)
         self.contentsWidget.setIconSize(QSize(76, 66))
         self.contentsWidget.setMovement(QListView.Static)
@@ -143,13 +144,12 @@ class LayerImportBrowser(QDialog):
 
     def createIcons(self):
         vectorButton = QListWidgetItem(self.contentsWidget)
-        vectorButton.setIcon(QIcon(":preferences-system.svg"))
+        vectorButton.setIcon(QIcon(":???????????.svg"))
         vectorButton.setText("Vector Layer")
         vectorButton.setTextAlignment(Qt.AlignHCenter)
         vectorButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-
         rasterButton = QListWidgetItem(self.contentsWidget)
-        rasterButton.setIcon(QIcon(":applications-graphics.svg"));
+        rasterButton.setIcon(QIcon(":applications-internet-tiles.svg"))
         rasterButton.setText("Raster Layer")
         rasterButton.setTextAlignment(Qt.AlignHCenter)
         rasterButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
@@ -370,7 +370,7 @@ class RMirrorBrowser(QDialog):
         self.links = dict(zip(names, urls))
         names = QStringList(names)
         self.setWindowTitle("manageR - Choose CRAN Mirror")
-        self.setWindowIcon(QIcon(":icon.png"))
+        self.setWindowIcon(QIcon(":icon"))
         self.links = dict(zip(names, urls))
         self.currentMirror = None
         self.mirrorList = QListWidget(self)
@@ -416,7 +416,7 @@ class RRepositoryBrowser(QDialog):
         contrib_url = robjects.r.get('contrib.url', mode='function')
         available_packages = robjects.r.get('available.packages', mode='function')
         self.setWindowTitle("manageR - Install R Packages")
-        self.setWindowIcon(QIcon(":icon.png"))
+        self.setWindowIcon(QIcon(":icon"))
         p = available_packages()
         self.names = QStringList(p.rownames)
         self.parent = parent
@@ -759,7 +759,7 @@ class HtmlBrowser(QWidget):
         homeAction = QAction("&Home", self)
         homeAction.setToolTip("Return to start page")
         homeAction.setWhatsThis("Return to start page")
-        homeAction.setIcon(QIcon(":go-home.svg"))
+        homeAction.setIcon(QIcon(":go-home"))
         homeButton.setDefaultAction(homeAction)
         homeAction.setEnabled(True)
         homeButton.setAutoRaise(True)
@@ -768,7 +768,7 @@ class HtmlBrowser(QWidget):
         backwardAction = QAction("&Back", self)
         backwardAction.setToolTip("Move to previous page")
         backwardAction.setWhatsThis("Move to previous page")
-        backwardAction.setIcon(QIcon(":go-previous.svg"))
+        backwardAction.setIcon(QIcon(":go-previous"))
         backwardButton.setDefaultAction(backwardAction)
         backwardAction.setEnabled(False)
         backwardButton.setAutoRaise(True)
@@ -777,7 +777,7 @@ class HtmlBrowser(QWidget):
         forwardAction = QAction("&Forward", self)
         forwardAction.setToolTip("Move to next page")
         forwardAction.setWhatsThis("Move to next page")
-        forwardAction.setIcon(QIcon(":go-next.svg"))
+        forwardAction.setIcon(QIcon(":go-next"))
         forwardButton.setDefaultAction(forwardAction)
         forwardAction.setEnabled(False)
         forwardButton.setAutoRaise(True)

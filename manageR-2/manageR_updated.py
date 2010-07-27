@@ -282,7 +282,7 @@ class MainWindow(QMainWindow):
                 self.main.toggleReplace, QKeySequence.Replace,
                 "edit-find-replace", "Replace text")
             editGotoLineAction =  self.createAction("&Go to line",
-                self.main.editor().gotoLine, "Ctrl+G", "go-bottom",
+                self.main.editor().gotoLine, "Ctrl+G", "view-sort-descending",
                 "Move cursor to line")
             editIndentRegionAction = self.createAction("&Indent Region",
                 self.main.editor().indentRegion, "Ctrl+I", "format-indent-more",
@@ -1057,32 +1057,39 @@ class PlainTextEdit(QPlainTextEdit):
     def event(self, e):
         if e.type() == QEvent.ToolTip:
             cursor = self.cursorForPosition(e.pos())
-            #if cursor.position() > min([userCursor.position(), userCursor.anchor()]) and \
-                #cursor.position() < max([userCursor.position(), userCursor.anchor()]) and \
-                #userCursor.hasSelection():
-                #word = userCursor.selectedText()
-            #else:
-                #cursor.select(QTextCursor.WordUnderCursor)
-                #word = cursor.selectedText()
-            word = QString(word)
+            word = self.guessCurrentWord(cursor)
             if not word.isEmpty():
                 args = self.functionArguments(word)
                 if not args.isEmpty():
                     QToolTip.showText(e.globalPos(), args)
         return QPlainTextEdit.event(self, e)
-        
+
+    def guessCurrentWord(self, cursor):
+        pos = cursor.position() - cursor.block().position()
+        cursor.select(QTextCursor.LineUnderCursor)
+        line = cursor.selectedText()
+        prefix = line[0:pos]
+        suffix = line[pos:]
+        regstart = QRegExp(QString("[^\w\.]"))
+        regend = QRegExp(QString("[^\w\.]"))
+        start = regstart.lastIndexIn(prefix)
+        if start < 0: start = 0
+        end = regend.indexIn(suffix)
+        if end < 0: end = len(suffix)
+        return line[start:len(prefix)+end].trimmed()
+
     def functionArguments(self, fun):
         try:
             args = QString(str(robjects.r(
                 'do.call(argsAnywhere, list("%s"))' % fun)))
             if args.contains("function"):
                 regexp = QRegExp(r"function\s\(")
-                start = regexp.indexIn(args)
+                start = regexp.lastIndexIn(args)
                 regexp = QRegExp(r"\)")
-                end = regexp.indexIn(args)
+                end = regexp.lastIndexIn(args)
                 args = args[start:end+1].replace("function ", fun)
             else:
-                args = args.replace("\n\n", "\n").remove("NULL")
+                args = args.replace("\n\n", "").remove("NULL")
         except:
             args = QString()
         return args
@@ -1163,18 +1170,13 @@ class PlainTextEdit(QPlainTextEdit):
         return (command, pos1-pos2)
 
     def insertParameters(self):
-        cursor = self.textCursor()
-        cursor.select(QTextCursor.WordUnderCursor)
-        word = cursor.selectedText().remove(")").remove("(")
-        cursor.clearSelection()
-        if not word.isEmpty():
-            args = QString(str(robjects.r(
-                'do.call(argsAnywhere, list("%s"))' % word
-                ))).remove("NULL").replace(
-                QRegExp(r'^function'), "").remove("\n").trimmed()
-            if not args.isEmpty():
-                self.setTextCursor(cursor)
-                self.insertPlainText(args)
+            cursor = self.textCursor()
+            word = self.guessCurrentWord(cursor)
+            if not word.isEmpty():
+                args = self.functionArguments(word).remove("\n")
+                if not args.isEmpty():
+                    self.setTextCursor(cursor)
+                    self.insertPlainText(args)
 
     def suspendHighlighting(self):
         self.__suspended = True
@@ -1285,9 +1287,9 @@ class REditor(PlainTextEdit):
                        [QIcon(":edit-select-all.svg"),
                         "Select all", self.selectAll,
                         QKeySequence(QKeySequence.SelectAll)],
-                       [QIcon(":logo.svg"),
-                        "Function keywords", self.insertParameters,
-                        QKeySequence("Ctrl+P")],
+                       [QIcon(":insert-text.svg"),
+                        "Insert keywords", self.insertParameters,
+                        QKeySequence("Ctrl+I")],
                        [QIcon(":edit-paste.svg"),
                         "Paste", self.paste,
                         QKeySequence(QKeySequence.Paste)],
@@ -1476,35 +1478,43 @@ class RConsole(PlainTextEdit):
 
     def mousePressEvent(self, e):
         cursor = self.textCursor()
+        if not cursor.hasSelection():
+            cursor = self.cursorForPosition(e.pos())
+            self.setTextCursor(cursor)
         if e.button() == Qt.RightButton:
-            actions = [[QIcon(":edit-copy.svg"),
-                        "Copy", self.copy, QKeySequence(QKeySequence.Copy)],
-                       [QIcon(":edit-select-all.svg"),
-                        "Select all", self.selectAll,
-                        QKeySequence(QKeySequence.SelectAll)],
-                       [QIcon(":logo.png"),
-                        "Function keywords", self.insertParameters,
-                        QKeySequence("Ctrl+P")],
-                       [QIcon(":edit-paste.svg"),
-                        "Paste", self.paste,
-                        QKeySequence(QKeySequence.Paste)],
-                       [QIcon(":edit-cut.svg"),
-                        "Cut", self.cut, QKeySequence(QKeySequence.Cut)]]
+            norms = [[QIcon(":edit-select-all.svg"),
+                    "Select all", self.selectAll,
+                    QKeySequence(QKeySequence.SelectAll)],
+                    [QIcon(":insert-text.svg"),
+                    "Function keywords", self.insertParameters,
+                    QKeySequence("Ctrl+P")],
+                    [QIcon(":edit-paste.svg"),
+                    "Paste", self.paste,
+                    QKeySequence(QKeySequence.Paste)]]
+            sels = [[QIcon(":edit-copy.svg"),
+                    "Copy", self.copy, QKeySequence(QKeySequence.Copy)],
+                    [QIcon(":edit-cut.svg"),
+                    "Cut", self.cut, QKeySequence(QKeySequence.Cut)]]
             menu = QMenu()
             if self.isCursorInEditionZone():
-                if cursor.hasSelection() and self.isAnchorInEditionZone():
-                    for kwargs in actions:
-                        menu.addAction(*kwargs)
-                elif cursor.hasSelection() and not self.isAnchorInEditionZone():
-                    for kwargs in actions[0:3]:
-                        menu.addAction(*kwargs)
+                if self.isAnchorInEditionZone():
+                    if cursor.hasSelection():
+                        for kwargs in sels:
+                            menu.addAction(*kwargs)
+                        for kwargs in norms:
+                            menu.addAction(*kwargs)
+                    else:
+                        for kwargs in norms:
+                            menu.addAction(*kwargs)
+                
                 else:
-                    for kwargs in actions[1:4]:
+                    menu.addAction(*sels[0])
+                    for kwargs in norms:
                         menu.addAction(*kwargs)
             else:
+                menu.addAction(*norms[0])
                 if cursor.hasSelection():
-                    for kwargs in actions[0:2]:
-                        menu.addAction(*kwargs)
+                    menu.addAction(*sels[0])
             menu.exec_(e.globalPos())
         PlainTextEdit.mousePressEvent(self, e)
 

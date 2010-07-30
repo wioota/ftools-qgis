@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#TODO: Make sure errors are always on a single line
-
 LICENSE = '''manageR - Interface to the R statistical programming language
 
 Copyright (C) 2009-2010 Carson J. Q. Farmer
@@ -125,6 +123,8 @@ class MainWindow(QMainWindow):
             QShortcut(QKeySequence("Ctrl+T"), self, self.importMapTable)
             QShortcut(QKeySequence("Ctrl+M"), self, self.exportCanvasLayer)
             QShortcut(QKeySequence("Ctrl+E"), self, self.exportFileLayer)
+            self.connect(self, SIGNAL("requestExecuteCommands(QString)"),
+                self.main.editor().acceptCommands)
         else:
             if QSettings().value("manageR/remembergeometry", True).toBool():
                 width = QSettings().value("manageR/windowwidth", 50).toInt()[0]
@@ -506,7 +506,7 @@ class MainWindow(QMainWindow):
                             filter)
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         if not path == "":
-            path = QDir(path).absolutePath()
+            path = QFileInfo(path).absoluteFilePath()
             command = "load(file='%s')" % unicode(path)
             if visible:
                 try:
@@ -516,10 +516,9 @@ class MainWindow(QMainWindow):
                     "Unable to load data file %s!\n%s" % (path,err))
             else:
                 try:
-                    robjects.r.load(file=unicode(path))
+                    robjects.r(command)
                 except Exception, e:
-                    #raise Exception(str(e))
-                    pass
+                    print str(e)
             self.statusBar().showMessage("Loaded R Data %s" % path, 5000)
         QApplication.restoreOverrideCursor()
 
@@ -589,7 +588,7 @@ class MainWindow(QMainWindow):
                     self.statusBar().showMessage("Showing %s" % path, 5000)
                     QApplication.restoreOverrideCursor()
                     return
-            window = MainWindow(self, False)
+            window = MainWindow(self, console=False)
             self.connect(window, SIGNAL("requestExecuteCommands(QString)"),
                 self.main.editor().acceptCommands)
             window.fileLoad(path)
@@ -1267,10 +1266,12 @@ class REditor(PlainTextEdit):
             rect = QRect(0, top, panel.width(), metrics.height())
             try:
                 if block.userData().data() == PlainTextEdit.SYNTAX:
+                    pixmap = QPixmap()
                     if block == self.textCursor().block():
-                        pixmap = QPixmap(":dialog-warning.svg")
+                        
+                        pixmap.load(":dialog-warning.svg")
                     else:
-                        pixmap = QPixmap(":dialog-error.svg")
+                        pixmap.load(":dialog-error.svg")
                     painter.drawPixmap(rect, pixmap)
                 else:
                     painter.drawText(rect, Qt.AlignRight, unicode(count))
@@ -2238,10 +2239,10 @@ class History(QAbstractListModel):
             self.insertRows(position, rows, QModelIndex())
             good = 0
             for count, item in enumerate(items):
-                inda = self.index(position+count-1, 0)
-                indb = self.index(position+count, 0)
+                inda = self.index(position+good-1, 0)
+                indb = self.index(position+good, 0)
                 if (not QVariant(item) == self.data(inda, Qt.DisplayRole)) \
-                or (self.rowCount()==0):
+                    or (self.rowCount()==0):
                     self.setData(indb, QVariant(item), Qt.EditRole)
                     good += 1
             if not good == count+1:
@@ -2317,14 +2318,14 @@ class History(QAbstractListModel):
         try:
             fileInfo = QFileInfo()
             fileInfo.setFile(QDir(robjects.r['getwd']()[0]), ".Rhistory")
-            fileFile = QFile(fileInfo.absoluteFilePath())
-            if not fileFile.open(QIODevice.ReadOnly):
+            fh = QFile(fileInfo.absoluteFilePath())
+            if not fh.open(QIODevice.ReadOnly):
                 return False
-            inFile = QTextStream(fileFile)
-            while not inFile.atEnd():
-                line = QString(inFile.readLine())
-                self.append(QString(line))
-        except:
+            stream = QTextStream(fh)
+            stream.setCodec("UTF-8")
+            text = stream.readAll()
+            self.update(text.split("\n"))
+        except Exception, e:
             return False
         return True
 

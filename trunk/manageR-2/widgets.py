@@ -106,63 +106,63 @@ class DirectoryWidget(RWidget):
                                                #"*.csv","*.txt"]))
         self.actions = []
 
-        upAction = QAction("&Up", self)
-        upAction.setStatusTip("Move to parent directory")
-        upAction.setToolTip("Move to parent directory")
-        upAction.setIcon(QIcon(":go-up.svg"))
-        upAction.setEnabled(True)
-        self.actions.append(upAction)
-        newAction = QAction("&New Directory", self)
-        newAction.setStatusTip("Create new directory")
-        newAction.setToolTip("Create new directory")
-        newAction.setIcon(QIcon(":folder-new.svg"))
-        newAction.setEnabled(True)
-        self.actions.append(newAction)
-        synchAction = QAction("&Synch", self)
-        synchAction.setStatusTip("Synch with current working directory")
-        synchAction.setToolTip("Synch with current working directory")
-        synchAction.setIcon(QIcon(":go-jump.svg"))
-        synchAction.setEnabled(True)
-        self.actions.append(synchAction)
-        rmAction = QAction("&Delete", self)
-        rmAction.setStatusTip("Delete selected item")
-        rmAction.setToolTip("delete selected item")
-        rmAction.setIcon(QIcon(":edit-delete.svg"))
-        rmAction.setEnabled(True)
-        self.actions.append(rmAction)
-        openAction = QAction("&Open", self)
-        openAction.setStatusTip("Open selected R script")
-        openAction.setToolTip("Open selected R script")
-        openAction.setIcon(QIcon(":document-open.svg"))
-        openAction.setEnabled(True)
-        self.actions.append(openAction)
-        loadAction = QAction("&Load", self)
-        loadAction.setStatusTip("Load selected R data")
-        loadAction.setToolTip("Load selected R data")
-        loadAction.setIcon(QIcon(":document-open.svg"))
-        loadAction.setEnabled(True)
-        self.actions.append(loadAction)
+        self.upAction = QAction("&Up", self)
+        self.upAction.setStatusTip("Move to parent directory")
+        self.upAction.setToolTip("Move to parent directory")
+        self.upAction.setIcon(QIcon(":go-up.svg"))
+        self.upAction.setEnabled(True)
+        self.actions.append(self.upAction)
+        self.newAction = QAction("&New Directory", self)
+        self.newAction.setStatusTip("Create new directory")
+        self.newAction.setToolTip("Create new directory")
+        self.newAction.setIcon(QIcon(":folder-new.svg"))
+        self.newAction.setEnabled(True)
+        self.actions.append(self.newAction)
+        self.synchAction = QAction("&Synch", self)
+        self.synchAction.setStatusTip("Synch with current working directory")
+        self.synchAction.setToolTip("Synch with current working directory")
+        self.synchAction.setIcon(QIcon(":go-jump.svg"))
+        self.synchAction.setEnabled(True)
+        self.actions.append(self.synchAction)
+        self.rmAction = QAction("&Delete", self)
+        self.rmAction.setStatusTip("Delete selected item")
+        self.rmAction.setToolTip("delete selected item")
+        self.rmAction.setIcon(QIcon(":edit-delete.svg"))
+        self.rmAction.setEnabled(True)
+        self.actions.append(self.rmAction)
+        self.openAction = QAction("&Open", self)
+        self.openAction.setStatusTip("Open selected R script")
+        self.openAction.setToolTip("Open selected R script")
+        self.openAction.setIcon(QIcon(":document-open.svg"))
+        self.openAction.setEnabled(True)
+        self.actions.append(self.openAction)
+        self.loadAction = QAction("&Load", self)
+        self.loadAction.setStatusTip("Load selected R data")
+        self.loadAction.setToolTip("Load selected R data")
+        self.loadAction.setIcon(QIcon(":document-open.svg"))
+        self.loadAction.setEnabled(True)
+        self.actions.append(self.loadAction)
         self.rootChanged()
 
-        self.connect(newAction, SIGNAL("triggered()"), self.newFolder)
-        self.connect(upAction, SIGNAL("triggered()"), self.upFolder)
-        self.connect(synchAction, SIGNAL("triggered()"), self.synchFolder)
-        self.connect(rmAction, SIGNAL("triggered()"), self.rmItem)
-        self.connect(openAction, SIGNAL("triggered()"), self.openItem)
-        self.connect(loadAction, SIGNAL("triggered()"), self.loadItem)
+        self.connect(self.newAction, SIGNAL("triggered()"), self.newFolder)
+        self.connect(self.upAction, SIGNAL("triggered()"), self.upFolder)
+        self.connect(self.synchAction, SIGNAL("triggered()"), self.synchFolder)
+        self.connect(self.rmAction, SIGNAL("triggered()"), self.rmItem)
+        self.connect(self.openAction, SIGNAL("triggered()"), self.openItem)
+        self.connect(self.loadAction, SIGNAL("triggered()"), self.loadItem)
         self.connect(hiddenCheckbox, SIGNAL("stateChanged(int)"), self.toggleHidden)
         self.connect(self.listView, SIGNAL("activated(QModelIndex)"), self.cdFolder)
         self.connect(self.listView, SIGNAL("customContextMenuRequested(QPoint)"), self.customContext)
         self.connect(self.lineEdit, SIGNAL("returnPressed()"), self.gotoFolder)
 
         upButton = QToolButton()
-        upButton.setDefaultAction(upAction)
+        upButton.setDefaultAction(self.upAction)
         upButton.setAutoRaise(True)
         newButton = QToolButton()
-        newButton.setDefaultAction(newAction)
+        newButton.setDefaultAction(self.newAction)
         newButton.setAutoRaise(True)
         synchButton = QToolButton()
-        synchButton.setDefaultAction(synchAction)
+        synchButton.setDefaultAction(self.synchAction)
         synchButton.setAutoRaise(True)
 
         hbox = QHBoxLayout()
@@ -193,21 +193,23 @@ class DirectoryWidget(RWidget):
     def customContext(self, pos):
         index = self.listView.indexAt(pos)
         if not index.isValid():
-            actions = self.actions[0:3]
+            self.rmAction.setEnabled(False)
+            self.openAction.setEnabled(False)
+            self.loadAction.setEnabled(False)
         elif not self.model.isDir(index):
             info = self.model.fileInfo(index)
             suffix = info.suffix()
             if suffix in ("Rd","Rdata","RData"):
-                actions = self.actions
-                del actions[4]
-            elif suffix == "R":
-                actions = self.actions[0:-1]
+                self.loadAction.setEnabled(True)
+                self.openAction.setEnabled(False)
+            elif suffix in ("txt","csv","R","r"):
+                self.openAction.setEnabled(True)
+                self.loadAction.setEnabled(False)
             else:
-                actions = self.actions[0:4]
-        else:
-            actions = self.actions
+                self.loadAction.setEnabled(False)
+                self.openAction.setEnabled(False)
         menu = QMenu(self)
-        for action in actions:
+        for action in self.actions:
             menu.addAction(action)
         menu.exec_(self.listView.mapToGlobal(pos))
 
@@ -426,7 +428,7 @@ class WorkspaceWidget(RWidget):
         self.loadAction.setEnabled(True)
         self.actions.append(self.loadAction)
 
-        self.exportAction = QAction("Export to &file", self)
+        self.exportAction = QAction("&Export to file", self)
         self.exportAction.setToolTip("Export data to file")
         self.exportAction.setWhatsThis("Export data to file")
         self.exportAction.setIcon(QIcon(":document-save.svg"))
@@ -454,6 +456,20 @@ class WorkspaceWidget(RWidget):
         self.attributeAction.setEnabled(False)
         self.actions.append(self.attributeAction)
 
+        self.summaryAction = QAction("Print object Su&mmary", self)
+        self.summaryAction.setToolTip("Print summary of object")
+        self.summaryAction.setWhatsThis("Print summary of object")
+        self.summaryAction.setIcon(QIcon(":document-properties.svg"))
+        self.summaryAction.setEnabled(False)
+        self.actions.append(self.summaryAction)
+
+        self.plotAction = QAction("&Quick plot", self)
+        self.plotAction.setToolTip("Create minimal plot for visualisation")
+        self.plotAction.setWhatsThis("Create minimal plot for visualisation")
+        self.plotAction.setIcon(QIcon(":custom-chart.svg"))
+        self.plotAction.setEnabled(False)
+        self.actions.append(self.plotAction)
+
         self.rmAction = QAction("&Remove", self)
         self.rmAction.setToolTip("Remove selected variable")
         self.rmAction.setWhatsThis("Removed selected variable")
@@ -465,6 +481,8 @@ class WorkspaceWidget(RWidget):
         vbox.addWidget(self.workspaceTree)
 
         self.variables = dict()
+        self.connect(self.plotAction, SIGNAL("triggered()"), self.plotVariable)
+        self.connect(self.summaryAction, SIGNAL("triggered()"), self.summariseVariable)
         self.connect(self.rmAction, SIGNAL("triggered()"), self.removeVariable)
         self.connect(self.exportAction, SIGNAL("triggered()"), self.exportVariable)
         self.connect(self.saveAction, SIGNAL("triggered()"), self.saveVariable)
@@ -485,8 +503,10 @@ class WorkspaceWidget(RWidget):
         menu = QMenu(self)
         menu.addAction(self.refreshAction)
         menu.addSeparator()
-        for action in self.actions[1:]:
+        for action in self.actions[1:-1]:
             menu.addAction(action)
+        menu.addSeparator()
+        menu.addAction(self.rmAction)
         menu.exec_(event.globalPos())
 
     def selectionChanged(self):
@@ -511,6 +531,20 @@ class WorkspaceWidget(RWidget):
             return False
         tree = self.workspaceTree.model().parentTree(items[0])
         self.runCommand('names(attributes(%s))' % tree)
+
+    def summariseVariable(self):
+        items = self.workspaceTree.selectedIndexes()
+        if len(items) < 1:
+            return False
+        tree = self.workspaceTree.model().parentTree(items[0])
+        self.runCommand('summary(%s)' % tree)
+
+    def plotVariable(self):
+        items = self.workspaceTree.selectedIndexes()
+        if len(items) < 1:
+            return False
+        tree = self.workspaceTree.model().parentTree(items[0])
+        self.runCommand('plot(%s)' % tree)
 
     def removeVariable(self):
         items = self.workspaceTree.selectedIndexes()

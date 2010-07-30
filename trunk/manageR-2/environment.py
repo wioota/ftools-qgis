@@ -285,52 +285,53 @@ class TreeModel(QAbstractItemModel):
                 spatDim = "features: %s" % (objdim[0])
                 props = [objName, spatClass, spatDim, str(spatMem)]
                 objName = "@data"
-                node = Node(props, parent)
+                spatNode = Node(props, parent)
                 props = self.properties(obj, objName)
-                node.appendChild(Node(props, node))
-                parent.appendChild(node)
+                node = Node(props, spatNode)
+                spatNode.appendChild(node)
+                parent.appendChild(spatNode)
             else:
                 props = self.properties(obj, objName)
                 node = Node(props, parent)
                 parent.appendChild(node)
-                if robjects.r['is.recursive'](obj)[0] \
-                    and not robjects.r['is.function'](obj)[0] \
-                    and not robjects.r['is.environment'](obj)[0]:
-                    lg = robjects.r.length(obj)[0]
-                    nm = robjects.r.names(obj)
-                    if robjects.r['is.null'](nm)[0]:
-                        nm = ["[[%s]]" % str(j+1) for j in range(lg)]
+            if robjects.r['is.recursive'](obj)[0] \
+                and not robjects.r['is.function'](obj)[0] \
+                and not robjects.r['is.environment'](obj)[0]:
+                lg = robjects.r.length(obj)[0]
+                nm = robjects.r.names(obj)
+                if robjects.r['is.null'](nm)[0]:
+                    nm = ["[[%s]]" % str(j+1) for j in range(lg)]
+                for i in range(lg):
+                    dub = robjects.r['[[']
+                    props = self.properties(dub(obj, i+1), nm[i])
+                    node.appendChild(Node(props, node))
+            elif not robjects.r['is.null'](robjects.r['class'](obj))[0]:
+                if robjects.r.inherits(obj, "table")[0]:
+                    nms = robjects.r.attr(obj, "dimnames")
+                    lg = robjects.r.length(nms)
+                    props = self.properties(obj, objName)
+                    node = Node(props, parent)
+                    if len(robjects.r.names(nms)) > 0:
+                        nm <- robjects.r.names(nms)
+                    else:
+                        nm = ["" for k in range(lg)]
                     for i in range(lg):
                         dub = robjects.r['[[']
-                        props = self.properties(dub(obj, i+1), nm[i])
+                        node.appendChild(Node(self.properties(dub(obj, i+1), nm[i]), node))
+                        parent.appendChild(node)
+                elif robjects.r.inherits(obj, "mts")[0]:
+                    props = self.properties(obj, objName)
+                    node = Node(props, parent)
+                    nm = robjects.r.dimnames(obj)[1]
+                    lg = len(nm)
+                    for k in range(lg):
+                        dim = "length: %s" % robjects.r.dim(obj)[0]
+                        md = "ts"
+                        memory = robjects.r.get("object.size", mode="function")
+                        mem = memory(obj)
+                        props = [nm[k], md, dim, str(mem)]
                         node.appendChild(Node(props, node))
-                elif not robjects.r['is.null'](robjects.r['class'](obj))[0]:
-                    if robjects.r.inherits(obj, "table")[0]:
-                        nms = robjects.r.attr(obj, "dimnames")
-                        lg = robjects.r.length(nms)
-                        props = self.properties(obj, objName)
-                        node = Node(props, parent)
-                        if len(robjects.r.names(nms)) > 0:
-                            nm <- robjects.r.names(nms)
-                        else:
-                            nm = ["" for k in range(lg)]
-                        for i in range(lg):
-                            dub = robjects.r['[[']
-                            node.appendChild(Node(self.properties(dub(obj, i+1), nm[i]), node))
-                            parent.appendChild(node)
-                    elif robjects.r.inherits(obj, "mts")[0]:
-                        props = self.properties(obj, objName)
-                        node = Node(props, parent)
-                        nm = robjects.r.dimnames(obj)[1]
-                        lg = len(nm)
-                        for k in range(lg):
-                            dim = "length: %s" % robjects.r.dim(obj)[0]
-                            md = "ts"
-                            memory = robjects.r.get("object.size", mode="function")
-                            mem = memory(obj)
-                            props = [nm[k], md, dim, str(mem)]
-                            node.appendChild(Node(props, node))
-                            parent.appendChild(node)
+                        parent.appendChild(node)
             
 
 def main():

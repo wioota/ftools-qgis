@@ -144,12 +144,12 @@ class LayerImportBrowser(QDialog):
 
     def createIcons(self):
         vectorButton = QListWidgetItem(self.contentsWidget)
-        vectorButton.setIcon(QIcon(":???????????.svg"))
+        vectorButton.setIcon(QIcon(":internet-web-browser.svg"))
         vectorButton.setText("Vector Layer")
         vectorButton.setTextAlignment(Qt.AlignHCenter)
         vectorButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
         rasterButton = QListWidgetItem(self.contentsWidget)
-        rasterButton.setIcon(QIcon(":applications-internet-tiles.svg"))
+        rasterButton.setIcon(QIcon(":custom-raster.svg"))
         rasterButton.setText("Raster Layer")
         rasterButton.setTextAlignment(Qt.AlignHCenter)
         rasterButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)

@@ -142,6 +142,12 @@ class DirectoryWidget(RWidget):
         self.loadAction.setIcon(QIcon(":document-open.svg"))
         self.loadAction.setEnabled(True)
         self.actions.append(self.loadAction)
+        self.setAction = QAction("Set as &current", self)
+        self.setAction.setStatusTip("Set folder as R working directory")
+        self.setAction.setToolTip("Set folder as R working directory")
+        self.setAction.setIcon(QIcon(":folder.svg"))
+        self.setAction.setEnabled(True)
+        self.actions.append(self.setAction)
         self.rootChanged()
 
         self.connect(self.newAction, SIGNAL("triggered()"), self.newFolder)
@@ -150,6 +156,7 @@ class DirectoryWidget(RWidget):
         self.connect(self.rmAction, SIGNAL("triggered()"), self.rmItem)
         self.connect(self.openAction, SIGNAL("triggered()"), self.openItem)
         self.connect(self.loadAction, SIGNAL("triggered()"), self.loadItem)
+        self.connect(self.setAction, SIGNAL("triggered()"), self.setFolder)
         self.connect(hiddenCheckbox, SIGNAL("stateChanged(int)"), self.toggleHidden)
         self.connect(self.listView, SIGNAL("activated(QModelIndex)"), self.cdFolder)
         self.connect(self.listView, SIGNAL("customContextMenuRequested(QPoint)"), self.customContext)
@@ -229,6 +236,11 @@ class DirectoryWidget(RWidget):
             "new_folder")
         if ok:
             self.model.mkdir(self.listView.rootIndex(), text)
+
+    def setFolder(self):
+        index = self.listView.currentIndex()
+        commands = "setwd('%s')" % self.model.filePath(index)
+        self.emitCommands(commands)
 
     def rmItem(self):
         index = self.listView.currentIndex()

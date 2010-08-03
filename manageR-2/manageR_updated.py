@@ -197,6 +197,7 @@ class MainWindow(QMainWindow):
             self.addDockWidget(Qt.LeftDockWidgetArea, directoryDockWidget)
             self.connect(directoryWidget, SIGNAL("openFileRequest(QString)"), self.fileOpen)
             self.connect(directoryWidget, SIGNAL("loadFileRequest(QString)"), self.openData)
+            self.connect(directoryWidget, SIGNAL("emitCommands(QString)"), self.main.editor().acceptCommands)
             widgets.append(directoryDockWidget)
 
             scratchPadWidget = ScratchPadWidget(self)

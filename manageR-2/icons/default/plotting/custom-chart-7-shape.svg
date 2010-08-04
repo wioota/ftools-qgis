@@ -15,7 +15,7 @@
    id="svg1377"
    sodipodi:version="0.32"
    inkscape:version="0.47 r22583"
-   sodipodi:docname="custom-chart-l-shape.svg"
+   sodipodi:docname="custom-chart-7-shape.svg"
    version="1.0"
    inkscape:export-filename="/home/jimmac/src/cvs/gnome/gnome-icon-theme/32x32/status/dialog-error.png"
    inkscape:export-xdpi="90"
@@ -672,7 +672,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
         <dc:date />
         <dc:creator>
           <cc:Agent>
@@ -718,16 +718,6 @@
     <g
        transform="matrix(1.566667,0,0,1.566667,-8.925566,-23.94764)"
        id="g7435">
-      <path
-         sodipodi:type="arc"
-         style="opacity:0.38842977;color:#000000;fill:url(#radialGradient3831);fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1;marker:none;visibility:visible;display:inline;overflow:visible"
-         id="path4491-6"
-         sodipodi:cx="16"
-         sodipodi:cy="27.875"
-         sodipodi:rx="12.125"
-         sodipodi:ry="3.5"
-         d="m 28.125,27.875 a 12.125,3.5 0 1 1 -24.25,0 12.125,3.5 0 1 1 24.25,0 z"
-         transform="matrix(1.2577223,0,0,0.62869026,0.87110037,25.504637)" />
       <path
          id="rect3751-4"
          style="fill:#555753;fill-opacity:1;stroke:#2e3436;stroke-width:0.63829774;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1"

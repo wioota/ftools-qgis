@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#NOTE: figure out why sending commands from the widgets doesn't obey the
+# suspended highlighting?
 
 LICENSE = '''manageR - Interface to the R statistical programming language
 
@@ -110,9 +112,11 @@ class MainWindow(QMainWindow):
                 self.resize(width, height)
                 self.move(x, y)
             self.main.editor().setCheckSyntax(False)
+            self.main.editor().suspendHighlighting()
             data = QMimeData()
             data.setText(WELCOME)
             self.main.editor().insertFromMimeData(data)
+            self.main.editor().resumeHighlighting()
             self.main.editor().setCheckSyntax(True)
             self.main.editor().setHistory(HISTORY)
             prompts = (QSettings().value("manageR/beforeinput", ">").toString(),
@@ -1420,7 +1424,8 @@ class RConsole(PlainTextEdit):
             if check == PlainTextEdit.INPUT:
                 self.run(command)
             elif check == PlainTextEdit.SYNTAX and block.userData().hasExtra():
-                self.printOutput([block.userData().extra().replace("\n", "").append("\n")])
+                # we know this wont work, no point in trying!
+                self.printOutput(block.userData().extra())
             self.emit(SIGNAL("commandComplete()"))
         return True
 
@@ -1437,13 +1442,13 @@ class RConsole(PlainTextEdit):
             return False
         try:
             output = self.pipeEnd.recv()
-            string = QStringList()
+            string = QString()
             while not output is None:
                 string.append(QString(output))
                 output = self.pipeEnd.recv()
         except EOFError:
             pass
-        self.printOutput(list(string))
+        self.printOutput(string)
         return True
 
     def acceptCommands(self, commands):
@@ -1455,26 +1460,32 @@ class RConsole(PlainTextEdit):
 
     def printOutput(self, output):
         error = False
+        empty = False
+
         if len(output) > 0:
-            for line in output:
-                if not line == "":
-                    if line.startsWith("Error") or error:
-                        if not error:
-                            self.emit(SIGNAL("errorOutput()"))
+            for line in output.split("\n", QString.SkipEmptyParts):
+                if line.startsWith("Error") or error:
+                    if not error:
                         error = True
-                        line = QString("Error: %s\n" % line.split(":",
-                        QString.SkipEmptyParts)[1:].join("").trimmed())
-                        self.textCursor().block().setUserData(
-                            UserData(PlainTextEdit.ERROR, QString("Error")))
+                        self.emit(SIGNAL("errorOutput()"))
+                        line = line.split(":", QString.SkipEmptyParts)[1:].join("").trimmed()
+                        empty = line.isEmpty()
+                        line.prepend("Error: ")
                     else:
-                        self.suspendHighlighting()
-                        self.textCursor().block().setUserData(
-                            UserData(PlainTextEdit.OUTPUT, QString("Output")))
-                    line = QString(line)
-                    line.replace('\xe2\x9c\x93', "").replace('\xe2\x80\x98', "'").replace('\xe2\x80\x99', "'")
+                        line = line.trimmed()
+                        empty = False
+                    self.textCursor().block().setUserData(
+                        UserData(PlainTextEdit.ERROR, QString("Error")))
+                else:
+                    self.suspendHighlighting()
+                    empty = False
+                    self.textCursor().block().setUserData(
+                        UserData(PlainTextEdit.OUTPUT, QString("Output")))
+                line.replace('\xe2\x9c\x93', "").replace('\xe2\x80\x98', "'").replace('\xe2\x80\x99', "'")
+                if not empty:
+                    self.insertPlainText("%s\n" % line)
+                else:
                     self.insertPlainText(line)
-        #self.textCursor().block().setUserData(
-            #UserData(PlainTextEdit.OUTPUT, QString("Output")))
         self.resumeHighlighting()
         self.ensureCursorVisible()
 
@@ -2366,8 +2377,20 @@ def run(command, lock, pipe):
     sys.stdout = sys.stderr = OutputCatcher(pipe)
     lock.acquire()
     try:
-        robjects.r(unicode(command))
-    except robjects.rinterface.RRuntimeError, err:
+        try_ = robjects.r.get("try", mode='function')
+        parse_ = robjects.r.get("parse", mode='function')
+        paste_ = robjects.r.get("paste", mode='function')
+        withVisible_ = robjects.r.get("withVisible", mode='function')
+        result = try_(parse_(text=paste_(unicode(command, "UTF-8"))), silent=True)
+        value, visible = try_(withVisible_(result[0]), silent=True)
+        iss4 = isinstance(value, robjects.methods.RS4)
+        if visible[0]:
+            if iss4:
+                print value
+            elif not str(value[0]) == "NULL":
+                print value
+    except Exception, err:
+        #print str(err)
         pass
     lock.release()
     pipe.send(None)

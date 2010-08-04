@@ -223,6 +223,8 @@ class TreeModel(QAbstractItemModel):
         names.pop(0)
         path = ["[['%s']]" % name if not name.contains(QRegExp(r"\[\[.*\]\]")) 
             else unicode(name) for name in names[1:]]
+        if len(names) < 1:
+            return ""
         return unicode(names[0])+str.join("", path)
 
     def properties(self, obj, name):

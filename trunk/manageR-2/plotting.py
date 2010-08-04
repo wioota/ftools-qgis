@@ -1,29 +1,20 @@
 # -*- coding: utf-8 -*-
 
-from PyQt4.QtCore import (QString, QStringList, QUrl, SIGNAL, SLOT, QFileInfo,
-                          QEventLoop, Qt, QVariant, QRegExp, QObject, QSize, )
-from PyQt4.QtGui import (QPixmap, QDialog, QLabel, QIcon, QTextBrowser, QTabWidget,
+from PyQt4.QtCore import (QString, QStringList, SIGNAL, SLOT, QFileInfo,
+                          Qt, QVariant, QObject, QModelIndex, QEvent)
+from PyQt4.QtGui import (QPixmap, QDialog, QLabel, QIcon, QTabWidget,
                          QToolButton, QAction, QWidget, QShortcut, QKeySequence,
                          QVBoxLayout, QHBoxLayout, QCheckBox, QPushButton,
-                         QAbstractItemView, QListWidget, QTableWidget, QTextDocument,
-                         QLineEdit, QGroupBox, QApplication, QTableWidgetItem,
+                         QAbstractItemView, QLineEdit, QGroupBox, QApplication,
+                         QTableWidgetItem, QStyleOptionComboBox, QStyle, QPainter,
                          QDialogButtonBox, QTextEdit, QListView,QStackedWidget,
-                         QComboBox,QListWidgetItem, QFileDialog, QLayout, QGridLayout,
-                         QButtonGroup, QItemDelegate, QPen, QStylePainter, QPalette,
-                         QStyleOptionComboBox, QStyle, QPainter, )
-from PyQt4.QtNetwork import QHttp
+                         QComboBox,QListWidgetItem, QFileDialog, QItemDelegate, 
+                         QGridLayout, QButtonGroup, QPen, QLayout, QPalette,
+                         QStylePainter, QTreeView, )
 
 import rpy2.robjects as robjects
 import sys, os, resources
-
-class GroupBox(QGroupBox):
-
-    def __init__(self, text, parent=None):
-        QGroupBox.__init__(self, text, parent)
-        self.connect(self, SIGNAL("toggled(bool)"), self.toggleFlat)
-
-    def toggleFlat(self, toggled):
-        self.setFlat(not toggled)
+from environment import TreeModel
 
 class LineStyleDelegate(QItemDelegate):
 
@@ -72,6 +63,27 @@ class LineStyleComboBox(QComboBox):
         else:
             QComboBox.paintEvent(self, e)
 
+class TreeComboBox(QComboBox):
+    def __init__(self, parent=None):
+        QComboBox.__init__(self, parent)
+        self.skipNextHide = False
+        self.setView(QTreeView(self))
+        self.view().viewport().installEventFilter(self)
+
+    def eventFilter(self, object, event):
+        if (event.type() == QEvent.MouseButtonPress and object == self.view().viewport()):
+            mouseEvent = event
+            index = self.view().indexAt(mouseEvent.pos())
+            if not self.view().visualRect(index).contains(mouseEvent.pos()):
+                self.skipNextHide = True
+        return False
+
+    def hidePopup(self):
+        self.setCurrentIndex(self.view().currentIndex().row())
+        if self.skipNextHide:
+            self.skipNextHide = False
+        else:
+            QComboBox.hidePopup(self)
 
 class PlottingDialog(QDialog):
 
@@ -79,18 +91,43 @@ class PlottingDialog(QDialog):
         QDialog.__init__(self, parent)
         self.setWindowTitle("manageR - Plotting")
         self.setWindowIcon(QIcon(":icon"))
+
         vbox = QVBoxLayout()
         vbox.addWidget(self.createTitleWidget())
-        vbox.addWidget(self.createLineChooser())
-        vbox.addWidget(self.createBoundingBoxWidget())
+        vbox.addWidget(self.createLineWidget())
+        vbox.addWidget(self.createBoxWidget())
+        vbox.addWidget(self.createParametersWidget())
+        vbox.addWidget(self.createTypeWidget())
+        vbox.addWidget(self.createComboBoxWidget())
         vbox.setSizeConstraint(QLayout.SetFixedSize)
         self.setLayout(vbox)
 
-    def createLineChooser(self):
-        lineCheckBox = QCheckBox("Show line")
+    def createComboBoxWidget(self, model=None):
+        if model is None:
+            model = TreeModel()
+        comboBox = TreeComboBox()
+        treeView = QTreeView(comboBox)
+        treeView.header().hide()
+        #treeView.setModel(model)
+
+        comboBox.setModel(model)
+        comboBox.setView(treeView)
+        treeView.hideColumn(1)
+        treeView.hideColumn(2)
+        treeView.hideColumn(3)
+        treeView.viewport().installEventFilter(comboBox)
+        label = QLabel("Input data")
         hbox = QHBoxLayout()
-        widget = QWidget()
+        hbox.addWidget(comboBox)
+        groupBox = QGroupBox("Input data")
+        groupBox.setToolTip("<p>Select input dataset for plotting</p>")
+        groupBox.setLayout(hbox)
+        return groupBox
+
+    def createLineWidget(self):
+        hbox = QHBoxLayout()
         penStyleComboBox = LineStyleComboBox()
+        penStyleComboBox.setToolTip("Choose line style")
         penStyleComboBox.addItem("solid", QPen(Qt.black, 2, Qt.SolidLine))
         penStyleComboBox.addItem("dashed", QPen(Qt.black, 2, Qt.DashLine))
         penStyleComboBox.addItem("dotted", QPen(Qt.black, 2, Qt.DotLine))
@@ -104,116 +141,201 @@ class PlottingDialog(QDialog):
         penStyleComboBox.addItem("None", QPen(Qt.black, 2, Qt.NoPen))
         delegate = LineStyleDelegate(self)
         penStyleComboBox.setItemDelegate(delegate)
-        hbox.addWidget(lineCheckBox)
         hbox.addWidget(penStyleComboBox)
-        widget.setLayout(hbox)
-        return widget
-
-    def createBoundingBoxWidget(self):
-        buttonGroup = QButtonGroup(self)
-        hbox = QHBoxLayout()
-        widget = QWidget()
-        id = 0
-        self.outlineButton = QToolButton()
-        self.outlineButton.setIcon(QIcon(":custom-chart-outline.svg"))
-        self.outlineButton.setCheckable(True)
-        self.outlineButton.setChecked(True)
-        buttonGroup.addButton(self.outlineButton, id)
-        hbox.addWidget(self.outlineButton)
-        id += 1
-        self.lshapeButton = QToolButton()
-        self.lshapeButton.setIcon(QIcon(":custom-chart-l-shape.svg"))
-        self.lshapeButton.setCheckable(True)
-        buttonGroup.addButton(self.lshapeButton, id)
-        hbox.addWidget(self.lshapeButton)
-        id += 1
-        self.sevenshapeButton = QToolButton()
-        self.sevenshapeButton.setIcon(QIcon(":custom-chart-7-shape.svg"))
-        self.sevenshapeButton.setCheckable(True)
-        buttonGroup.addButton(self.sevenshapeButton, id)
-        hbox.addWidget(self.sevenshapeButton)
-        id += 1
-        self.cshapeButton = QToolButton()
-        self.cshapeButton.setIcon(QIcon(":custom-chart-c-shape.svg"))
-        self.cshapeButton.setCheckable(True)
-        buttonGroup.addButton(self.cshapeButton, id)
-        hbox.addWidget(self.cshapeButton)
-        id += 1
-        self.ushapeButton = QToolButton()
-        self.ushapeButton.setCheckable(True)
-        self.ushapeButton.setIcon(QIcon(":custom-chart-u-shape.svg"))
-        buttonGroup.addButton(self.ushapeButton, id)
-        hbox.addWidget(self.ushapeButton)
-        id += 1
-        self.bracketshapeButton = QToolButton()
-        self.bracketshapeButton.setIcon(QIcon(":custom-chart-]-shape.svg"))
-        self.bracketshapeButton.setCheckable(True)
-        buttonGroup.addButton(self.bracketshapeButton, id)
-        hbox.addWidget(self.bracketshapeButton)
-        widget.setLayout(hbox)
-        widget.setVisible(False)
-
-        vbox = QVBoxLayout()
-        vbox.addWidget(widget)
-        groupBox = GroupBox("Adjust bounding box")
+        groupBox = QGroupBox("Adjust line style")
+        groupBox.setToolTip("<p>Adjust line style (leave "
+                            "unchecked to use default)</p>")
         groupBox.setCheckable(True)
         groupBox.setChecked(False)
-        groupBox.setFlat(True)
-        groupBox.setLayout(vbox)
-        self.connect(groupBox, SIGNAL("toggled(bool)"), widget.setVisible)
+        groupBox.setLayout(hbox)
+        return groupBox
+
+    def createBoxWidget(self):
+        buttonGroup = QButtonGroup(self)
+        hbox = QHBoxLayout()
+        id = 0
+        button = QToolButton()
+        button.setToolTip("Outline")
+        button.setIcon(QIcon(":custom-chart-outline.svg"))
+        button.setCheckable(True)
+        button.setChecked(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("L shape")
+        button.setIcon(QIcon(":custom-chart-l-shape.svg"))
+        button.setCheckable(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("7 shape")
+        button.setIcon(QIcon(":custom-chart-7-shape.svg"))
+        button.setCheckable(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("C shape")
+        button.setIcon(QIcon(":custom-chart-c-shape.svg"))
+        button.setCheckable(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("U shape")
+        button.setCheckable(True)
+        button.setIcon(QIcon(":custom-chart-u-shape.svg"))
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("] shape")
+        button.setIcon(QIcon(":custom-chart-]-shape.svg"))
+        button.setCheckable(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("None")
+        button.setIcon(QIcon())
+        button.setCheckable(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+
+        groupBox = QGroupBox("Adjust bounding box")
+        groupBox.setToolTip("<p>Adjust plot bounding box (leave "
+                            "unchecked to use default)</p>")
+        groupBox.setCheckable(True)
+        groupBox.setChecked(False)
+        groupBox.setLayout(hbox)
+        return groupBox
+
+    def createTypeWidget(self):
+        buttonGroup = QButtonGroup(self)
+        hbox = QHBoxLayout()
+        id = 0
+        button = QToolButton()
+        button.setToolTip("Points")
+        button.setIcon(QIcon(":custom-chart-point.svg"))
+        button.setCheckable(True)
+        button.setChecked(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("Lines")
+        button.setIcon(QIcon(":custom-chart-line.svg"))
+        button.setCheckable(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("Both")
+        button.setIcon(QIcon(":custom-chart-both.svg"))
+        button.setCheckable(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("Overplotted")
+        button.setIcon(QIcon(":custom-chart-overplotted.svg"))
+        button.setCheckable(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("Histogram")
+        button.setIcon(QIcon(":custom-chart-hist.svg"))
+        button.setCheckable(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("Stair steps")
+        button.setIcon(QIcon(":custom-chart-stairs.svg"))
+        button.setCheckable(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+        id += 1
+        button = QToolButton()
+        button.setToolTip("No plotting")
+        button.setIcon(QIcon())
+        button.setCheckable(True)
+        buttonGroup.addButton(button, id)
+        hbox.addWidget(button)
+
+        groupBox = QGroupBox("Adjust plot type")
+        groupBox.setToolTip("<p>Adjust plot type (leave "
+                            "unchecked to use default)</p>")
+        groupBox.setCheckable(True)
+        groupBox.setChecked(False)
+        groupBox.setLayout(hbox)
         return groupBox
 
     def createTitleWidget(self):
-        titleCheckBox = QCheckBox("Custom titles and axes")
-        titleCheckBox.setChecked(False)
-        titleGroup = QWidget()
         gbox = QGridLayout()
         self.mainLineEdit = QLineEdit()
+        self.mainLineEdit.setToolTip("<p>Specify text for title above "
+                                     "plot (leave blank for no text)</p>")
         label = QLabel("Main title:")
         label.setBuddy(self.mainLineEdit)
         gbox.addWidget(label,0,0)
         gbox.addWidget(self.mainLineEdit,0,1)
 
         self.subLineEdit = QLineEdit()
+        self.subLineEdit.setToolTip("<p>Specify text for title below "
+                                     "plot (leave blank for no text)</p>")
         label = QLabel("Sub title:")
         label.setBuddy(self.subLineEdit)
         gbox.addWidget(label,1,0)
         gbox.addWidget(self.subLineEdit,1,1)
 
         self.xlabLineEdit = QLineEdit()
+        self.xlabLineEdit.setToolTip("<p>Specify text for X axis (leave "
+                                     "blank for no text)</p>")
         label = QLabel("X label:")
         label.setBuddy(self.xlabLineEdit)
         gbox.addWidget(label,2,0)
         gbox.addWidget(self.xlabLineEdit,2,1)
 
         self.ylabLineEdit = QLineEdit()
+        self.ylabLineEdit.setToolTip("<p>Specify text for Y axis (leave "
+                                     "blank for no text)</p>")
         label = QLabel("Y label:")
         label.setBuddy(self.ylabLineEdit)
         gbox.addWidget(label,3,0)
         gbox.addWidget(self.ylabLineEdit,3,1)
 
-        titleGroup.setLayout(gbox)
-        titleGroup.hide()
-
-        groupBox = GroupBox("Custom titles and axes")
+        groupBox = QGroupBox("Custom titles and axes")
+        groupBox.setToolTip("<p>Specify custom plot titles "
+                            "and axis labels (leave unchecked to use defaults</p>")
         groupBox.setCheckable(True)
         groupBox.setChecked(False)
-        groupBox.setFlat(True)
-        self.connect(groupBox, SIGNAL("toggled(bool)"), titleGroup.setVisible)
-        self.connect(groupBox, SIGNAL("toggled(bool)"), groupBox.toggleFlat)
         vbox = QVBoxLayout()
-        #vbox.addWidget(groupBox)
-        vbox.addWidget(titleGroup)
-        groupBox.setLayout(vbox)
-        #vbox.setSizeConstraint(QLayout.SetFixedSize)
+        groupBox.setLayout(gbox)
         return groupBox
 
-
+    def createParametersWidget(self):
+        groupBox = QGroupBox("Additional parameters")
+        groupBox.setToolTip("Add/adjust plotting parameters")
+        groupBox.setCheckable(True)
+        groupBox.setChecked(False)
+        hbox = QHBoxLayout()
+        parameterLineEdit = QLineEdit()
+        parameterLineEdit.setToolTip("<p>Enter additional (comma separated) "
+                                      "parameter=value pairs here</p>")
+        hbox.addWidget(parameterLineEdit)
+        groupBox.setLayout(hbox)
+        return groupBox
 
 def main():
     app = QApplication(sys.argv)
     if not sys.platform.startswith(("linux", "win")):
         app.setCursorFlashTime(0)
+    robjects.r.load(".RData")
+    print robjects.r.ls()
     window = PlottingDialog()
     window.show()
     sys.exit(app.exec_())

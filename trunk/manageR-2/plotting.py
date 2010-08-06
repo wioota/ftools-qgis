@@ -10,7 +10,7 @@ from PyQt4.QtGui import (QPixmap, QDialog, QLabel, QIcon, QTabWidget,
                          QDialogButtonBox, QTextEdit, QListView,QStackedWidget,
                          QComboBox,QListWidgetItem, QFileDialog, QItemDelegate, 
                          QGridLayout, QButtonGroup, QPen, QLayout, QPalette,
-                         QStylePainter, QTreeView, )
+                         QStylePainter, QTreeView, QListWidget)
 
 import rpy2.robjects as robjects
 import sys, os, resources
@@ -93,14 +93,209 @@ class PlottingDialog(QDialog):
         self.setWindowIcon(QIcon(":icon"))
 
         vbox = QVBoxLayout()
-        vbox.addWidget(self.createTitleWidget())
-        vbox.addWidget(self.createLineWidget())
-        vbox.addWidget(self.createBoxWidget())
-        vbox.addWidget(self.createParametersWidget())
-        vbox.addWidget(self.createTypeWidget())
-        vbox.addWidget(self.createComboBoxWidget())
-        vbox.setSizeConstraint(QLayout.SetFixedSize)
+        vbox.addWidget(self.createModelBuilderWidget())
+        vbox.addWidget(self.createPlotOptionsWidget(True, True, True, True, True, True))
         self.setLayout(vbox)
+
+    def createPlotOptionsWidget(self, box=True, titles=True, axes=False,
+                                log=False, minmax=False, grid=False):
+        vbox = QVBoxLayout()
+        if titles:
+            vbox.addWidget(self.createTitlesWidget())
+        if box:
+            vbox.addWidget(self.createBoxWidget())
+        if axes:
+            vbox.addWidget(self.createAxesWidget(log))
+        if minmax:
+            vbox.addWidget(self.createMinMaxWidget())
+        if grid:
+            vbox.addWidget(self.createGridWidget())
+        widget = QWidget()
+        widget.setLayout(vbox)
+        return widget
+
+    def eventFilter(self, object, event):
+        if event.type() == QEvent.FocusIn:
+            if object == self.variableTreeView or \
+            object == self.independentList:
+                self.switchButton()
+        return False
+
+    def createModelBuilderWidget(self, specify=False, model=None):
+        if model is None:
+            model = TreeModel()
+
+        layout = QHBoxLayout()
+        self.variableTreeView = QTreeView()
+        self.variableTreeView.setModel(model)
+        self.variableTreeView.setToolTip("Select model variables from here")
+        self.variableTreeView.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        #self.connect(self.variableTreeView, SIGNAL("entered(QModelIndex)"),
+            #self.switchButton)
+        #self.connect(self.variableTreeView, SIGNAL("activated(QModelIndex)"),
+            #self.switchButton)
+        self.variableTreeView.installEventFilter(self)
+        layout.addWidget(self.variableTreeView)
+
+        self.dependentLineEdit = QLineEdit()
+        self.dependentLineEdit.setToolTip("Dependent variable")
+        self.dependentLineEdit.setReadOnly(True)
+        dependentLabel = QLabel("Dependent variable:")
+        dependentLabel.setBuddy(self.dependentLineEdit)
+        self.dependentButton = QToolButton()
+        self.dependentButton.setToolTip("Specify dependent variable")
+        self.dependentButton.setIcon(QIcon(":go-next.svg"))
+        self.connect(self.dependentButton, SIGNAL("clicked()"), self.moveDependent)
+        self.connect(self.dependentLineEdit, SIGNAL("textChanged(QString)"),
+            self.switchButton)
+        vbox = QVBoxLayout()
+        vbox.addWidget(dependentLabel)
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.dependentButton)
+        hbox.addWidget(self.dependentLineEdit)
+        vbox.addLayout(hbox)
+
+        box = QVBoxLayout()
+        box.addLayout(vbox)
+
+        self.independentList = QListWidget()
+        self.independentList.setToolTip("List of independent variables")
+        self.independentList.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.independentList.installEventFilter(self)
+        #self.connect(self.independentList, SIGNAL("itemEntered(QListWidgetItem*)"),
+            #self.switchButton)
+        #self.connect(self.independentList, SIGNAL("itemActivated(QListWidgetItem*)"),
+            #self.switchButton)
+        independentLabel = QLabel("Independent variables:")
+        independentLabel.setBuddy(self.independentList)
+        self.independentButton = QToolButton()
+        self.independentButton.setToolTip("Specify independent variables")
+        self.independentButton.setIcon(QIcon(":go-next.svg"))
+        self.connect(self.independentButton, SIGNAL("clicked()"), self.moveIndependent)
+        vbox = QVBoxLayout()
+        vbox.addWidget(independentLabel)
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.independentButton)
+        hbox.addWidget(self.independentList)
+        vbox.addLayout(hbox)
+        box.addLayout(vbox)
+        layout.addLayout(box)
+
+        groupBox = QGroupBox("Build model")
+        groupBox.setToolTip("<p>Select variables for model</p>")
+        groupBox.setLayout(layout)
+        return groupBox
+
+    def moveDependent(self):
+        path = QString()
+        if self.dependentLineEdit.text().isEmpty():
+            indexes = self.variableTreeView.selectedIndexes()
+            if len(indexes) < 1:
+                return
+            path = self.variableTreeView.model().parentTree(indexes[0])
+        self.dependentLineEdit.setText(path)
+
+    def moveIndependent(self):
+        path = QString()
+        add = self.variableTreeView.hasFocus()
+        if add:
+            indexes = self.variableTreeView.selectedIndexes()
+            paths = [self.variableTreeView.model().parentTree(index) for index in indexes]
+            self.independentList.addItems(paths)
+        else:
+            indexes = self.independentList.selectedItems()
+            for index in indexes:
+                item = self.independentList.takeItem(self.independentList.row(index))
+                del item
+
+    def switchButton(self, item=None):
+        if isinstance(item, QString):
+            if not item.isEmpty():
+                self.dependentButton.setIcon(QIcon(":go-previous.svg"))
+            else:
+                self.dependentButton.setIcon(QIcon(":go-next.svg"))
+        else:
+            if self.independentList.hasFocus():
+                self.independentButton.setIcon(QIcon(":go-previous.svg"))
+            else:
+                self.independentButton.setIcon(QIcon(":go-next.svg"))
+
+    def createAxesWidget(self, logscale=False):
+        xAxisCheckBox = QCheckBox("Show X axis")
+        xAxisCheckBox.setChecked(True)
+        yAxisCheckBox = QCheckBox("Show Y axis")
+        yAxisCheckBox.setChecked(True)
+        hbox = QHBoxLayout()
+        hbox.addWidget(xAxisCheckBox)
+        hbox.addWidget(yAxisCheckBox)
+        vbox = QVBoxLayout()
+        vbox.addLayout(hbox)
+        if logscale:
+            xLogCheckBox = QCheckBox("Logarithmic X axis")
+            yLogCheckBox = QCheckBox("Logarithmic Y axis")
+            hbox = QHBoxLayout()
+            hbox.addWidget(xLogCheckBox)
+            hbox.addWidget(yLogCheckBox)
+            vbox.addLayout(hbox)
+        groupBox = QGroupBox("Control Axes")
+        groupBox.setToolTip("<p>Control if/how axes are drawn</p>")
+        groupBox.setLayout(vbox)
+        return groupBox
+
+    def createMinMaxWidget(self):
+        xMinLineEdit = QLineEdit()
+        xMinLineEdit.setToolTip("<p>Specify minimum X value "
+                                "(leave blank to use default)</p>")
+        xMinLabel = QLabel("X Min:")
+        xMinLabel.setBuddy(xMinLineEdit)
+        xMaxLineEdit = QLineEdit()
+        xMaxLineEdit.setToolTip("<p>Specify maximum X value "
+                                "(leave blank to use default)</p>")
+        xMaxLabel = QLabel("X Max:")
+        xMaxLabel.setBuddy(xMaxLineEdit)
+        yMinLineEdit = QLineEdit()
+        yMinLineEdit.setToolTip("<p>Specify minimum Y value "
+                                "(leave blank to use default)</p>")
+        yMinLabel = QLabel("Y Min:")
+        yMinLabel.setBuddy(yMinLineEdit)
+        yMaxLineEdit = QLineEdit()
+        yMaxLineEdit.setToolTip("<p>Specify maximum Y value "
+                                "(leave blank to use default)</p>")
+        yMaxLabel = QLabel("Y Max:")
+        yMaxLabel.setBuddy(yMaxLineEdit)
+        vbox = QVBoxLayout()
+        hbox = QHBoxLayout()
+        hbox.addWidget(xMinLabel)
+        hbox.addWidget(xMinLineEdit)
+        vbox.addLayout(hbox)
+        hbox = QHBoxLayout()
+        hbox.addWidget(xMaxLabel)
+        hbox.addWidget(xMaxLineEdit)
+        vbox.addLayout(hbox)
+        box = QHBoxLayout()
+        box.addLayout(vbox)
+        vbox = QVBoxLayout()
+        hbox = QHBoxLayout()
+        hbox.addWidget(yMinLabel)
+        hbox.addWidget(yMinLineEdit)
+        vbox.addLayout(hbox)
+        hbox = QHBoxLayout()
+        hbox.addWidget(yMaxLabel)
+        hbox.addWidget(yMaxLineEdit)
+        vbox.addLayout(hbox)
+        box.addLayout(vbox)
+        groupBox = QGroupBox("Adjust scale (min and max)")
+        groupBox.setToolTip("<p>Adjust scale (range) of axes "
+                            "(leave unchecked to use defaults)</p>")
+        groupBox.setCheckable(True)
+        groupBox.setChecked(False)
+        groupBox.setLayout(box)
+        return groupBox
+
+    def createGridWidget(self):
+        gridCheckBox = QCheckBox("Add grid to plot")
+        gridCheckBox.setToolTip("<p>Check to add grid to plot</p>")
+        return gridCheckBox
 
     def createComboBoxWidget(self, model=None):
         if model is None:
@@ -274,7 +469,7 @@ class PlottingDialog(QDialog):
         groupBox.setLayout(hbox)
         return groupBox
 
-    def createTitleWidget(self):
+    def createTitlesWidget(self):
         gbox = QGridLayout()
         self.mainLineEdit = QLineEdit()
         self.mainLineEdit.setToolTip("<p>Specify text for title above "

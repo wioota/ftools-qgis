@@ -2376,6 +2376,8 @@ class OutputCatcher(QObject):
 def run(command, lock, pipe):
     sys.stdout = sys.stderr = OutputCatcher(pipe)
     lock.acquire()
+    dub = robjects.r['[[']
+    r = robjects.r
     try:
         try_ = robjects.r.get("try", mode='function')
         parse_ = robjects.r.get("parse", mode='function')

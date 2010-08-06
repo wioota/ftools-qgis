@@ -93,7 +93,8 @@ class PlottingDialog(QDialog):
         self.setWindowIcon(QIcon(":icon"))
 
         vbox = QVBoxLayout()
-        vbox.addWidget(self.createModelBuilderWidget())
+        #vbox.addWidget(self.createModelBuilderWidget())
+        vbox.addWidget(self.createVariableSelectionWidget())
         vbox.addWidget(self.createPlotOptionsWidget(True, True, True, True, True, True))
         self.setLayout(vbox)
 
@@ -121,13 +122,21 @@ class PlottingDialog(QDialog):
                 self.switchButton()
         return False
 
-    def createModelBuilderWidget(self, specify=False, model=None):
+    def createModelBuilderWidget(self, advanced=False, model=None):
+        return self.createVariableWidget(advanced, dependent=True, model=model)
+        
+    def createVariableSelectionWidget(self, model=None):
+        return self.createVariableWidget(model=model)
+
+    def createVariableWidget(self, advanced=False, dependent=False, model=None):
         if model is None:
             model = TreeModel()
 
         layout = QHBoxLayout()
         self.variableTreeView = QTreeView()
         self.variableTreeView.setModel(model)
+        #self.variableTreeView.hideColumn(2)
+        #self.variableTreeView.hideColumn(3)
         self.variableTreeView.setToolTip("Select model variables from here")
         self.variableTreeView.setSelectionMode(QAbstractItemView.ExtendedSelection)
         #self.connect(self.variableTreeView, SIGNAL("entered(QModelIndex)"),
@@ -137,52 +146,48 @@ class PlottingDialog(QDialog):
         self.variableTreeView.installEventFilter(self)
         layout.addWidget(self.variableTreeView)
 
-        self.dependentLineEdit = QLineEdit()
-        self.dependentLineEdit.setToolTip("Dependent variable")
-        self.dependentLineEdit.setReadOnly(True)
-        dependentLabel = QLabel("Dependent variable:")
-        dependentLabel.setBuddy(self.dependentLineEdit)
-        self.dependentButton = QToolButton()
-        self.dependentButton.setToolTip("Specify dependent variable")
-        self.dependentButton.setIcon(QIcon(":go-next.svg"))
-        self.connect(self.dependentButton, SIGNAL("clicked()"), self.moveDependent)
-        self.connect(self.dependentLineEdit, SIGNAL("textChanged(QString)"),
-            self.switchButton)
-        vbox = QVBoxLayout()
-        vbox.addWidget(dependentLabel)
-        hbox = QHBoxLayout()
-        hbox.addWidget(self.dependentButton)
-        hbox.addWidget(self.dependentLineEdit)
-        vbox.addLayout(hbox)
-
         box = QVBoxLayout()
-        box.addLayout(vbox)
-
+        if dependent:
+            self.dependentLineEdit = QLineEdit()
+            self.dependentLineEdit.setToolTip("Dependent variable")
+            self.dependentLineEdit.setReadOnly(True)
+            dependentLabel = QLabel("Dependent variable:")
+            dependentLabel.setBuddy(self.dependentLineEdit)
+            self.dependentButton = QToolButton()
+            self.dependentButton.setToolTip("Specify dependent variable")
+            self.dependentButton.setIcon(QIcon(":go-next.svg"))
+            self.connect(self.dependentButton, SIGNAL("clicked()"), self.moveDependent)
+            self.connect(self.dependentLineEdit, SIGNAL("textChanged(QString)"),
+                self.switchButton)
+            grid = QGridLayout()
+            grid.addWidget(dependentLabel, 0,1)
+            grid.addWidget(self.dependentLineEdit, 1,1)
+            grid.addWidget(self.dependentButton, 1,0)
+            box.addLayout(grid)
+            independentTitle = QString("Independent variables:")
+            independentText = QString("independent")
+        else:
+            independentTitle = QString("Selected Variables:")
+            independentText = QString("selected")
         self.independentList = QListWidget()
-        self.independentList.setToolTip("List of independent variables")
+        self.independentList.setToolTip("List of %s variables" % independentText)
         self.independentList.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.independentList.installEventFilter(self)
-        #self.connect(self.independentList, SIGNAL("itemEntered(QListWidgetItem*)"),
-            #self.switchButton)
-        #self.connect(self.independentList, SIGNAL("itemActivated(QListWidgetItem*)"),
-            #self.switchButton)
-        independentLabel = QLabel("Independent variables:")
+        independentLabel = QLabel(independentTitle)
         independentLabel.setBuddy(self.independentList)
         self.independentButton = QToolButton()
-        self.independentButton.setToolTip("Specify independent variables")
+        self.independentButton.setToolTip("Specify %s variables" % independentText)
         self.independentButton.setIcon(QIcon(":go-next.svg"))
         self.connect(self.independentButton, SIGNAL("clicked()"), self.moveIndependent)
-        vbox = QVBoxLayout()
-        vbox.addWidget(independentLabel)
-        hbox = QHBoxLayout()
-        hbox.addWidget(self.independentButton)
-        hbox.addWidget(self.independentList)
-        vbox.addLayout(hbox)
-        box.addLayout(vbox)
+        grid = QGridLayout()
+        grid.addWidget(independentLabel, 0,1)
+        grid.addWidget(self.independentList, 1,1)
+        grid.addWidget(self.independentButton, 1,0)
+        box.addLayout(grid)
         layout.addLayout(box)
 
-        groupBox = QGroupBox("Build model")
-        groupBox.setToolTip("<p>Select variables for model</p>")
+        groupBox = QGroupBox("Select variables")
+        groupBox.setToolTip("<p>Select variables for analysis</p>")
         groupBox.setLayout(layout)
         return groupBox
 
@@ -200,7 +205,7 @@ class PlottingDialog(QDialog):
         add = self.variableTreeView.hasFocus()
         if add:
             indexes = self.variableTreeView.selectedIndexes()
-            paths = [self.variableTreeView.model().parentTree(index) for index in indexes]
+            paths = [self.variableTreeView.model().parentTree(index) for index in indexes if index.column() == 0]
             self.independentList.addItems(paths)
         else:
             indexes = self.independentList.selectedItems()
@@ -529,7 +534,7 @@ def main():
     app = QApplication(sys.argv)
     if not sys.platform.startswith(("linux", "win")):
         app.setCursorFlashTime(0)
-    robjects.r.load(".RData")
+    robjects.r.load("random_graph.RData")
     print robjects.r.ls()
     window = PlottingDialog()
     window.show()

@@ -88,8 +88,9 @@ class TreeComboBox(QComboBox):
 
 class PluginDialog(QDialog):
 
-    def __init__(self, parent=None, name="Plugin"):
+    def __init__(self, parent=None, name="Plugin", prefix=""):
         QDialog.__init__(self, parent)
+        self.prefix = prefix
         buttonBox = QDialogButtonBox(QDialogButtonBox.Apply|QDialogButtonBox.Close)
         applyButton = buttonBox.button(QDialogButtonBox.Apply)
         self.connect(applyButton, SIGNAL("clicked()"), self.apply)
@@ -115,20 +116,20 @@ class PluginDialog(QDialog):
             self.changePage)
 
         self.pagesWidget = StackedWidget()
-        self.mainPage = QWidget()
+        self.mainPage = Widget()
         self.mainPage.setLayout(VBoxLayout())
         self.pagesWidget.addWidget(self.mainPage)
 
-        self.configurePage = QWidget()
+        self.configurePage = Widget()
         self.configurePage.setLayout(VBoxLayout())
 
-        self.plotPage = QWidget()
+        self.plotPage = Widget()
         self.plotPage.setLayout(VBoxLayout())
 
         #self.createIcons()
         self.contentsWidget.setCurrentRow(0)
 
-        horizontalLayout = QHBoxLayout()
+        horizontalLayout = HBoxLayout()
         horizontalLayout.addWidget(self.contentsWidget)
         horizontalLayout.addWidget(self.pagesWidget, 1)
 
@@ -141,6 +142,23 @@ class PluginDialog(QDialog):
         self.setLayout(mainLayout)
         self.setWindowIcon(QIcon(":icon"))
         self.setWindowTitle("manageR - %s" % name)
+    
+    def show(self):
+        self.widgets = self.widgetsList()
+        QDialog.show(self)
+        
+    def widgetsList(self):
+        widgets = []
+        pages = self.pagesWidget.children()
+        pages.reverse()
+        for child in pages:
+            for widget in child.children():
+                if issubclass(type(widget), QWidget):
+                    try:
+                        widgets.append(widget)
+                    except Exception, err:
+                        pass
+        return widgets
 
     def addWidget(self, widget, page="main"):
         if page == "configure":
@@ -151,7 +169,6 @@ class PluginDialog(QDialog):
             self.configurePage.layout().addWidget(widget)
         elif page == "plotoptions":
             self.contentsWidget.setVisible(True)
-            print self.pagesWidget.indexOf(self.plotPage)
             if self.pagesWidget.indexOf(self.plotPage) < 0:
                 self.pagesWidget.addWidget(self.plotPage)
                 self.addIcon(page)
@@ -186,17 +203,17 @@ class PluginDialog(QDialog):
 
     def apply(self):
         text = QString()
-        for widget in self.children():
-            if not isinstance(widget, QDialogButtonBox):
+##        self.widgets = self.widgetsList()
+        for widget in self.widgets:
                 try:
                     text.append(widget.parameterValues())
                 except Exception, err:
                     QMessageBox.warning(self, "manageR Plugin Error", str(err))
                     return
-        QMessageBox.information(self, "Plugin Code", text)
+        QMessageBox.information(self, "Plugin Code", "%s(%s)" % (self.prefix,text))
 
 class ComboBox(QComboBox):
-    def __init__(self, param, **kwargs):
+    def __init__(self, param="", **kwargs):
         QComboBox.__init__(self, **kwargs)
         self.param = QString(param)
 
@@ -208,8 +225,8 @@ class ComboBox(QComboBox):
         return text
 
 class SpinBox(QSpinBox):
-    def __init__(self, param=""):
-        QSpinBox.__init__(self)
+    def __init__(self, param="", **kwargs):
+        QSpinBox.__init__(self, **kwargs)
         self.param = QString(param)
 
     def parameterValues(self):
@@ -220,7 +237,7 @@ class SpinBox(QSpinBox):
         return text
 
 class CheckBox(QCheckBox):
-    def __init__(self, param, **kwargs):
+    def __init__(self, param="", **kwargs):
         QCheckBox.__init__(self, **kwargs)
         self.param = QString(param)
 
@@ -236,8 +253,8 @@ class CheckBox(QCheckBox):
         return text
 
 class DoubleSpinBox(QDoubleSpinBox):
-    def __init__(self, param=""):
-        QDoubleSpinBox.__init__(self)
+    def __init__(self, param="", **kwargs):
+        QDoubleSpinBox.__init__(self, **kwargs)
         self.param = QString(param)
 
     def parameterValues(self):
@@ -248,8 +265,8 @@ class DoubleSpinBox(QDoubleSpinBox):
         return text
 
 class LineEdit(QLineEdit):
-    def __init__(self, param=""):
-        QLineEdit.__init__(self)
+    def __init__(self, param="", **kwargs):
+        QLineEdit.__init__(self, **kwargs)
         self.param = QString(param)
 
     def parameterValues(self):
@@ -260,36 +277,43 @@ class LineEdit(QLineEdit):
         return text
 
 class HBoxLayout(QHBoxLayout):
-    def __init__(self):
-        QHBoxLayout.__init__(self)
+    def __init__(self, *args, **kwargs):
+        QHBoxLayout.__init__(self, *args, **kwargs)
 
     def parameterValues(self):
         return QString()
 
 class VBoxLayout(QVBoxLayout):
-    def __init__(self):
-        QVBoxLayout.__init__(self)
+    def __init__(self, *args, **kwargs):
+        QVBoxLayout.__init__(self, *args, **kwargs)
 
     def parameterValues(self):
         return QString()
 
 class GridLayout(QGridLayout):
-    def __init__(self):
-        QGridLayout.__init__(self)
+    def __init__(self, *args, **kwargs):
+        QGridLayout.__init__(self, *args, **kwargs)
 
     def parameterValues(self):
         return QString()
 
 class ListWidget(QListWidget):
-    def __init__(self):
-        QListWidget.__init__(self)
+    def __init__(self, *args, **kwargs):
+        QListWidget.__init__(self, *args, **kwargs)
 
     def parameterValues(self):
         return QString()
 
 class StackedWidget(QStackedWidget):
-    def __init__(self):
-        QStackedWidget.__init__(self)
+    def __init__(self, *args, **kwargs):
+        QStackedWidget.__init__(self, *args, **kwargs)
+
+    def parameterValues(self):
+        return QString()
+    
+class Widget(QWidget):
+    def __init__(self, *args, **kwargs):
+        QWidget.__init__(self, *args, **kwargs)
 
     def parameterValues(self):
         return QString()
@@ -420,8 +444,8 @@ class ModelBuilderBox(QGroupBox):
     def parameterValues(self):
         ind = QString()
         dep = QString()
-        visdep = self.dependentLineEdit.isVisible()
-        visind = self.independentList.isVisible()
+        visdep = self.dependentLineEdit.isEnabled()
+        visind = self.independentList.isEnabled()
         if visind:
             self.independentList.selectAll()
             items = self.independentList.selectedItems()
@@ -908,11 +932,12 @@ def main():
     if not sys.platform.startswith(("linux", "win")):
         app.setCursorFlashTime(0)
     robjects.r.load("random_graph.RData")
-    window = PluginDialog(None, "Test")
+    window = PluginDialog(None, "Test", "plot")
     window.addWidget(ModelBuilderBox())
+    window.addWidget(PlotTypeBox(), "main")
     window.addWidget(PlotOptionsWidget(True, True, True, True, True, True), "plotoptions")
-    window.addWidget(CheckBox("x", text="Some text goes here"), "configure")
-    window.addWidget(CheckBox("Some more text goes here"), "configure")
+    window.addWidget(CheckBox(param="x", text="Some text goes here"), "configure")
+    window.addWidget(CheckBox(text="Some more text goes here", param="this"), "configure")
     window.show()
     sys.exit(app.exec_())
 

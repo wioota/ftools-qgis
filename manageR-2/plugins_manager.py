@@ -1,43 +1,11 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-'''
-This file is part of manageR
-
-Copyright (C) 2008-9 Carson J. Q. Farmer
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public Licence as published by the Free Software
-Foundation; either version 2 of the Licence, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE.  See the GNU General Public Licence for more 
-details.
-
-You should have received a copy of the GNU General Public Licence along with
-this program (see LICENSE file in install directory); if not, write to the Free 
-Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
-
-Portions of the console and EditR window, as well as several background 
-funtions are based on the Sandbox python gui of Mark Summerfield.
-  Copyright (C) 2007-9 Mark Summerfield. All rights reserved.
-  Released under the terms of the GNU General Public License.
-The plugins functinality is based largely on the PostGisTools plugin of Mauricio de Paulo.
-  Copyright (C) 2009 Mauricio de Paulo. All rights reserved.
-  Released under the terms of the GNU General Public License.
-manageR makes extensive use of rpy2 (Laurent Gautier) to communicate with R.
-  Copyright (C) 2008-9 Laurent Gautier.
-  Rpy2 may be used under the terms of the GNU General Public License.
-'''
-
 # Import the PyQt and QGIS libraries
 from PyQt4.QtCore import * 
 from PyQt4.QtGui import *
+from PyQt4.QtXml import *
 #from PyQt4.QtSql import *
 from qgis.core import *
-import os, resources
+import sys, os, resources
 from xml.dom import minidom
 
 from GenericVerticalUI import GenericVerticalUI, SpListWidget, SpComboBox
@@ -196,3 +164,100 @@ class PluginsDialog(QDialog):
         QDialog.__init__(self, parent) 
         self.ui = GenericVerticalUI()
         self.ui.setupUi(self, interface)
+
+class Handler(QXmlDefaultHandler):
+    def __init__(self):
+        QXmlDefaultHandler.__init__(self)
+
+    def fatalError(self, err):
+        QMessageBox.warning(None, "manageR - XML Parsing Error",
+            "Fatal error on line %s" % err.lineNumber()
+            + ", column %s " % err.columnNumber()
+            + ": %s" % err.message())
+        return False
+
+    def startDocument(self):
+        self.inTool = False
+        self.inQuery = False
+        self.struct = {}
+        return True
+
+    def documentStructure(self):
+        return self.struct
+
+    def endElement(self, str1, str2, name):
+        if name == "RTool":
+            self.inTool = False
+        elif name == "Query":
+            self.inQuery = False
+        return True
+
+    def characters(self, chars):
+        if self.inQuery:
+            self.struct[self.currentCat][self.currentSub][self.currentTool].append({"query":chars})
+        return True
+
+    def startElement(self, str1, str2, name, attrs):
+        if name == "manageRTools":
+            for i in range(attrs.count()):
+                if attrs.localName(i) == "category":
+                    cat = attrs.value(i)
+                else:
+                    cat = ""
+            self.currentCat = cat
+            if not self.currentCat in self.struct:
+                self.struct[self.currentCat] = {}
+        elif name == "RTool":
+            self.inTool = True
+            nm = ""
+            scat = ""
+            for i in range(attrs.count()):
+                tmp = attrs.localName(i)
+                if tmp == "name":
+                    nm = attrs.value(i)
+                elif tmp == "subcategory":
+                    scat = attrs.value(i)
+            self.currentSub = scat
+            if not self.currentSub in self.struct[self.currentCat]:
+                self.struct[self.currentCat][self.currentSub] = {}
+            if len(nm) > 1:
+                self.currentTool = nm
+                self.struct[self.currentCat][self.currentSub][self.currentTool] = []
+        elif self.inTool:
+            if name == "Query":
+                self.inQuery = True
+            elif name == "Widget":
+                # each tool stores a list of dicts that describe the individual widgets
+                # query is also a dict, with a single key:pair {'query':'plot(|1|)'}
+                wid = { QString("id")     : QString("0"),
+                        QString("label")  : QString(""),
+                        QString("type")   : QString("lineEdit"),
+                        QString("default"): QString("") }
+                for i in range(attrs.count()):
+                    wid[attrs.localName(i)] = attrs.value(i)
+                self.struct[self.currentCat][self.currentSub][self.currentTool].append(wid)
+        return True
+
+
+def main():
+    app = QApplication(sys.argv)
+    #if not sys.platform.startswith(("linux", "win")):
+        #app.setCursorFlashTime(0)
+    #robjects.r.load(".RData")
+    window = QMainWindow(None)
+    window.show()
+    file = QFile("/home/cfarmer/.qgis/python/plugins/manageR/test_tools.xml")
+    reader = QXmlSimpleReader()
+    source = QXmlInputSource(file)
+    handler = Handler()
+    reader.setContentHandler(handler)
+    reader.setErrorHandler(handler)
+    ok = reader.parse(source)
+    if not ok:
+        print "Errors!"
+    else:
+        print handler.documentStructure()
+    sys.exit(app.exec_())
+
+if __name__ == '__main__':
+    main()

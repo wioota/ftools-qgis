@@ -17,80 +17,10 @@ import rpy2.robjects as robjects
 import sys, os, resources
 from environment import TreeModel
 
-class LineStyleDelegate(QItemDelegate):
-
-    def __init__(self, parent = None):
-        QItemDelegate.__init__(self, parent)
-
-    def paint(self, painter, option, index):
-        data = index.model().data(index, Qt.UserRole)
-        if data.isValid() and data.toPyObject() is not None:
-            data = data.toPyObject()
-            painter.save()
-            rect = option.rect
-            rect.adjust(+5, 0, -5, 0)
-            pen = data
-            painter.setPen(pen)
-            middle = (rect.bottom() + rect.top()) / 2
-            painter.drawLine(rect.left(), middle, rect.right(), middle)
-            painter.restore()
-        else:
-            QItemDelegate.paint(self, painter, option, index)
-            painter.drawLine(rect.left(), middle, rect.right(), middle)
-            painter.restore()
-
-class LineStyleComboBox(QComboBox):
-    def __init__(self, parent = None):
-        QComboBox.__init__(self, parent)
-
-    def paintEvent(self, e):
-        data = self.itemData(self.currentIndex(), Qt.UserRole)
-        if data.isValid() and data.toPyObject() is not None:
-            data = data.toPyObject()
-            p = QStylePainter(self)
-            p.setPen(self.palette().color(QPalette.Text))
-            opt = QStyleOptionComboBox()
-            self.initStyleOption(opt)
-            p.drawComplexControl(QStyle.CC_ComboBox, opt)
-            painter = QPainter(self)
-            painter.save()
-            rect = p.style().subElementRect(QStyle.SE_ComboBoxFocusRect, opt, self)
-            rect.adjust(+5, 0, -5, 0)
-            pen = data
-            painter.setPen(pen)
-            middle = (rect.bottom() + rect.top()) / 2
-            painter.drawLine(rect.left(), middle, rect.right(), middle)
-            painter.restore()
-        else:
-            QComboBox.paintEvent(self, e)
-
-class TreeComboBox(QComboBox):
-    def __init__(self, parent=None):
-        QComboBox.__init__(self, parent)
-        self.skipNextHide = False
-        self.setView(QTreeView(self))
-        self.view().viewport().installEventFilter(self)
-
-    def eventFilter(self, object, event):
-        if (event.type() == QEvent.MouseButtonPress and object == self.view().viewport()):
-            mouseEvent = event
-            index = self.view().indexAt(mouseEvent.pos())
-            if not self.view().visualRect(index).contains(mouseEvent.pos()):
-                self.skipNextHide = True
-        return False
-
-    def hidePopup(self):
-        self.setCurrentIndex(self.view().currentIndex().row())
-        if self.skipNextHide:
-            self.skipNextHide = False
-        else:
-            QComboBox.hidePopup(self)
-
 class PluginDialog(QDialog):
 
-    def __init__(self, parent=None, name="Plugin", prefix=""):
+    def __init__(self, parent=None, name="Plugin"):
         QDialog.__init__(self, parent)
-        self.prefix = prefix
         buttonBox = QDialogButtonBox(QDialogButtonBox.Apply|QDialogButtonBox.Close)
         applyButton = buttonBox.button(QDialogButtonBox.Apply)
         self.connect(applyButton, SIGNAL("clicked()"), self.apply)
@@ -202,79 +132,152 @@ class PluginDialog(QDialog):
         self.pagesWidget.setCurrentIndex(self.contentsWidget.row(current))
 
     def apply(self):
-        text = QString()
-##        self.widgets = self.widgetsList()
+        params = {}
         for widget in self.widgets:
                 try:
-                    text.append(widget.parameterValues())
+                    params.update(widget.parameterValues())
                 except Exception, err:
                     QMessageBox.warning(self, "manageR Plugin Error", str(err))
                     return
-        QMessageBox.information(self, "Plugin Code", "%s(%s)" % (self.prefix,text))
+        QMessageBox.information(self, "Plugin Code", str(params))
 
-class ComboBox(QComboBox):
-    def __init__(self, param="", **kwargs):
-        QComboBox.__init__(self, **kwargs)
-        self.param = QString(param)
+class LineStyleDelegate(QItemDelegate):
+
+    def __init__(self, parent = None):
+        QItemDelegate.__init__(self, parent)
+
+    def paint(self, painter, option, index):
+        data = index.model().data(index, Qt.UserRole)
+        if data.isValid() and data.toPyObject() is not None:
+            data = data.toPyObject()
+            painter.save()
+            rect = option.rect
+            rect.adjust(+5, 0, -5, 0)
+            pen = data
+            painter.setPen(pen)
+            middle = (rect.bottom() + rect.top()) / 2
+            painter.drawLine(rect.left(), middle, rect.right(), middle)
+            painter.restore()
+        else:
+            QItemDelegate.paint(self, painter, option, index)
+            painter.drawLine(rect.left(), middle, rect.right(), middle)
+            painter.restore()
+
+class LineStyleComboBox(QComboBox):
+    def __init__(self, parent = None):
+        QComboBox.__init__(self, parent)
+
+    def paintEvent(self, e):
+        data = self.itemData(self.currentIndex(), Qt.UserRole)
+        if data.isValid() and data.toPyObject() is not None:
+            data = data.toPyObject()
+            p = QStylePainter(self)
+            p.setPen(self.palette().color(QPalette.Text))
+            opt = QStyleOptionComboBox()
+            self.initStyleOption(opt)
+            p.drawComplexControl(QStyle.CC_ComboBox, opt)
+            painter = QPainter(self)
+            painter.save()
+            rect = p.style().subElementRect(QStyle.SE_ComboBoxFocusRect, opt, self)
+            rect.adjust(+5, 0, -5, 0)
+            pen = data
+            painter.setPen(pen)
+            middle = (rect.bottom() + rect.top()) / 2
+            painter.drawLine(rect.left(), middle, rect.right(), middle)
+            painter.restore()
+        else:
+            QComboBox.paintEvent(self, e)
+
+class TreeComboBox(QComboBox):
+    def __init__(self, parent=None):
+        QComboBox.__init__(self, parent)
+        self.skipNextHide = False
+        self.setView(QTreeView(self))
+        self.view().viewport().installEventFilter(self)
+
+    def eventFilter(self, object, event):
+        if (event.type() == QEvent.MouseButtonPress and object == self.view().viewport()):
+            mouseEvent = event
+            index = self.view().indexAt(mouseEvent.pos())
+            if not self.view().visualRect(index).contains(mouseEvent.pos()):
+                self.skipNextHide = True
+        return False
+
+    def hidePopup(self):
+        self.setCurrentIndex(self.view().currentIndex().row())
+        if self.skipNextHide:
+            self.skipNextHide = False
+        else:
+            QComboBox.hidePopup(self)
+
+class ComboBox(QWidget):
+    def __init__(self, id, text, **kwargs):
+        QWidget.__init__(self)
+        self.id = id
+        self.widget = QComboBox(**kwargs)
+        label = QLabel(text)
+        hbox = HBoxLayout()
+        hbox.addWidget(label)
+        hbox.addWidget(self.widget)
+        self.setLayout(hbox)
 
     def parameterValues(self):
-        text = self.param
-        if not text.isEmpty():
-            text = QString(", %s=" % text)
-        text.append(self.currentText())
-        return text
+        return {self.id:self.widget.currentText()}
 
-class SpinBox(QSpinBox):
-    def __init__(self, param="", **kwargs):
-        QSpinBox.__init__(self, **kwargs)
-        self.param = QString(param)
+class SpinBox(QWidget):
+    def __init__(self, id, text, **kwargs):
+        QWidget.__init__(self)
+        self.id = id
+        self.widget = QSpinBox(**kwargs)
+        label = QLabel(text)
+        hbox = HBoxLayout()
+        hbox.addWidget(label)
+        hbox.addWidget(self.widget)
+        self.setLayout(hbox)
 
     def parameterValues(self):
-        text = self.param
-        if not text.isEmpty():
-            text = QString(", %s=" % text)
-        text.append(self.value())
-        return text
+        return {self.id:self.widget.value()}
 
 class CheckBox(QCheckBox):
-    def __init__(self, param="", **kwargs):
-        QCheckBox.__init__(self, **kwargs)
-        self.param = QString(param)
+    def __init__(self, id, text, **kwargs):
+        QCheckBox.__init__(self)
+        self.id = id
+        self.setText(text)
 
     def parameterValues(self):
-        text = self.param
         if self.isChecked():
             value = "TRUE"
         else:
             value = "FALSE"
-        if not text.isEmpty():
-            text = QString(", %s=" % text)
-        text.append(value)
-        return text
+        return {self.id:value}
 
-class DoubleSpinBox(QDoubleSpinBox):
-    def __init__(self, param="", **kwargs):
-        QDoubleSpinBox.__init__(self, **kwargs)
-        self.param = QString(param)
-
-    def parameterValues(self):
-        text = self.param
-        if not text.isEmpty():
-            text = QString(", %s=" % text)
-        text.append(self.value())
-        return text
-
-class LineEdit(QLineEdit):
-    def __init__(self, param="", **kwargs):
-        QLineEdit.__init__(self, **kwargs)
-        self.param = QString(param)
+class DoubleSpinBox(QWidget):
+    def __init__(self, id, text, **kwargs):
+        QWidget.__init__(self)
+        self.id = id
+        self.widget = QDoubleSpinBox(**kwargs)
+        label = QLabel(text)
+        hbox = HBoxLayout()
+        hbox.addWidget(label)
+        hbox.addWidget(self.widget)
+        self.setLayout(hbox)
 
     def parameterValues(self):
-        text = self.param
-        if not text.isEmpty():
-            text = QString(", %s=" % text)
-        text.append(self.text())
-        return text
+        return {self.id:self.widget.value()}
+
+class LineEdit(QWidget):
+    def __init__(self, id, **kwargs):
+        QWidget.__init__(self, **kwargs)
+        self.id = id
+        self.widget = QLineEdit(**kwargs)
+        label = QLabel(text)
+        hbox = HBoxLayout()
+        hbox.addWidget(label)
+        hbox.addWidget(self.widget)
+        self.setLayout(hbox)
+
+    def parameterValues(self):
+        return {self.id:self.widget.text()}
 
 class HBoxLayout(QHBoxLayout):
     def __init__(self, *args, **kwargs):
@@ -318,9 +321,32 @@ class Widget(QWidget):
     def parameterValues(self):
         return QString()
 
-class ModelBuilderBox(QGroupBox):
+class ModelBuilderBox(VariableTreeBox):
+    def __init__(self, id, model=None):
+        # types can be single, multiple, or both
+        # default is both
+        VariableTreeBox.__init__(self, text1="Dependent variable",
+                                 text2 = "Independent variable(s)",
+                                 type="both", model=model)
 
-    def __init__(self, param="", type="both", model=None):
+class SingleVariableBox(VariableTreeBox):
+    def __init__(self, id, text, model=None):
+        # types can be single, multiple, or both
+        # default is both
+        VariableTreeBox.__init__(self, text1=text, text2 = "",
+                                 type="single", model=model)
+
+class MultipleVariableBox(VariableTreeBox):
+    def __init__(self, id, text, model=None):
+        # types can be single, multiple, or both
+        # default is both
+        VariableTreeBox.__init__(self, text1="", text2=text,
+                                 type="multiple", model=model)
+
+class VariableTreeBox(QGroupBox):
+    def __init__(self, id, text1="Select variable",
+                 text2="Independent variable(s)",
+                 type="both", model=None):
         # types can be single, multiple, or both
         # default is both
         QGroupBox.__init__(self)
@@ -330,7 +356,7 @@ class ModelBuilderBox(QGroupBox):
             type = "both"
         self.setTitle("Choose Variables")
         self.setToolTip("<p>Select variables for analysis</p>")
-        self.param = param
+        self.id = id
 
         layout = HBoxLayout()
         self.variableTreeView = QTreeView()
@@ -341,16 +367,12 @@ class ModelBuilderBox(QGroupBox):
         layout.addWidget(self.variableTreeView)
         box = VBoxLayout()
         self.dependentLineEdit = QLineEdit()
-        if type == "single":
-            dependentText = "Select variable"
-        else:
-            dependentText = "Depenent variable"
-        self.dependentLineEdit.setToolTip(dependentText)
+        self.dependentLineEdit.setToolTip(text1)
         self.dependentLineEdit.setReadOnly(True)
-        dependentLabel = QLabel("%s:" % dependentText)
+        dependentLabel = QLabel("%s:" % text1)
         dependentLabel.setBuddy(self.dependentLineEdit)
         self.dependentButton = QToolButton()
-        self.dependentButton.setToolTip("Select variable")
+        self.dependentButton.setToolTip(text1)
         self.dependentButton.setIcon(QIcon(":go-next.svg"))
         self.connect(self.dependentButton, SIGNAL("clicked()"), self.moveDependent)
         self.connect(self.dependentLineEdit, SIGNAL("textChanged(QString)"),
@@ -369,18 +391,14 @@ class ModelBuilderBox(QGroupBox):
             self.dependentLabel.setEnabled(False)
             dependentLabel.setVisible(False)
             dependentLabel.setEnabled(False)
-        if type == "multiple":
-            independentText = "Select variable(s)"
-        else:
-            independentText = "Independent variable(s)"
         self.independentList = QListWidget()
-        self.independentList.setToolTip("List of available variables")
+        self.independentList.setToolTip(text2)
         self.independentList.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.independentList.installEventFilter(self)
-        independentLabel = QLabel("%s:" % independentText)
+        independentLabel = QLabel("%s:" % text2)
         independentLabel.setBuddy(self.independentList)
         self.independentButton = QToolButton()
-        self.independentButton.setToolTip("Specify variable(s)")
+        self.independentButton.setToolTip(text2)
         self.independentButton.setIcon(QIcon(":go-next.svg"))
         self.connect(self.independentButton, SIGNAL("clicked()"), self.moveIndependent)
         vbox = VBoxLayout()
@@ -462,14 +480,14 @@ class ModelBuilderBox(QGroupBox):
            (ind.isEmpty() and visind):
             raise Exception("Error: Insufficient number of input variables")
         if visdep and visind:
-            text = QString("formula=%s ~%s" % (dep, ind))
+            params = {self.id:"%s ~%s" % (dep, ind)}
         elif visdep and not visind:
-            text = QString("%s=%s" % (self.param, dep))
+            params = {self.id:dep}
         elif not visdep and visind:
-            text = QString("%s=%s" % (self.param, ind))
+            params = {self.id:ind}
         else:
-            text = QString() # this shouldn't happen
-        return text
+            params = {} # this shouldn't happen
+        return params
 
 class AxesBox(QGroupBox):
 
@@ -508,25 +526,24 @@ class AxesBox(QGroupBox):
         self.setLayout(vbox)
 
     def parameterValues(self):
-        text = QString()
+        params = {}
         if not self.xAxisCheckBox.isChecked():
-            text.append(", xaxt='n'")
+            params["xaxt"] = "'n'"
         if not self.yAxisCheckBox.isChecked():
-            text.append(", yaxt='n'")
+            params["yaxt"] = "'n'"
         logx = self.xLogCheckBox.isChecked()
         logy = self.yLogCheckBox.isChecked()
         if logx or logy:
-            text.append(", log='")
+            tmp = QString()
             if logx:
-                text.append("x")
+                tmp.append("x")
             if logy:
-                text.append("y")
-            text.append("'")
+                tmp.append("y")
+            params["log"] = "'%s'" % tmp
         direction = self.directionComboBox.currentIndex()
         if direction > 0:
-            text.append(", las=%s" % direction)
-        return text
-
+            params["las"] = direction
+        return params
 
 class MinMaxBox(QGroupBox):
 
@@ -581,7 +598,7 @@ class MinMaxBox(QGroupBox):
         self.setLayout(box)
 
     def parameterValues(self):
-        text = QString()
+        params = {}
         if self.isChecked():
             xlim1 = self.xMinLineEdit.text()
             xlim2 = self.xMaxLineEdit.text()
@@ -591,10 +608,10 @@ class MinMaxBox(QGroupBox):
                (not ylim1.isEmpty() == ylim2.isEmpty()):
                 raise Exception("Error: Both min and max values must be specified")
             if not xlim1.isEmpty(): # if one isn't empty, then neither are
-                text.append(", xlim=c(%s,%s)" % (xlim1, xlim2))
+                params["xlim"] = "c(%s,%s)" % (xlim1, xlim2)
             if not ylim1.isEmpty(): # if one isn't empty, then neither are
-                text.append(", ylim=c(%s,%s)" % (ylim1, ylim2))
-        return text
+                params["ylim"] = "c(%s,%s)" % (ylim1, ylim2)
+        return params
 
 class GridCheckBox(QCheckBox):
 
@@ -607,14 +624,15 @@ class GridCheckBox(QCheckBox):
         text = QString()
         if self.isChecked():
             text = "grid()"
-        return text
+        return {"grid":text}
 
 class TreeComboBox(QGroupBox):
 
-    def __init__(self, model=None):
+    def __init__(self, id, model=None):
         QGroupBox.__init__(self)
         self.setTitle("Input data")
         self.setToolTip("<p>Select input dataset for plotting</p>")
+        self.param = param
         if model is None:
             model = TreeModel()
         self.comboBox = TreeComboBox()
@@ -633,13 +651,12 @@ class TreeComboBox(QGroupBox):
         self.setLayout(hbox)
 
     def parameterValues(self):
-        return self.comboBox.currentText()
-        
+        return {self.id:self.comboBox.currentText()}
 
 class PlotOptionsWidget(QWidget):
 
     def __init__(self, box=True, titles=True, axes=False,
-                 log=False, minmax=False, grid=False):
+                 log=False, style=True, minmax=False, grid=False):
         QWidget.__init__(self)
         vbox = VBoxLayout()
         if titles:
@@ -647,7 +664,7 @@ class PlotOptionsWidget(QWidget):
         if box:
             vbox.addWidget(BoundingBoxBox())
         if axes:
-            vbox.addWidget(AxesBox(log))
+            vbox.addWidget(AxesBox(log, style))
         if minmax:
             vbox.addWidget(MinMaxBox())
         if grid:
@@ -655,16 +672,14 @@ class PlotOptionsWidget(QWidget):
         self.setLayout(vbox)
 
     def parameterValues(self):
-        text = QString()
+        params = {}
         for widget in self.children():
-            #if not isinstance(widget, QDialogButtonBox) and \
-               #not issubclass(type(widget), QLayout):
-            text.append(widget.parameterValues())
-        return text
+            params.update(widget.parameterValues())
+        return params
 
 class LineStyleBox(QGroupBox):
 
-    def __init__(self, model=None):
+    def __init__(self, id, model=None):
         QGroupBox.__init__(self)
         self.setTitle("Adjust line style")
         self.setToolTip("<p>Adjust line style (leave "
@@ -691,10 +706,10 @@ class LineStyleBox(QGroupBox):
         self.setLayout(hbox)
 
     def parameterValues(self):
-        text = QString()
+        params = {}
         if self.isChecked():
-            text.append(", lty='%s'" % self.penStyleComboBox.currentText())
-        return text
+            params["lty"] = "'%s'" % str(self.penStyleComboBox.currentText())
+        return params
 
 class BoundingBoxBox(QGroupBox):
 
@@ -769,10 +784,11 @@ class BoundingBoxBox(QGroupBox):
         self.setLayout(hbox)
 
     def parameterValues(self):
-        text = QString()
+        params ={}
         if self.isChecked():
-            text.append(", bty='%s'" % self.buttonNames[self.buttonGroup.checkedId()])
-        return text
+            params["bty"] = "'%s'" % str(self.buttonNames[
+                self.buttonGroup.checkedId()])
+        return params
 
 class PlotTypeBox(QGroupBox):
 
@@ -847,10 +863,11 @@ class PlotTypeBox(QGroupBox):
         self.setLayout(hbox)
 
     def parameterValues(self):
-        text = QString()
+        params = {}
         if self.isChecked():
-            text.append(", type='%s'" % self.buttonNames[self.buttonGroup.checkedId()])
-        return text
+            params["type"] = "'%s'" % str(self.buttonNames[
+                self.buttonGroup.checkedId()])
+        return params
 
 class TitlesBox(QGroupBox):
 
@@ -899,12 +916,13 @@ class TitlesBox(QGroupBox):
 
 
     def parameterValues(self):
-        text = QString()
+        params = {}
         if self.isChecked():
-            text.append(", main='%s', sub='%s', xlab='%s', ylab='%s'" %
-                (self.mainLineEdit.text(),self.subLineEdit.text(),
-                 self.xlabLineEdit.text(),self.ylabLineEdit.text()))
-        return text
+            params = {"main":"'%s'" % self.mainLineEdit.text(),
+                      "sub":"'%s'" % self.subLineEdit.text(),
+                      "xlab":"'%s'" % self.xlabLineEdit.text(),
+                      "ylab":"'%s'" % self.ylabLineEdit.text()}
+        return params
 
 class ParametersBox(QGroupBox):
 
@@ -922,22 +940,22 @@ class ParametersBox(QGroupBox):
         self.setLayout(hbox)
 
     def parameterValues(self):
-        text = QString()
+        params = {}
         if self.isChecked():
-            text.append(", %s" % self.parameterLineEdit.text())
-        return text
+            params = {-1:self.parameterLineEdit.text()}
+        return 
 
 def main():
     app = QApplication(sys.argv)
     if not sys.platform.startswith(("linux", "win")):
         app.setCursorFlashTime(0)
-    robjects.r.load("random_graph.RData")
-    window = PluginDialog(None, "Test", "plot")
-    window.addWidget(ModelBuilderBox())
+    robjects.r.load(".RData")
+    window = PluginDialog(None)
+    window.addWidget(ModelBuilderBox(0))
     window.addWidget(PlotTypeBox(), "main")
     window.addWidget(PlotOptionsWidget(True, True, True, True, True, True), "plotoptions")
-    window.addWidget(CheckBox(param="x", text="Some text goes here"), "configure")
-    window.addWidget(CheckBox(text="Some more text goes here", param="this"), "configure")
+    window.addWidget(CheckBox(id=1, text="Some text goes here"), "configure")
+    window.addWidget(CheckBox(id=2, text="Some more text goes here"), "configure")
     window.show()
     sys.exit(app.exec_())
 

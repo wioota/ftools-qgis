@@ -49,6 +49,7 @@ import complete, resources, converters
 from widgets import *
 from browsers import *
 from config import ConfigDialog
+from plugins_manager import PluginManager
 
 # rpy2 (R) imports
 import rpy2
@@ -155,6 +156,7 @@ class MainWindow(QMainWindow):
         self.createWorkspaceActions(console)
         self.createWindowActions(console)
         self.createDockWigets(console)
+        self.createPluginActions(console)
         self.createHelpActions(console)
         self.restoreState(QSettings().value("manageR/toolbars").toByteArray())
         self.statusBar().showMessage("Ready", 5000)
@@ -354,6 +356,12 @@ class MainWindow(QMainWindow):
             self.addActions(workspaceMenu, (workspaceLoadAction,
                 workspaceSaveAction, workspaceDataAction, None,
                 workspaceLibraryAction, workspaceRepositoryAction,))
+
+    def createPluginActions(self, console=True):
+        if console:
+            pluginManager = PluginManager(self, path="/home/cfarmer/.qgis/python/plugins/manageR")
+            pluginManager.parseXmlFiles()
+            pluginManager.createPlugins()
 
     def createHelpActions(self, console=True):
         helpMenu = self.menuBar().addMenu("&Help")

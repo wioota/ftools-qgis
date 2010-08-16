@@ -25,6 +25,7 @@ class PluginDialog(QDialog):
         applyButton = buttonBox.button(QDialogButtonBox.Apply)
         self.connect(applyButton, SIGNAL("clicked()"), self.apply)
         self.connect(buttonBox, SIGNAL("rejected()"), self.reject)
+        self.params = {}
 
         self.contentsWidget = ListWidget()
         self.setWindowIcon(QIcon(":icon"))
@@ -35,26 +36,14 @@ class PluginDialog(QDialog):
         self.contentsWidget.setSpacing(12)
         self.contentsWidget.setVisible(False)
 
-        mainButton = QListWidgetItem(self.contentsWidget)
-        mainButton.setIcon(QIcon(":preferences-system.svg"))
-        mainButton.setText("Input Data")
-        mainButton.setTextAlignment(Qt.AlignHCenter)
-        mainButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-
         self.connect(self.contentsWidget,
             SIGNAL("currentItemChanged(QListWidgetItem*, QListWidgetItem*)"),
             self.changePage)
 
         self.pagesWidget = StackedWidget()
-        self.mainPage = Widget()
-        self.mainPage.setLayout(VBoxLayout())
-        self.pagesWidget.addWidget(self.mainPage)
-
-        self.configurePage = Widget()
-        self.configurePage.setLayout(VBoxLayout())
-
-        self.plotPage = Widget()
-        self.plotPage.setLayout(VBoxLayout())
+        #self.mainPage = Widget()
+        #self.mainPage.setLayout(VBoxLayout())
+        #self.pagesWidget.addWidget(self.mainPage)
 
         #self.createIcons()
         self.contentsWidget.setCurrentRow(0)
@@ -68,15 +57,18 @@ class PluginDialog(QDialog):
         mainLayout.addStretch(1)
         mainLayout.addSpacing(12)
         mainLayout.addWidget(buttonBox)
-        
+
         self.setLayout(mainLayout)
         self.setWindowIcon(QIcon(":icon"))
         self.setWindowTitle("manageR - %s" % name)
-    
+
+    def parameters(self):
+        return self.params
+
     def show(self):
         self.widgets = self.widgetsList()
         QDialog.show(self)
-        
+
     def widgetsList(self):
         widgets = []
         pages = self.pagesWidget.children()
@@ -90,41 +82,41 @@ class PluginDialog(QDialog):
                         pass
         return widgets
 
-    def addWidget(self, widget, page="main"):
-        if page == "configure":
+    def addWidget(self, widget, page="Main"):
+        items = self.contentsWidget.findItems(page,Qt.MatchExactly)
+        if len(items) > 0:
+            item = self.contentsWidget.row(items[0])
+            item = self.pagesWidget.widget(item)
+        else:
+            item = self.addPage(page)
+        item.layout().addWidget(widget)
+        if self.pagesWidget.count() > 1:
             self.contentsWidget.setVisible(True)
-            if self.pagesWidget.indexOf(self.configurePage) < 0:
-                self.pagesWidget.addWidget(self.configurePage)
-                self.addIcon(page)
-            self.configurePage.layout().addWidget(widget)
-        elif page == "plotoptions":
-            self.contentsWidget.setVisible(True)
-            if self.pagesWidget.indexOf(self.plotPage) < 0:
-                self.pagesWidget.addWidget(self.plotPage)
-                self.addIcon(page)
-            if isinstance(widget, PlotOptionsWidget):
-                layout = self.plotPage.layout()
-                layout.deleteLater()
-                QApplication.sendPostedEvents(layout, QEvent.DeferredDelete)
-                self.plotPage.setLayout(widget.layout())
-            else:
-                self.plotPage.layout().addWidget(widget)
-        else: # main page
-            self.mainPage.layout().addWidget(widget)
 
-    def addIcon(self, page="main"):
-        if page == "configure":
-            configureButton = QListWidgetItem(self.contentsWidget)
-            configureButton.setIcon(QIcon(":preferences-desktop.svg"))
-            configureButton.setText("Configure")
-            configureButton.setTextAlignment(Qt.AlignHCenter)
-            configureButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-        elif page == "plotoptions":
-            plotButton = QListWidgetItem(self.contentsWidget)
-            plotButton.setIcon(QIcon(":applications-graphics.svg"))
-            plotButton.setText("Plot Options")
-            plotButton.setTextAlignment(Qt.AlignHCenter)
-            plotButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+    def addPage(self, name="Main"):
+        page = Widget()
+        page.setLayout(VBoxLayout())
+        self.pagesWidget.insertWidget(0, page)
+        self.addIcon(name)
+        return page
+
+    def addIcon(self, page="Main"):
+        button = QListWidgetItem()
+        if page == "Main":
+            button.setIcon(QIcon(":preferences-system.svg"))
+            button.setText("Main")
+        elif page == "Configure":
+            button.setIcon(QIcon(":preferences-desktop.svg"))
+            button.setText("Configure")
+        elif page == "PlotOptions":
+            button.setIcon(QIcon(":applications-graphics.svg"))
+            button.setText("Plot Options")
+        else:
+            button.setIcon(QIcon(":preferences-desktop.svg"))
+            button.setText(page)
+        button.setTextAlignment(Qt.AlignHCenter)
+        button.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        self.contentsWidget.insertItem(0,button)
 
     def changePage(self, current, previous):
         if not current:
@@ -139,7 +131,8 @@ class PluginDialog(QDialog):
                 except Exception, err:
                     QMessageBox.warning(self, "manageR Plugin Error", str(err))
                     return
-        QMessageBox.information(self, "Plugin Code", str(params))
+        self.params = params
+        self.emit(SIGNAL("pluginOutput(PyQt_PyObject)"), self.params)
 
 class LineStyleDelegate(QItemDelegate):
 
@@ -266,7 +259,7 @@ class DoubleSpinBox(QWidget):
         return {self.id:self.widget.value()}
 
 class LineEdit(QWidget):
-    def __init__(self, id, **kwargs):
+    def __init__(self, id, text, **kwargs):
         QWidget.__init__(self, **kwargs)
         self.id = id
         self.widget = QLineEdit(**kwargs)
@@ -321,28 +314,6 @@ class Widget(QWidget):
     def parameterValues(self):
         return QString()
 
-class ModelBuilderBox(VariableTreeBox):
-    def __init__(self, id, model=None):
-        # types can be single, multiple, or both
-        # default is both
-        VariableTreeBox.__init__(self, text1="Dependent variable",
-                                 text2 = "Independent variable(s)",
-                                 type="both", model=model)
-
-class SingleVariableBox(VariableTreeBox):
-    def __init__(self, id, text, model=None):
-        # types can be single, multiple, or both
-        # default is both
-        VariableTreeBox.__init__(self, text1=text, text2 = "",
-                                 type="single", model=model)
-
-class MultipleVariableBox(VariableTreeBox):
-    def __init__(self, id, text, model=None):
-        # types can be single, multiple, or both
-        # default is both
-        VariableTreeBox.__init__(self, text1="", text2=text,
-                                 type="multiple", model=model)
-
 class VariableTreeBox(QGroupBox):
     def __init__(self, id, text1="Select variable",
                  text2="Independent variable(s)",
@@ -383,14 +354,14 @@ class VariableTreeBox(QGroupBox):
         hbox.addWidget(self.dependentButton)
         hbox.addWidget(self.dependentLineEdit)
         vbox.addLayout(hbox)
-        box.addLayout(vbox)
         if not type in ("single", "both"):
             self.dependentLineEdit.setVisible(False)
             self.dependentButton.setEnabled(False)
             self.dependentButton.setVisible(False)
-            self.dependentLabel.setEnabled(False)
+            dependentLabel.setEnabled(False)
             dependentLabel.setVisible(False)
             dependentLabel.setEnabled(False)
+        box.addLayout(vbox)
         self.independentList = QListWidget()
         self.independentList.setToolTip(text2)
         self.independentList.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -407,8 +378,6 @@ class VariableTreeBox(QGroupBox):
         hbox.addWidget(self.independentButton)
         hbox.addWidget(self.independentList)
         vbox.addLayout(hbox)
-        box.addLayout(vbox)
-        layout.addLayout(box)
         if not type in ("multiple", "both"):
             self.independentList.setEnabled(False)
             self.independentList.setVisible(False)
@@ -416,6 +385,9 @@ class VariableTreeBox(QGroupBox):
             self.independentButton.setVisible(False)
             independentLabel.setEnabled(False)
             independentLabel.setVisible(False)
+            vbox.addStretch()
+        box.addLayout(vbox)
+        layout.addLayout(box)
         self.setLayout(layout)
 
     def eventFilter(self, object, event):
@@ -489,6 +461,28 @@ class VariableTreeBox(QGroupBox):
             params = {} # this shouldn't happen
         return params
 
+class ModelBuilderBox(VariableTreeBox):
+    def __init__(self, id, model=None):
+        # types can be single, multiple, or both
+        # default is both
+        VariableTreeBox.__init__(self, id, text1="Dependent variable",
+                                 text2 = "Independent variable(s)",
+                                 type="both", model=model)
+
+class SingleVariableBox(VariableTreeBox):
+    def __init__(self, id, text, model=None):
+        # types can be single, multiple, or both
+        # default is both
+        VariableTreeBox.__init__(self, id, text1=text, text2 = "",
+                                 type="single", model=model)
+
+class MultipleVariableBox(VariableTreeBox):
+    def __init__(self, id, text, model=None):
+        # types can be single, multiple, or both
+        # default is both
+        VariableTreeBox.__init__(self, id, text1="", text2=text,
+                                 type="multiple", model=model)
+
 class AxesBox(QGroupBox):
 
     def __init__(self, logscale=False, style=True):
@@ -527,27 +521,36 @@ class AxesBox(QGroupBox):
 
     def parameterValues(self):
         params = {}
-        if not self.xAxisCheckBox.isChecked():
-            params["xaxt"] = "'n'"
-        if not self.yAxisCheckBox.isChecked():
-            params["yaxt"] = "'n'"
-        logx = self.xLogCheckBox.isChecked()
-        logy = self.yLogCheckBox.isChecked()
-        if logx or logy:
-            tmp = QString()
-            if logx:
-                tmp.append("x")
-            if logy:
-                tmp.append("y")
-            params["log"] = "'%s'" % tmp
-        direction = self.directionComboBox.currentIndex()
-        if direction > 0:
-            params["las"] = direction
+        try:
+            if not self.xAxisCheckBox.isChecked():
+                params["xaxt"] = "'n'"
+            if not self.yAxisCheckBox.isChecked():
+                params["yaxt"] = "'n'"
+        except:
+            pass
+        try:
+            logx = self.xLogCheckBox.isChecked()
+            logy = self.yLogCheckBox.isChecked()
+            if logx or logy:
+                tmp = QString()
+                if logx:
+                    tmp.append("x")
+                if logy:
+                    tmp.append("y")
+                params["log"] = "'%s'" % tmp
+        except:
+            pass
+        try:
+            direction = self.directionComboBox.currentIndex()
+            if direction > 0:
+                params["las"] = direction
+        except:
+            pass
         return params
 
 class MinMaxBox(QGroupBox):
 
-    def __init__(self, logscale=False):
+    def __init__(self):
         QGroupBox.__init__(self)
         self.setTitle("Adjust scale (min and max)")
         self.setToolTip("<p>Adjust scale (range) of axes "
@@ -655,10 +658,11 @@ class TreeComboBox(QGroupBox):
 
 class PlotOptionsWidget(QWidget):
 
-    def __init__(self, box=True, titles=True, axes=False,
+    def __init__(self, id, box=True, titles=True, axes=False,
                  log=False, style=True, minmax=False, grid=False):
         QWidget.__init__(self)
         vbox = VBoxLayout()
+        self.id = id
         if titles:
             vbox.addWidget(TitlesBox())
         if box:
@@ -672,14 +676,15 @@ class PlotOptionsWidget(QWidget):
         self.setLayout(vbox)
 
     def parameterValues(self):
-        params = {}
+        params = QString()
         for widget in self.children():
-            params.update(widget.parameterValues())
-        return params
+            for key, value in widget.parameterValues().iteritems()
+                params.append(", %s=%s" % (key, value))
+        return {self.id:params}
 
 class LineStyleBox(QGroupBox):
 
-    def __init__(self, id, model=None):
+    def __init__(self, id):
         QGroupBox.__init__(self)
         self.setTitle("Adjust line style")
         self.setToolTip("<p>Adjust line style (leave "
@@ -706,10 +711,10 @@ class LineStyleBox(QGroupBox):
         self.setLayout(hbox)
 
     def parameterValues(self):
-        params = {}
+        params = None
         if self.isChecked():
-            params["lty"] = "'%s'" % str(self.penStyleComboBox.currentText())
-        return params
+            params = "'%s'" % str(self.penStyleComboBox.currentText())
+        return {self.id, params)
 
 class BoundingBoxBox(QGroupBox):
 
@@ -792,7 +797,7 @@ class BoundingBoxBox(QGroupBox):
 
 class PlotTypeBox(QGroupBox):
 
-    def __init__(self, model=None):
+    def __init__(self):
         QGroupBox.__init__(self)
         self.setTitle("Adjust plot type")
         self.setToolTip("<p>Adjust plot type (leave "
@@ -871,7 +876,7 @@ class PlotTypeBox(QGroupBox):
 
 class TitlesBox(QGroupBox):
 
-    def __init__(self, model=None):
+    def __init__(self):
         QGroupBox.__init__(self)
         self.setTitle("Custom titles and axis labels")
         self.setToolTip("<p>Specify custom plot titles "
@@ -914,7 +919,6 @@ class TitlesBox(QGroupBox):
         vbox = VBoxLayout()
         self.setLayout(gbox)
 
-
     def parameterValues(self):
         params = {}
         if self.isChecked():
@@ -926,7 +930,7 @@ class TitlesBox(QGroupBox):
 
 class ParametersBox(QGroupBox):
 
-    def __init__(self, model=None):
+    def __init__(self):
         QGroupBox.__init__(self)
         self.setTitle("Additional parameters")
         self.setToolTip("<p>Add/adjust plotting parameters</p>")

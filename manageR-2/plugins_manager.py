@@ -6,168 +6,179 @@ from PyQt4.QtXml import *
 #from PyQt4.QtSql import *
 from qgis.core import *
 import sys, os, resources
-from xml.dom import minidom
+from plugins_dialog import (SpinBox, DoubleSpinBox, ComboBox, CheckBox, LineEdit, 
+                            ModelBuilderBox, SingleVariableBox, MultipleVariableBox,
+                            AxesBox, MinMaxBox, PlotOptionsWidget, LineStyleBox,
+                            BoundingBoxBox, PlotTypeBox, TitlesBox, ParametersBox,
+                            PluginDialog, Widget)
 
-from GenericVerticalUI import GenericVerticalUI, SpListWidget, SpComboBox
-
-class PluginManager: 
-    def __init__(self, parent):#, iface):
-        ## Save reference to the QGIS interface
-        #self.iface = iface
-        self.tools= os.path.join(os.path.dirname( __file__ ),"tools.xml")
+class PluginManager(QObject):
+    def __init__(self, parent=None, path="."):
         self.parent = parent
+        QObject.__init__(self)
+        filters = QStringList(["*.xml"])
+        dir = QDir(path)
+        dir.setNameFilters(filters)
+        self.files = dir.entryInfoList()
 
-    def makeCaller(self, n):
-        return lambda: self.run(n)
-    
-    def createActions(self, pluginsMenu):  
-        self.actionlist=[] #list of actions
-        self.callerlist=[] #list of funcions to call run() with id parameter
-        self.sublist=[]
-        #starting xml file reading
-        if not self.tools is None:
-            xmlfile=open(self.tools)
-            dom=minidom.parse(xmlfile)
-            tool=dom.firstChild.firstChild
-            
-            #loads every tool in the file
-            while tool:
-                if isinstance(tool, minidom.Element):
-                    add = False
-                    name = tool.getAttribute("name")
-                    category = tool.getAttribute("category")
-                    if not category == "":
-                        sub = QMenu(category, self.parent)
-                        sub.setIcon(QIcon(":mActionAnalysisMenu.png"))
-                        add = True
-                    else:
-                        sub = pluginsMenu
-                        add = False
-                    for item in self.sublist:
-                        if category == item.title():
-                            sub = item
-                            add = False
-                            break
-                    if add:
-                        self.sublist.append(sub)
-                        pluginsMenu.addMenu(sub)
-                    # Create action that will start plugin configuration
-                    self.actionlist.append(QAction(
-                    QIcon(":mActionAnalysisTool"), name, self.parent))
-                    #create a new funcion that calls run() with the id parameter
-                    self.callerlist.append(self.makeCaller(len(self.actionlist)-1)) 
-                    # connect the action to the run method
-                    QObject.connect(self.actionlist[-1], 
-                    SIGNAL("activated()"), self.callerlist[-1]) 
-                    # Add toolbar button and menu item
-                    self.parent.addActions(sub, (self.actionlist[-1],))
-                tool=tool.nextSibling
-            xmlfile.close()
-
-    def runCommand(self, command):
-        mime = QMimeData()
-        self.parent.editor.moveToEnd()
-        self.parent.editor.cursor.movePosition(
-        QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
-        self.parent.editor.cursor.removeSelectedText()
-        self.parent.editor.cursor.insertText(
-        self.parent.editor.currentPrompt)
-        if self.dlg.ui.showCommands.isChecked():
-            mime.setText("# manageR '%s' tool\n%s" % (self.name,command))
-            self.parent.editor.insertFromMimeData(mime)
-            self.parent.editor.entered()
-        else:
-            mime.setText("# manageR '%s' tool" % (self.name))
-            self.parent.editor.insertFromMimeData(mime)
-            self.parent.editor.execute(QString(command))
-    
-    def start(self):
-        #reads the info in the widgets and calls the sql command
-        command = self.command
-        for i,item in enumerate(self.dlg.ui.widgets):
-            if type(item)==type(QTextEdit()):
-                text=str(item.toPlainText())
-            elif type(item)==type(QLineEdit()):
-                text=str(item.text())
-            elif type(item)==type(QDoubleSpinBox()):
-                text=str(item.value())
-            elif type(item)==type(QComboBox()):
-                text=str(item.currentText())
-            elif isinstance(item, SpListWidget):
-                items=item.selectedItems()
-                text=QString()
-                for j in items:
-                    text.append(j.text()+item.spDelimiter())
-                text.remove(-1,1)
+    def parseXmlFiles(self):
+        reader = QXmlSimpleReader()
+        handler = Handler()
+        reader.setContentHandler(handler)
+        reader.setErrorHandler(handler)
+        self.structure = {}
+        errors = False
+        for file in self.files:
+            tmp = QFile(file.absoluteFilePath())
+            source = QXmlInputSource(tmp)
+            handler.setDocumentStructure(self.structure)
+            ok = reader.parse(source)
+            if not ok:
+                errors = True
             else:
-                try:
-                    text=str(item.currentText())
-                except:
-                    text="Error loading widget."
-            command = command.replace("|"+str(i+1)+"|",text)
-        self.runCommand(command)
+                self.structure = handler.documentStructure()
 
-    def getTool(self,toolid):
-        """Reads the xml file looking for the tool with toolid 
-        and returns it's commands and the parameters double list."""
-        xmlfile=open(self.tools)
-        dom=minidom.parse(xmlfile)
-        tools=dom.firstChild
-        count = 0
-        for tool in tools.childNodes:
-            if isinstance(tool, minidom.Element):
-                if count == toolid:
-                    break
-                count += 1
-        query=tool.getAttribute("query")
-        name= tool.getAttribute("name")
-        lines=[]
-        parm=tool.firstChild
-        while parm:
-            if isinstance(parm, minidom.Element):
-                line = [
-                parm.attributes.getNamedItem("label").value,
-                parm.attributes.getNamedItem("type").value,
-                parm.attributes.getNamedItem("default").value,
-                parm.attributes.getNamedItem("notnull").value]
-                lines.append(line)
-            parm=parm.nextSibling
-        xmlfile.close()
-        return name, query, lines
+    def createPlugins(self):
+        for (cat, first) in self.structure.iteritems():
+            if cat in ("__default__", ""):
+                cat = "Plugins"
+            fst = self.parent.menuBar().addMenu(cat)
+            for (sub, second) in first.iteritems():
+                if sub in ("__default__", ""):
+                    snd = fst
+                else:
+                    snd = QMenu(sub, fst)
+                    fst.addMenu(snd)
+                    #sub.setIcon(QIcon(":second-analysis-menu.svg"))
+                for (tool, third) in second.iteritems():
+                    self.createTool(tool, snd, third)
 
-    # run method that performs all the real work
-    def run(self, actionid):
-        #try:
-            #reads the xml file
-            self.name, self.command, parameters = self.getTool(actionid)
-            # create and show the dialog 
-            self.dlg = PluginsDialog(self.parent, parameters)
-            self.dlg.setWindowTitle(self.name)
-            if self.dlg.ui.isSpatial():
-                self.dlg.ui.updateRObjects()
-            #connect the slots
-            QObject.connect(self.dlg.ui.buttonBox, SIGNAL("accepted()"), self.start)
-            #self.helpString = QString(parameters[actionid][-1])
-            # show the dialog
-            self.dlg.show()
-            result = self.dlg.exec_() 
-            # See if OK was pressed
-            if result == 1: 
-                # do something useful (delete the line containing pass and
-                # substitute with your code
-                print "ok pressed"
-        #except Exception, e:
-            #self.parent.editor.commandError(e)
-            
-class PluginsDialog(QDialog):
-    def __init__(self, parent, interface): 
-        QDialog.__init__(self, parent) 
-        self.ui = GenericVerticalUI()
-        self.ui.setupUi(self, interface)
+    def run(self, name, data):
+        dialog = PluginDialog(self.parent, name)
+        structure = data.toPyObject()
+        self.query = structure.pop(QString('query'), None)
+        if self.query is None:
+            QMessageBox.warning(self.parent, "manageR - Plugin Error",
+            "Error building tool user interface")
+            return
+        page = "Main"
+        for (page, rest) in structure.iteritems():
+            if page == "__default__":
+                page = "Main"
+            column = "main"
+            for (column, widgets) in rest.iteritems():
+                if column == "__default__":
+                    column = "main"
+                for widget in widgets:
+                    dialog.addWidget(self.createGuiItem(widget), page)
+        self.connect(dialog, SIGNAL("pluginOutput(PyQt_PyObject)"), self.runCommand)
+        dialog.show()
+
+    def runCommand(self, params):
+        query = self.query
+        extras = QString()
+        finals = QString()
+        for (key, value) in params.iteritems():
+            try:
+                x = int(key)
+                query.replace("|%s|" % x, value)
+            except ValueError:
+                QMessageBox.warning(self.parent, "manageR - Plugin Error",
+                "Error building command string")
+        # go through all params, starting with anything that has an id fields
+        #     if it has a number, replace the number in the query text
+        # next do everything else besides the extra parameters
+        # then the extra parameters
+        # then grid if it was there
+
+    def createTool(self, name, menu, data):
+        #action = QAction(QIcon(":analysis-tool.svg"), name, self.parent)
+        action = QAction(name, self.parent)
+        action.setData(QVariant(data))
+        QObject.connect(action, SIGNAL("activated()"), lambda: self.run(name, action.data()))
+        self.parent.addActions(menu, (action,))
+
+    def createGuiItem(self, fields):
+        try:
+            type = fields[QString("type")]
+        except KeyError:
+            QMessageBox.warning(self.parent, "manageR - Plugin Error",
+            "Widget missing 'type' field in plugin XML file")
+            return
+        widget = Widget()
+        if type == "SpinBox":
+            widget = SpinBox(fields[QString("id")], fields[QString("label")])
+        elif type == "DoubleSpinBox":
+            widget = DoubleSpinBox(fields[QString("id")], fields[QString("label")])
+        elif type == "ComboBox":
+            widget = ComboBox(fields[QString("id")], fields[QString("label")])
+            widget.addItems(fields[QString("defaults")].split(";"))
+        elif type == "CheckBox":
+            widget = CheckBox(fields[QString("id")], fields[QString("label")])
+            if fields[QString("default")].lowerCase() == "true":
+                widget.setChecked(True)
+            else:
+                widget.setChecked(False)
+        elif type == "ModelBuilderBox":
+            widget = ModelBuilderBox(fields[QString("id")])
+        elif type == "SingleVariableBox":
+            widget = SingleVariableBox(fields[QString("id")], fields[QString("label")])
+        elif type == "MultipleVariableBox":
+            widget = MultipleVariableBox(fields[QString("id")], fields[QString("label")])
+        elif type == "AxesBox":
+            ops = fields[QString("default")].split(";")
+            logscale = False
+            style = False
+            if "logscale" in ops:
+                logscale = True
+            if "style" in ops:
+                style = True
+            widget = AxesBox(logscale, style)
+        elif type == "MinMaxBox":
+            widget = MinMaxBox()
+        elif type == "PlotOptionsBox":
+            ops = fields[QString("default")].split(";")
+            box = False
+            titles = False
+            axes = False
+            logscale = False
+            style = False
+            minmax = False
+            grid = False
+            if "logscale" in ops:
+                logscale = True
+            if "style" in ops:
+                style = True
+            if "titles" in ops:
+                titles = True
+            if "axes" in ops:
+                axes = True
+            if "box" in ops:
+                box = True
+            if "minmax" in ops:
+                minmax = True
+            if "grid" in ops:
+                grid = True
+            widget = PlotOptionsWidget(box, titles, axes, logscale, style, minmax, grid)
+        elif type == "LineStyleBox":
+            widget = LineStyleBox()
+        elif type == "BoundingBoxBox":
+            widget = BoundingBoxBox()
+        elif type == "PlotTypeBox":
+            widget = PlotTypeBox()
+        elif type == "TitlesBox":
+            widget = TitlesBox()
+        elif type == "ParametersBox":
+            widget = ParametersBox()
+        else: # default to line edit (LineEditBox)
+            widget = LineEdit(fields[QString("id")], fields[QString("label")])
+            widget.widget.setText(fields[QString("default")])
+        return widget
 
 class Handler(QXmlDefaultHandler):
     def __init__(self):
         QXmlDefaultHandler.__init__(self)
+        self.struct = {}
 
     def fatalError(self, err):
         QMessageBox.warning(None, "manageR - XML Parsing Error",
@@ -179,8 +190,16 @@ class Handler(QXmlDefaultHandler):
     def startDocument(self):
         self.inTool = False
         self.inQuery = False
-        self.struct = {}
+        self.inPage = False
+        self.currentPage = "__default__"
+        self.currentTool = "__default__"
+        self.currentCat = "__default__"
+        self.currentSub = "__default__"
+        self.currentColumn = "__default__"
         return True
+
+    def setDocumentStructure(self, structure):
+        self.struct = structure
 
     def documentStructure(self):
         return self.struct
@@ -190,27 +209,28 @@ class Handler(QXmlDefaultHandler):
             self.inTool = False
         elif name == "Query":
             self.inQuery = False
+        elif name == "Page":
+            self.inPage = False
         return True
 
     def characters(self, chars):
         if self.inQuery:
-            self.struct[self.currentCat][self.currentSub][self.currentTool].append({"query":chars})
+            self.struct[self.currentCat][self.currentSub][self.currentTool].update({"query":chars})
         return True
 
     def startElement(self, str1, str2, name, attrs):
         if name == "manageRTools":
+            cat = ""
             for i in range(attrs.count()):
                 if attrs.localName(i) == "category":
                     cat = attrs.value(i)
-                else:
-                    cat = ""
             self.currentCat = cat
             if not self.currentCat in self.struct:
                 self.struct[self.currentCat] = {}
         elif name == "RTool":
             self.inTool = True
-            nm = ""
-            scat = ""
+            nm = "__default__"
+            scat = "__default__"
             for i in range(attrs.count()):
                 tmp = attrs.localName(i)
                 if tmp == "name":
@@ -222,10 +242,42 @@ class Handler(QXmlDefaultHandler):
                 self.struct[self.currentCat][self.currentSub] = {}
             if len(nm) > 1:
                 self.currentTool = nm
-                self.struct[self.currentCat][self.currentSub][self.currentTool] = []
+                self.struct[self.currentCat][self.currentSub][self.currentTool] = {}
         elif self.inTool:
-            if name == "Query":
+            if name == "Help":
+                tmp = ""
+                for i in range(attrs.count()):
+                    ln = attrs.localName(i)
+                    val = attrs.value(i)
+                    if ln == "name" and isinstance(val, QString) and len(val) > 0:
+                        tmp = val
+                self.helpTopic = tmp
+            elif name == "Query":
                 self.inQuery = True
+            elif name == "Page":
+                if self.inPage:
+                    raise Exception("Error: Cannot have nested pages in plugin GUIs")
+                self.inPage = True
+                tmp = "__default__"
+                for i in range(attrs.count()):
+                    ln = attrs.localName(i)
+                    val = attrs.value(i)
+                    if ln == "name" and isinstance(val, QString) and len(val) > 0:
+                        tmp = val
+                self.currentPage = tmp
+                if not self.currentPage in self.struct[self.currentCat][self.currentSub][self.currentTool]:
+                    self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage] = {}
+            elif name == "Column":
+                self.inColumn = True
+                tmp = "__default__"
+                for i in range(attrs.count()):
+                    ln = attrs.localName(i)
+                    val = attrs.value(i)
+                    if ln == "name" and isinstance(val, QString) and len(val) > 0:
+                        tmp = val
+                self.currentColumn = tmp
+                if not self.currentColumn in self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage]:
+                    self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage][self.currentColumn] = []
             elif name == "Widget":
                 # each tool stores a list of dicts that describe the individual widgets
                 # query is also a dict, with a single key:pair {'query':'plot(|1|)'}
@@ -235,7 +287,13 @@ class Handler(QXmlDefaultHandler):
                         QString("default"): QString("") }
                 for i in range(attrs.count()):
                     wid[attrs.localName(i)] = attrs.value(i)
-                self.struct[self.currentCat][self.currentSub][self.currentTool].append(wid)
+                try:
+                    self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage][self.currentColumn].append(wid)
+                except KeyError:
+                    try:
+                        self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage][self.currentColumn] = [wid]
+                    except KeyError:
+                        self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage] = {self.currentColumn:[wid]}
         return True
 
 
@@ -246,17 +304,10 @@ def main():
     #robjects.r.load(".RData")
     window = QMainWindow(None)
     window.show()
-    file = QFile("/home/cfarmer/.qgis/python/plugins/manageR/test_tools.xml")
-    reader = QXmlSimpleReader()
-    source = QXmlInputSource(file)
-    handler = Handler()
-    reader.setContentHandler(handler)
-    reader.setErrorHandler(handler)
-    ok = reader.parse(source)
-    if not ok:
-        print "Errors!"
-    else:
-        print handler.documentStructure()
+    filters = QStringList(["*.xml"])
+    dir = QDir(".")
+    dir.setNameFilters(filters)
+    files = dir.entryList(QDir.Readable|QDir.Files)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':

@@ -678,7 +678,7 @@ class PlotOptionsWidget(QWidget):
     def parameterValues(self):
         params = QString()
         for widget in self.children():
-            for key, value in widget.parameterValues().iteritems()
+            for key, value in widget.parameterValues().iteritems():
                 params.append(", %s=%s" % (key, value))
         return {self.id:params}
 
@@ -714,7 +714,7 @@ class LineStyleBox(QGroupBox):
         params = None
         if self.isChecked():
             params = "'%s'" % str(self.penStyleComboBox.currentText())
-        return {self.id, params)
+        return {self.id:params}
 
 class BoundingBoxBox(QGroupBox):
 

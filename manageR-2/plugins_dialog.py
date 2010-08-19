@@ -216,7 +216,8 @@ class ComboBox(QWidget):
         label = QLabel(text)
         hbox = HBoxLayout()
         hbox.addWidget(label)
-        hbox.addWidget(self.widget)
+        hbox.addStretch(1)
+        hbox.addWidget(self.widget, alignment=Qt.AlignRight)
         self.setLayout(hbox)
 
     def parameterValues(self):
@@ -637,17 +638,17 @@ class GridCheckBox(QCheckBox):
             text = "grid()"
         return {self.id:text}
 
-class TreeComboBox(QGroupBox):
+class VariableComboBox(QGroupBox):
 
     def __init__(self, id, model=None):
         QGroupBox.__init__(self)
         self.setTitle("Input data")
         self.setToolTip("<p>Select input dataset for plotting</p>")
-        self.param = param
+        self.id = id
         if model is None:
             model = TreeModel()
         self.comboBox = TreeComboBox()
-        treeView = QTreeView(comboBox)
+        treeView = QTreeView(self.comboBox)
         treeView.header().hide()
 
         self.comboBox.setModel(model)
@@ -655,10 +656,10 @@ class TreeComboBox(QGroupBox):
         treeView.hideColumn(1)
         treeView.hideColumn(2)
         treeView.hideColumn(3)
-        treeView.viewport().installEventFilter(comboBox)
+        treeView.viewport().installEventFilter(self.comboBox)
         label = QLabel("Input data")
         hbox = HBoxLayout()
-        hbox.addWidget(comboBox)
+        hbox.addWidget(self.comboBox)
         self.setLayout(hbox)
 
     def parameterValues(self):

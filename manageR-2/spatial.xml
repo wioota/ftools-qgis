@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<manageRTools category="Spatial">
+    <RTool name="Load OGR data" subcategory= "Import/Export" icon="icons/default/plotting/hist.svg">
+        <Query><![CDATA[|2| <- local({
+require(rgdal)
+readOGR('|1|', '|2|', verbose = TRUE, p4s=NULL, drop_unsupported_fields=FALSE,
+input_field_name_encoding=NULL, pointDropZ=FALSE, dropNULLGeometries=TRUE)})]]></Query>
+        <Help name="readOGR"/>
+        <Widget id="1" label="Input data source" type="LineEdit" default="/path/to/layer.shp"/>
+        <Widget id="2" label="Layer name" type="LineEdit" default="layer"/>
+    </RTool>
+    <RTool name="Write OGR data" subcategory= "Import/Export">
+        <Query><![CDATA[local({
+require(rgdal)
+writeOGR(|1|, '|2|', |3|, |4|, dataset_options=NULL, layer_options=NULL, verbose=TRUE)})]]></Query>
+        <Help name="writeOGR"/>
+        <Widget id="1" label="Input layer:" type="VariableComboBox"/>
+        <Widget id="2" label="Output path:" type="LineEdit" default="/output/path/layer.shp"/>
+        <Widget id="3" label="Output layer name:" type="LineEdit" default="layer"/>
+        <Widget id="4" label="Driver name:" type="ComboBox" default="ESRI Shapefile;GML;KML;MapInfo File;CSV;PostgreSQL;SQLite;ODBC;MySQL;GPX;GMT;GeoJSON"/>
+    </RTool>
+    <RTool name="Load GDAL data" subcategory= "Import/Export">
+        <Query><![CDATA[|2| <- local({
+require(rgdal)
+readGDAL('|1|')})]]></Query>
+        <Help name="readGDAL"/>
+        <Widget id="1" label="Input data source" type="LineEdit" default="/path/to/layer.tiff"/>
+        <Widget id="2" label="Layer name" type="LineEdit" default="layer"/>
+    </RTool>
+    <RTool name="Write GDAL data" subcategory= "Import/Export">
+        <Query><![CDATA[local({
+require(rgdal)
+writeGDAL(|1|, '|2|', drivername='|3|', type='Float32', mvFlag=|4|, copy_drivername='|3|')
+})]]></Query>
+        <Help name="writeGDAL"/>
+        <Widget id="1" label="Input layer:" type="VariableComboBox"/>
+        <Widget id="2" label="Input data source:" type="LineEdit" default="/path/to/layer.tiff"/>
+        <Widget id="3" label="Driver name:" type="ComboBox" default="GTiff;VRT;PNG;JPEG;EHdr;ENVI"/>
+        <Widget id="4" label="Missing value flag:" type="LineEdit" default="NA"/>
+    </RTool>
+    <RTool name="Voronoi polygons" subcategory= "Geometry">
+        <Query><![CDATA[|2| <- local({
+require(deldir)
+rds <- |1|@coords
+z <- deldir(crds[,1], crds[,2])
+w <- tile.list(z)
+polys <- vector(mode='list', length=length(w))
+require(sp)
+for (i in seq(along=polys)) {
+    pcrds <- cbind(w[[i]]$x, w[[i]]$y)
+    pcrds <- rbind(pcrds, pcrds[1,])
+    polys[[i]] <- Polygons(list(Polygon(pcrds)), ID=as.character(i))
+}
+SP <- SpatialPolygons(polys)
+areas <- sapply(slot(SP, 'polygons'), function(x) sapply(slot(x,'Polygons'), slot, 'area'))
+SpatialPolygonsDataFrame(SP, data=data.frame(x=crds[,1], y=crds[,2], row.names=sapply(slot(SP, 'polygons'), function(x) slot(x, 'ID')), area=areas))
+})]]></Query>
+        <Help name="deldir"/>
+        <Widget id="1" label="Point layer:" type="VariableComboBox"/>
+        <Widget id="2" label="Output layer:" type="LineEdit" default="voronoi" notnull="true"/>
+    </RTool>
+    <RTool name="Polygon centroids"  subcategory= "Geometry">
+        <Query><![CDATA[|2| <- local({
+proj <- proj4string(|1|)
+coords <- coordinates(|1|)
+attrs <- |1|@data
+SpatialPointsDataFrame(coords=coords, data=attrs, proj4string=CRS(proj))
+})]]></Query>
+        <Help name="coordinates"/>
+        <Widget id="1" label="Polygon layer:" type="VariableComboBox"/>
+        <Widget id="2" label="Output layer:" type="LineEdit" default="centroids"/>
+    </RTool>
+</manageRTools>

@@ -10,7 +10,7 @@ from plugins_dialog import (SpinBox, DoubleSpinBox, ComboBox, CheckBox, LineEdit
                             ModelBuilderBox, SingleVariableBox, MultipleVariableBox,
                             AxesBox, MinMaxBox, PlotOptionsWidget, LineStyleBox,
                             BoundingBoxBox, PlotTypeBox, TitlesBox, ParametersBox,
-                            PluginDialog, Widget)
+                            PluginDialog, Widget, VariableComboBox)
 
 class PluginManager(QObject):
     def __init__(self, parent=None, path="."):
@@ -49,9 +49,9 @@ class PluginManager(QObject):
                 else:
                     snd = QMenu(sub, fst)
                     fst.addMenu(snd)
-                    #sub.setIcon(QIcon(":second-analysis-menu.svg"))
+                    snd.setIcon(QIcon(":extension.svg"))
                 for (tool, third) in second.iteritems():
-                    self.createTool(tool, snd, third)
+                    self.createTool(tool, snd, third, third["icon"])
 
     def run(self, name, data):
         dialog = PluginDialog(self.parent, name)
@@ -96,9 +96,12 @@ class PluginManager(QObject):
         help = QString("?%s" % self.help)
         self.emit(SIGNAL("emitCommands(QString)"), help)
 
-    def createTool(self, name, menu, data):
-        #action = QAction(QIcon(":analysis-tool.svg"), name, self.parent)
-        action = QAction(name, self.parent)
+    def createTool(self, name, menu, data, icon=None):
+        icon = QIcon(":system-run.svg")
+        if not icon is None:
+            icon = QIcon(icon)  
+        action = QAction(icon, name, self.parent)
+#        action = QAction(name, self.parent)
         action.setData(QVariant(data))
         QObject.connect(action, SIGNAL("activated()"), lambda: self.run(name, action.data()))
         self.parent.addActions(menu, (action,))
@@ -126,6 +129,8 @@ class PluginManager(QObject):
                 widget.setChecked(False)
         elif type == "ModelBuilderBox":
             widget = ModelBuilderBox(fields[QString("id")])
+        elif type == "VariableComboBox":
+            widget = VariableComboBox(fields[QString("id")])
         elif type == "SingleVariableBox":
             widget = SingleVariableBox(fields[QString("id")], fields[QString("label")])
         elif type == "MultipleVariableBox":
@@ -186,9 +191,12 @@ class Handler(QXmlDefaultHandler):
 
     def fatalError(self, err):
         QMessageBox.warning(None, "manageR - XML Parsing Error",
-            "Fatal error on line %s" % err.lineNumber()
+            "Error encountered when building %s tool!\n" % self.currentTool
+            +"XML handler returned:\n"
+            +"Fatal error on line %s" % err.lineNumber()
             + ", column %s " % err.columnNumber()
-            + ": %s" % err.message())
+            + ": %s\n" % err.message()
+            + "Some plugin tools and menus may be missing.")
         return False
 
     def startDocument(self):
@@ -235,18 +243,22 @@ class Handler(QXmlDefaultHandler):
             self.inTool = True
             nm = "__default__"
             scat = "__default__"
+            icn = None
             for i in range(attrs.count()):
                 tmp = attrs.localName(i)
                 if tmp == "name":
                     nm = attrs.value(i)
                 elif tmp == "subcategory":
                     scat = attrs.value(i)
+                elif tmp == "icon":
+                    icn = attrs.value(i)
             self.currentSub = scat
             if not self.currentSub in self.struct[self.currentCat]:
                 self.struct[self.currentCat][self.currentSub] = {}
             if len(nm) > 1:
                 self.currentTool = nm
                 self.struct[self.currentCat][self.currentSub][self.currentTool] = {}
+                self.struct[self.currentCat][self.currentSub][self.currentTool].update({"icon":icn})
         elif self.inTool:
             if name == "Help":
                 tmp = ""

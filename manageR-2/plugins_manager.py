@@ -4,7 +4,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtXml import *
 #from PyQt4.QtSql import *
-from qgis.core import *
+#from qgis.core import *
 import sys, os, resources
 from plugins_dialog import (SpinBox, DoubleSpinBox, ComboBox, CheckBox, LineEdit, 
                             ModelBuilderBox, SingleVariableBox, MultipleVariableBox,
@@ -57,6 +57,7 @@ class PluginManager(QObject):
         dialog = PluginDialog(self.parent, name)
         structure = data.toPyObject()
         self.query = structure.pop(QString('query'), None)
+        self.help = structure.pop(QString('help'), None)
         if self.query is None:
             QMessageBox.warning(self.parent, "manageR - Plugin Error",
             "Error building tool user interface")
@@ -72,24 +73,28 @@ class PluginManager(QObject):
                 for widget in widgets:
                     dialog.addWidget(self.createGuiItem(widget), page)
         self.connect(dialog, SIGNAL("pluginOutput(PyQt_PyObject)"), self.runCommand)
+        self.connect(dialog, SIGNAL("helpRequested()"), self.runHelp)
         dialog.show()
 
     def runCommand(self, params):
-        query = self.query
-        extras = QString()
-        finals = QString()
+        query = QString(self.query)
+        if query.startsWith('"') or query.startsWith("'"):
+            query = query[1:]
+        if query.endsWith('"') or query.endsWith("'"):
+            query = query[0:-1]
         for (key, value) in params.iteritems():
             try:
-                x = int(key)
-                query.replace("|%s|" % x, value)
+                query.replace("|%s|" % key, value)
             except ValueError:
                 QMessageBox.warning(self.parent, "manageR - Plugin Error",
                 "Error building command string")
-        # go through all params, starting with anything that has an id fields
-        #     if it has a number, replace the number in the query text
-        # next do everything else besides the extra parameters
-        # then the extra parameters
-        # then grid if it was there
+        regexp = QRegExp(r",\s*(?=[,\)]\s*)")
+        query.remove(regexp)
+        self.emit(SIGNAL("emitCommands(QString)"), query)
+        
+    def runHelp(self):
+        help = QString("?%s" % self.help)
+        self.emit(SIGNAL("emitCommands(QString)"), help)
 
     def createTool(self, name, menu, data):
         #action = QAction(QIcon(":analysis-tool.svg"), name, self.parent)
@@ -133,9 +138,11 @@ class PluginManager(QObject):
                 logscale = True
             if "style" in ops:
                 style = True
-            widget = AxesBox(logscale, style)
+            widget = AxesBox(fields[QString("id")], logscale, style)
         elif type == "MinMaxBox":
-            widget = MinMaxBox()
+            widget = MinMaxBox(fields[QString("id")])
+        elif type == "GridCheckBox":
+            widget = GridCheckBox(fields[QString("id")])
         elif type == "PlotOptionsBox":
             ops = fields[QString("default")].split(";")
             box = False
@@ -144,7 +151,6 @@ class PluginManager(QObject):
             logscale = False
             style = False
             minmax = False
-            grid = False
             if "logscale" in ops:
                 logscale = True
             if "style" in ops:
@@ -157,17 +163,15 @@ class PluginManager(QObject):
                 box = True
             if "minmax" in ops:
                 minmax = True
-            if "grid" in ops:
-                grid = True
-            widget = PlotOptionsWidget(box, titles, axes, logscale, style, minmax, grid)
+            widget = PlotOptionsWidget(fields[QString("id")], box, titles, axes, logscale, style, minmax)
         elif type == "LineStyleBox":
-            widget = LineStyleBox()
+            widget = LineStyleBox(fields[QString("id")])
         elif type == "BoundingBoxBox":
-            widget = BoundingBoxBox()
+            widget = BoundingBoxBox(fields[QString("id")])
         elif type == "PlotTypeBox":
-            widget = PlotTypeBox()
+            widget = PlotTypeBox(fields[QString("id")])
         elif type == "TitlesBox":
-            widget = TitlesBox()
+            widget = TitlesBox(fields[QString("id")])
         elif type == "ParametersBox":
             widget = ParametersBox()
         else: # default to line edit (LineEditBox)
@@ -251,7 +255,7 @@ class Handler(QXmlDefaultHandler):
                     val = attrs.value(i)
                     if ln == "name" and isinstance(val, QString) and len(val) > 0:
                         tmp = val
-                self.helpTopic = tmp
+                self.struct[self.currentCat][self.currentSub][self.currentTool].update({"help":tmp})
             elif name == "Query":
                 self.inQuery = True
             elif name == "Page":
@@ -308,6 +312,7 @@ def main():
     dir = QDir(".")
     dir.setNameFilters(filters)
     files = dir.entryList(QDir.Readable|QDir.Files)
+    
     sys.exit(app.exec_())
 
 if __name__ == '__main__':

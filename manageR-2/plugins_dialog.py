@@ -21,9 +21,11 @@ class PluginDialog(QDialog):
 
     def __init__(self, parent=None, name="Plugin"):
         QDialog.__init__(self, parent)
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Apply|QDialogButtonBox.Close)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.Help|QDialogButtonBox.Apply|QDialogButtonBox.Close)
         applyButton = buttonBox.button(QDialogButtonBox.Apply)
+        helpButton = buttonBox.button(QDialogButtonBox.Help)
         self.connect(applyButton, SIGNAL("clicked()"), self.apply)
+        self.connect(helpButton, SIGNAL("clicked()"), self.help)
         self.connect(buttonBox, SIGNAL("rejected()"), self.reject)
         self.params = {}
 
@@ -61,6 +63,9 @@ class PluginDialog(QDialog):
         self.setLayout(mainLayout)
         self.setWindowIcon(QIcon(":icon"))
         self.setWindowTitle("manageR - %s" % name)
+        
+    def help(self):
+        self.emit(SIGNAL("helpRequested()"))
 
     def parameters(self):
         return self.params
@@ -277,42 +282,42 @@ class HBoxLayout(QHBoxLayout):
         QHBoxLayout.__init__(self, *args, **kwargs)
 
     def parameterValues(self):
-        return QString()
+        return None
 
 class VBoxLayout(QVBoxLayout):
     def __init__(self, *args, **kwargs):
         QVBoxLayout.__init__(self, *args, **kwargs)
 
     def parameterValues(self):
-        return QString()
+        return None
 
 class GridLayout(QGridLayout):
     def __init__(self, *args, **kwargs):
         QGridLayout.__init__(self, *args, **kwargs)
 
     def parameterValues(self):
-        return QString()
+        return None
 
 class ListWidget(QListWidget):
     def __init__(self, *args, **kwargs):
         QListWidget.__init__(self, *args, **kwargs)
 
     def parameterValues(self):
-        return QString()
+        return None
 
 class StackedWidget(QStackedWidget):
     def __init__(self, *args, **kwargs):
         QStackedWidget.__init__(self, *args, **kwargs)
 
     def parameterValues(self):
-        return QString()
+        return None
     
 class Widget(QWidget):
     def __init__(self, *args, **kwargs):
         QWidget.__init__(self, *args, **kwargs)
 
     def parameterValues(self):
-        return QString()
+        return None
 
 class VariableTreeBox(QGroupBox):
     def __init__(self, id, text1="Select variable",
@@ -340,7 +345,7 @@ class VariableTreeBox(QGroupBox):
         self.dependentLineEdit = QLineEdit()
         self.dependentLineEdit.setToolTip(text1)
         self.dependentLineEdit.setReadOnly(True)
-        dependentLabel = QLabel("%s:" % text1)
+        dependentLabel = QLabel("%s" % text1)
         dependentLabel.setBuddy(self.dependentLineEdit)
         self.dependentButton = QToolButton()
         self.dependentButton.setToolTip(text1)
@@ -366,7 +371,7 @@ class VariableTreeBox(QGroupBox):
         self.independentList.setToolTip(text2)
         self.independentList.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.independentList.installEventFilter(self)
-        independentLabel = QLabel("%s:" % text2)
+        independentLabel = QLabel("%s" % text2)
         independentLabel.setBuddy(self.independentList)
         self.independentButton = QToolButton()
         self.independentButton.setToolTip(text2)
@@ -485,7 +490,7 @@ class MultipleVariableBox(VariableTreeBox):
 
 class AxesBox(QGroupBox):
 
-    def __init__(self, logscale=False, style=True):
+    def __init__(self, id, logscale=False, style=True):
         QGroupBox.__init__(self)
         self.setTitle("Control Axes")
         self.setToolTip("<p>Control if/how axes are drawn</p>")
@@ -493,6 +498,7 @@ class AxesBox(QGroupBox):
         self.xAxisCheckBox.setChecked(True)
         self.yAxisCheckBox = QCheckBox("Show Y axis")
         self.yAxisCheckBox.setChecked(True)
+        self.id = id
         hbox = HBoxLayout()
         hbox.addWidget(self.xAxisCheckBox)
         hbox.addWidget(self.yAxisCheckBox)
@@ -520,12 +526,12 @@ class AxesBox(QGroupBox):
         self.setLayout(vbox)
 
     def parameterValues(self):
-        params = {}
+        params = QString()
         try:
             if not self.xAxisCheckBox.isChecked():
-                params["xaxt"] = "'n'"
+                params.append(", xaxt='n'")
             if not self.yAxisCheckBox.isChecked():
-                params["yaxt"] = "'n'"
+                params.append(", yaxt='n'")
         except:
             pass
         try:
@@ -537,21 +543,22 @@ class AxesBox(QGroupBox):
                     tmp.append("x")
                 if logy:
                     tmp.append("y")
-                params["log"] = "'%s'" % tmp
+                params.append(", log='%s'" % tmp)
         except:
             pass
         try:
             direction = self.directionComboBox.currentIndex()
             if direction > 0:
-                params["las"] = direction
+                params.append(", las=%s" % str(direction))
         except:
             pass
-        return params
+        return {self.id:params}
 
 class MinMaxBox(QGroupBox):
 
-    def __init__(self):
+    def __init__(self, id):
         QGroupBox.__init__(self)
+        self.id = id
         self.setTitle("Adjust scale (min and max)")
         self.setToolTip("<p>Adjust scale (range) of axes "
                             "(leave unchecked to use defaults)</p>")
@@ -601,7 +608,7 @@ class MinMaxBox(QGroupBox):
         self.setLayout(box)
 
     def parameterValues(self):
-        params = {}
+        params = QString()
         if self.isChecked():
             xlim1 = self.xMinLineEdit.text()
             xlim2 = self.xMaxLineEdit.text()
@@ -611,23 +618,24 @@ class MinMaxBox(QGroupBox):
                (not ylim1.isEmpty() == ylim2.isEmpty()):
                 raise Exception("Error: Both min and max values must be specified")
             if not xlim1.isEmpty(): # if one isn't empty, then neither are
-                params["xlim"] = "c(%s,%s)" % (xlim1, xlim2)
+                params.append(", xlim=c(%s,%s)" % (xlim1, xlim2))
             if not ylim1.isEmpty(): # if one isn't empty, then neither are
-                params["ylim"] = "c(%s,%s)" % (ylim1, ylim2)
-        return params
+                params.append(", ylim=c(%s,%s)" % (ylim1, ylim2))
+        return {self.id:params}
 
 class GridCheckBox(QCheckBox):
 
-    def __init__(self):
+    def __init__(self, id):
         QCheckBox.__init__(self)
         self.setText("Add grid to plot")
         self.setToolTip("<p>Check to add grid to plot</p>")
+        self.id = id
 
     def parameterValues(self):
         text = QString()
         if self.isChecked():
             text = "grid()"
-        return {"grid":text}
+        return {self.id:text}
 
 class TreeComboBox(QGroupBox):
 
@@ -659,33 +667,33 @@ class TreeComboBox(QGroupBox):
 class PlotOptionsWidget(QWidget):
 
     def __init__(self, id, box=True, titles=True, axes=False,
-                 log=False, style=True, minmax=False, grid=False):
+                 log=False, style=True, minmax=False):
         QWidget.__init__(self)
         vbox = VBoxLayout()
         self.id = id
         if titles:
-            vbox.addWidget(TitlesBox())
+            vbox.addWidget(TitlesBox(self.id))
         if box:
-            vbox.addWidget(BoundingBoxBox())
+            vbox.addWidget(BoundingBoxBox(self.id))
         if axes:
-            vbox.addWidget(AxesBox(log, style))
+            vbox.addWidget(AxesBox(self.id, log, style))
         if minmax:
-            vbox.addWidget(MinMaxBox())
-        if grid:
-            vbox.addWidget(GridCheckBox())
+            vbox.addWidget(MinMaxBox(self.id))
         self.setLayout(vbox)
 
     def parameterValues(self):
         params = QString()
         for widget in self.children():
-            for key, value in widget.parameterValues().iteritems():
-                params.append(", %s=%s" % (key, value))
+            vals = widget.parameterValues()
+            if not vals is None:
+                params.append(QStringList(vals.values()).join(""))
         return {self.id:params}
 
 class LineStyleBox(QGroupBox):
 
     def __init__(self, id):
         QGroupBox.__init__(self)
+        self.id = id
         self.setTitle("Adjust line style")
         self.setToolTip("<p>Adjust line style (leave "
                             "unchecked to use default)</p>")
@@ -711,15 +719,16 @@ class LineStyleBox(QGroupBox):
         self.setLayout(hbox)
 
     def parameterValues(self):
-        params = None
+        params = QString()
         if self.isChecked():
             params = "'%s'" % str(self.penStyleComboBox.currentText())
         return {self.id:params}
 
 class BoundingBoxBox(QGroupBox):
 
-    def __init__(self, model=None):
+    def __init__(self, id):
         QGroupBox.__init__(self)
+        self.id = id
         self.setTitle("Adjust bounding box")
         self.setToolTip("<p>Adjust plot bounding box (leave "
                             "unchecked to use default)</p>")
@@ -789,16 +798,17 @@ class BoundingBoxBox(QGroupBox):
         self.setLayout(hbox)
 
     def parameterValues(self):
-        params ={}
+        params = QString()
         if self.isChecked():
-            params["bty"] = "'%s'" % str(self.buttonNames[
-                self.buttonGroup.checkedId()])
-        return params
+            params.append("bty='%s'" % str(self.buttonNames[
+                self.buttonGroup.checkedId()]))
+        return {self.id:params}
 
 class PlotTypeBox(QGroupBox):
 
-    def __init__(self):
+    def __init__(self, id):
         QGroupBox.__init__(self)
+        self.id = id
         self.setTitle("Adjust plot type")
         self.setToolTip("<p>Adjust plot type (leave "
                             "unchecked to use default)</p>")
@@ -868,16 +878,17 @@ class PlotTypeBox(QGroupBox):
         self.setLayout(hbox)
 
     def parameterValues(self):
-        params = {}
+        params = QString()
         if self.isChecked():
-            params["type"] = "'%s'" % str(self.buttonNames[
-                self.buttonGroup.checkedId()])
-        return params
+            params.append("type='%s'" % str(self.buttonNames[
+                self.buttonGroup.checkedId()]))
+        return {self.id:params}
 
 class TitlesBox(QGroupBox):
 
-    def __init__(self):
+    def __init__(self, id):
         QGroupBox.__init__(self)
+        self.id = id
         self.setTitle("Custom titles and axis labels")
         self.setToolTip("<p>Specify custom plot titles "
                         "and axis labels (leave unchecked to use defaults</p>")
@@ -920,18 +931,19 @@ class TitlesBox(QGroupBox):
         self.setLayout(gbox)
 
     def parameterValues(self):
-        params = {}
+        params = QString()
         if self.isChecked():
-            params = {"main":"'%s'" % self.mainLineEdit.text(),
-                      "sub":"'%s'" % self.subLineEdit.text(),
-                      "xlab":"'%s'" % self.xlabLineEdit.text(),
-                      "ylab":"'%s'" % self.ylabLineEdit.text()}
-        return params
+            params.append(", main='%s'" % self.mainLineEdit.text())
+            params.append(", sub='%s'" % self.subLineEdit.text())
+            params.append(", xlab='%s'" % self.xlabLineEdit.text())
+            params.append(", ylab='%s'" % self.ylabLineEdit.text())
+        return {self.id:params}
 
 class ParametersBox(QGroupBox):
 
-    def __init__(self):
+    def __init__(self, id):
         QGroupBox.__init__(self)
+        self.id = id
         self.setTitle("Additional parameters")
         self.setToolTip("<p>Add/adjust plotting parameters</p>")
         self.setCheckable(True)
@@ -944,10 +956,10 @@ class ParametersBox(QGroupBox):
         self.setLayout(hbox)
 
     def parameterValues(self):
-        params = {}
+        params = QString()
         if self.isChecked():
-            params = {-1:self.parameterLineEdit.text()}
-        return 
+            params = self.parameterLineEdit.text()
+        return {self.id:params}
 
 def main():
     app = QApplication(sys.argv)

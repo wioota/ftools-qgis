@@ -9,12 +9,15 @@ import rpy2.rlike as rlike
 
 #PyQt and PyQGIS imports
 from PyQt4.QtCore import (QString, QVariant, QFileInfo)
-from qgis.core import    (QgsVectorLayer, QgsVectorDataProvider, QgsMapLayer,
-                          QgsApplication, QgsRectangle, QgsGeometry,
-                          QgsCoordinateReferenceSystem, QgsField, QgsPoint,
-                          QgsFeature,)
+try:
+    from qgis.core import    (QgsVectorLayer, QgsVectorDataProvider, QgsMapLayer,
+                              QgsApplication, QgsRectangle, QgsGeometry,
+                              QgsCoordinateReferenceSystem, QgsField, QgsPoint,
+                              QgsFeature,)
+except Exception, e:
+    pass
 
-import traceback
+#import traceback
 
 # ---------------------------   VECTOR LAYERS   -------------------------------#
 def qQGISVectorDataFrame(layer, keep=False):

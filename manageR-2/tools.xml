@@ -1,24 +1,16 @@
 <?xml version="1.0"?>
-<manageRTools>
-<RTool name="Insert R commands" query="|1|">
-<Parameter label="R commands:" type="textEdit" default="ls()" notnull="true"/>
-<Parameter label="help" type="helpString" default="
-&lt;h4&gt;Insert R commands help&lt;/h4&gt;
-This is a simple test plugin that allows the user to input R commands into a simple text editor, 
-and run the commands in the console.&#xA;The tool does not require any specific R libraries. The 
-default command (&lt;tt&gt;ls()&lt;/tt&gt;), displays all variables and functions in the current 
-R environment." notnull="true"/>
-</RTool>
-<RTool name="Load OGR data" category= "Spatial operations" query=
-"|2| &lt;- local({&#xA;
-  require(rgdal)&#xA;
-  readOGR('|1|', '|2|', verbose = TRUE, p4s=NULL, drop_unsupported_fields=FALSE,&#xA;
-      input_field_name_encoding=NULL, pointDropZ=FALSE, dropNULLGeometries=TRUE)&#xA;
-})&#xA;">
-<Parameter label="Data source name:" type="lineEdit" default="/path/to/layer.shp" notnull="true"/>
-<Parameter label="Layer name:" type="lineEdit" default="layer" notnull="true"/>
-<Parameter label="help" type="helpString" default="topic:readOGR" notnull="true"/>
-</RTool>
+<manageRTools category="Spatial">
+    <RTool name="Load OGR data" subcategory= "Import/Export">
+        <Query><![CDATA[
+        |2| <- local({
+        require(rgdal)
+        readOGR('|1|', '|2|', verbose = TRUE, p4s=NULL, drop_unsupported_fields=FALSE,
+        input_field_name_encoding=NULL, pointDropZ=FALSE, dropNULLGeometries=TRUE)
+        })]]></Query>
+        <Help name="readOGR"/>
+        <Widget id="1" label="Input data source" type="LineEdit" default="/path/to/layer.shp"/>
+        <Widget id="2" label="Layer name" type="LineEdit" default="layer"/>
+    </RTool>
 <RTool name="Write OGR data" category= "Spatial operations" query=
 "local({&#xA;
   require(rgdal)&#xA;

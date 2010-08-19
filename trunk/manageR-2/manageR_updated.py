@@ -359,9 +359,12 @@ class MainWindow(QMainWindow):
 
     def createPluginActions(self, console=True):
         if console:
-            pluginManager = PluginManager(self, path="/home/cfarmer/.qgis/python/plugins/manageR")
+            tmp = QSettings().value("manageR/plugins", CURRENTDIR).toString()
+            pluginManager = PluginManager(self, path=tmp)
             pluginManager.parseXmlFiles()
             pluginManager.createPlugins()
+            self.connect(pluginManager, SIGNAL("emitCommands(QString)"), 
+                self.main.editor().acceptCommands)
 
     def createHelpActions(self, console=True):
         helpMenu = self.menuBar().addMenu("&Help")
@@ -1071,7 +1074,10 @@ class PlainTextEdit(QPlainTextEdit):
             cursor = self.cursorForPosition(e.pos())
             word = self.guessCurrentWord(cursor)
             if not word.isEmpty():
-                args = self.functionArguments(word)
+                if word == "manageR":
+                    args = QString("manageR Rocks!")
+                else:
+                    args = self.functionArguments(word).trimmed()
                 if not args.isEmpty():
                     QToolTip.showText(e.globalPos(), args)
         return QPlainTextEdit.event(self, e)
@@ -2419,9 +2425,10 @@ def main():
     app.setOrganizationDomain("ftools.ca")
     app.setApplicationName("manageR")
     app.setWindowIcon(QIcon(":icon.png"))
-    QgsApplication.setPrefixPath('/usr/local', True)
-    QgsApplication.initQgis()
-    #app.connect(app, SIGNAL('lastWindowClosed()'), app, SLOT('quit()'))
+    if WITHQGIS:
+        QgsApplication.setPrefixPath('/usr/local', True)
+        QgsApplication.initQgis()
+    app.connect(app, SIGNAL('lastWindowClosed()'), app, SLOT('quit()'))
     window = MainWindow(parent=None, iface=None, console=True)
     window.show()
     sys.exit(app.exec_())

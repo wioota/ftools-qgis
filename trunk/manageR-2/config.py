@@ -16,6 +16,8 @@ import sys, os
 # config specific imports
 import resources
 
+CURRENTDIR = unicode(os.path.abspath(os.path.dirname(__file__)))
+
 class ConfigDialog(QDialog):
     def __init__(self, parent):
         QDialog.__init__(self, parent)
@@ -279,6 +281,17 @@ class ConsolePage(QWidget):
                 "the manageR console. Setting this to blank, or "
                 "'.', will use the current Python working directory. "
                 "Changes made here only take effect when manageR is next started.</p>")
+                
+        plugins = settings.value("manageR/plugins", CURRENTDIR).toString()
+        self.pluginsFolderLineEdit = QLineEdit(plugins)
+        self.pluginsFolderLineEdit.setFont(monofont)
+        pluginsFolderLabel = QLabel("&Plugins (xml files) directory:")
+        pluginsFolderLabel.setBuddy(self.pluginsFolderLineEdit)
+        self.pluginsFolderLineEdit.setToolTip(
+                "<p>Specify the directory that manageR should search for plugins "
+                "See the manageR help (Help > About > Help) for information on the "
+                "structure of the plugin XML files. "
+                "Changes made here only take effect when manageR is next started.</p>")
 
         self.loadEnvironmentCheckBox = QCheckBox("Load existing '.RData' and '.Rhistory' file(s) on startup")
         self.loadEnvironmentCheckBox.setToolTip(
@@ -327,6 +340,11 @@ class ConsolePage(QWidget):
         hbox.addStretch()
         hbox.addWidget(self.workingFolderLineEdit, Qt.AlignRight)
         vbox.addLayout(hbox)
+        hbox = QHBoxLayout()
+        hbox.addWidget(pluginsFolderLabel)
+        hbox.addStretch()
+        hbox.addWidget(self.pluginsFolderLineEdit, Qt.AlignRight)
+        vbox.addLayout(hbox)
         vbox.addWidget(self.loadEnvironmentCheckBox)
         vbox.addWidget(self.useRasterPackage)
         vbox.addWidget(gbox)
@@ -337,6 +355,7 @@ class ConsolePage(QWidget):
         settings.append(("beforeinput", self.inputLineEdit.text()))
         settings.append(("afteroutput", self.outputLineEdit.text()))
         settings.append(("sewd", self.workingFolderLineEdit.text()))
+        settings.append(("plugins", self.pluginsFolderLineEdit.text()))
         settings.append(("loadenvironment", self.loadEnvironmentCheckBox.isChecked()))
         settings.append(("useraster", self.useRasterPackage.isChecked()))
         settings.append(("consolestartup", self.editor.toPlainText()))

@@ -1,23 +1,12 @@
-<manageRTools category="Plotting">
-<RTool name="Quick plot" category= "Plotting" query=
-"local({
+<manageRTools category="Spatial">
+    <RTool name="Quick plot" icon="icons/default/plotting/custom-chart-histogram.svg">
+        <Query><![CDATA[local({
 plot(|1|, type='|2|', main='|3|', sub='|4|', xlab='|5|', 
 ylab='|6|', bty='|7|', lab=c(|8|,|9|,7), las=|10|)
-})">
-<Widget id= label="X values:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Plot type:" type="comboBox" default=
-"points;lines;both;overplotted;histogram;stair steps;no plotting" notnull="true"/>
-<Widget id= label="Main title:" type="lineEdit" default="Scatterplot" notnull="false"/>
-<Widget id= label="Sub title:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
-<Widget id= label="Y label:" type="lineEdit" default="Y Axis" notnull="false"/>
-<Widget id= label="Bounding box:" type="comboBox" default=
-"outline;l-shape;7-shape;c-shape;u-shape;]-shape;none" notnull="true"/>
-<Widget id= label="X axis ticks:" type="lineEdit" default="5" notnull="true"/>
-<Widget id= label="Y axis ticks:" type="lineEdit" default="5" notnull="true"/>
-<Widget id= label="Axis labels:" type="comboBox" default="1;2;3;0" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:plot" notnull="true"/>
-</RTool>
+})]]></Query>
+        <Help name="plot.default"/>
+        <Widget id="1" label="X values:" type="VariableLineBox"/>
+    </RTool>
 <RTool name="Scatterplot" category= "Plotting" query=
 "local({
 plot(x=|1|, y=|2|, type='p', main='|3|', sub='|4|', xlab='|5|', 

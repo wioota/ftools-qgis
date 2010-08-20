@@ -7,10 +7,11 @@ from PyQt4.QtXml import *
 #from qgis.core import *
 import sys, os, resources
 from plugins_dialog import (SpinBox, DoubleSpinBox, ComboBox, CheckBox, LineEdit, 
-                            ModelBuilderBox, SingleVariableBox, MultipleVariableBox,
+                            ModelBuilderBox, VariableLineBox, VariableListBox,
                             AxesBox, MinMaxBox, PlotOptionsWidget, LineStyleBox,
                             BoundingBoxBox, PlotTypeBox, TitlesBox, ParametersBox,
                             PluginDialog, Widget, VariableComboBox)
+CURRENTDIR = unicode(os.path.abspath(os.path.dirname(__file__)))
 
 class PluginManager(QObject):
     def __init__(self, parent=None, path="."):
@@ -51,7 +52,8 @@ class PluginManager(QObject):
                     fst.addMenu(snd)
                     snd.setIcon(QIcon(":extension.svg"))
                 for (tool, third) in second.iteritems():
-                    self.createTool(tool, snd, third, third["icon"])
+                    icon = third.pop("icon", None)
+                    self.createTool(tool, snd, third, icon)
 
     def run(self, name, data):
         dialog = PluginDialog(self.parent, name)
@@ -97,11 +99,11 @@ class PluginManager(QObject):
         self.emit(SIGNAL("emitCommands(QString)"), help)
 
     def createTool(self, name, menu, data, icon=None):
-        icon = QIcon(":system-run.svg")
         if not icon is None:
-            icon = QIcon(icon)  
+            icon = QIcon(os.path.join(CURRENTDIR,unicode(icon)))
+        else:
+            icon = QIcon(":system-run.svg")
         action = QAction(icon, name, self.parent)
-#        action = QAction(name, self.parent)
         action.setData(QVariant(data))
         QObject.connect(action, SIGNAL("activated()"), lambda: self.run(name, action.data()))
         self.parent.addActions(menu, (action,))
@@ -114,74 +116,80 @@ class PluginManager(QObject):
             "Widget missing 'type' field in plugin XML file")
             return
         widget = Widget()
-        if type == "SpinBox":
-            widget = SpinBox(fields[QString("id")], fields[QString("label")])
-        elif type == "DoubleSpinBox":
-            widget = DoubleSpinBox(fields[QString("id")], fields[QString("label")])
-        elif type == "ComboBox":
-            widget = ComboBox(fields[QString("id")], fields[QString("label")])
-            widget.addItems(fields[QString("defaults")].split(";"))
-        elif type == "CheckBox":
-            widget = CheckBox(fields[QString("id")], fields[QString("label")])
-            if fields[QString("default")].lowerCase() == "true":
-                widget.setChecked(True)
-            else:
-                widget.setChecked(False)
-        elif type == "ModelBuilderBox":
-            widget = ModelBuilderBox(fields[QString("id")])
-        elif type == "VariableComboBox":
-            widget = VariableComboBox(fields[QString("id")])
-        elif type == "SingleVariableBox":
-            widget = SingleVariableBox(fields[QString("id")], fields[QString("label")])
-        elif type == "MultipleVariableBox":
-            widget = MultipleVariableBox(fields[QString("id")], fields[QString("label")])
-        elif type == "AxesBox":
-            ops = fields[QString("default")].split(";")
-            logscale = False
-            style = False
-            if "logscale" in ops:
-                logscale = True
-            if "style" in ops:
-                style = True
-            widget = AxesBox(fields[QString("id")], logscale, style)
-        elif type == "MinMaxBox":
-            widget = MinMaxBox(fields[QString("id")])
-        elif type == "GridCheckBox":
-            widget = GridCheckBox(fields[QString("id")])
-        elif type == "PlotOptionsBox":
-            ops = fields[QString("default")].split(";")
-            box = False
-            titles = False
-            axes = False
-            logscale = False
-            style = False
-            minmax = False
-            if "logscale" in ops:
-                logscale = True
-            if "style" in ops:
-                style = True
-            if "titles" in ops:
-                titles = True
-            if "axes" in ops:
-                axes = True
-            if "box" in ops:
-                box = True
-            if "minmax" in ops:
-                minmax = True
-            widget = PlotOptionsWidget(fields[QString("id")], box, titles, axes, logscale, style, minmax)
-        elif type == "LineStyleBox":
-            widget = LineStyleBox(fields[QString("id")])
-        elif type == "BoundingBoxBox":
-            widget = BoundingBoxBox(fields[QString("id")])
-        elif type == "PlotTypeBox":
-            widget = PlotTypeBox(fields[QString("id")])
-        elif type == "TitlesBox":
-            widget = TitlesBox(fields[QString("id")])
-        elif type == "ParametersBox":
-            widget = ParametersBox()
-        else: # default to line edit (LineEditBox)
-            widget = LineEdit(fields[QString("id")], fields[QString("label")])
-            widget.widget.setText(fields[QString("default")])
+        try:
+            if type == "SpinBox":
+                widget = SpinBox(fields[QString("id")], fields[QString("label")])
+            elif type == "DoubleSpinBox":
+                widget = DoubleSpinBox(fields[QString("id")], fields[QString("label")])
+            elif type == "ComboBox":
+                widget = ComboBox(fields[QString("id")], fields[QString("label")])
+                widget.widget.addItems(fields[QString("default")].split(";"))
+            elif type == "CheckBox":
+                widget = CheckBox(fields[QString("id")], fields[QString("label")])
+                if fields[QString("default")].lowerCase() == "true":
+                    widget.widget.setChecked(True)
+                else:
+                    widget.setChecked(False)
+            elif type == "ModelBuilderBox":
+                widget = ModelBuilderBox(fields[QString("id")])
+            elif type == "VariableComboBox":
+                widget = VariableComboBox(fields[QString("id")])
+            elif type == "VariableLineBox":
+                widget = VariableLineBox(fields[QString("id")], fields[QString("label")])
+            elif type == "VariableListBox":
+                widget = VariableListBox(fields[QString("id")], fields[QString("label")])
+            elif type == "AxesBox":
+                ops = fields[QString("default")].split(";")
+                logscale = False
+                style = False
+                if "logscale" in ops:
+                    logscale = True
+                if "style" in ops:
+                    style = True
+                widget = AxesBox(fields[QString("id")], logscale, style)
+            elif type == "MinMaxBox":
+                widget = MinMaxBox(fields[QString("id")])
+            elif type == "GridCheckBox":
+                widget = GridCheckBox(fields[QString("id")])
+            elif type == "PlotOptionsBox":
+                ops = fields[QString("default")].split(";")
+                box = False
+                titles = False
+                axes = False
+                logscale = False
+                style = False
+                minmax = False
+                if "logscale" in ops:
+                    logscale = True
+                if "style" in ops:
+                    style = True
+                if "titles" in ops:
+                    titles = True
+                if "axes" in ops:
+                    axes = True
+                if "box" in ops:
+                    box = True
+                if "minmax" in ops:
+                    minmax = True
+                widget = PlotOptionsWidget(fields[QString("id")], box, titles, axes, logscale, style, minmax)
+            elif type == "LineStyleBox":
+                widget = LineStyleBox(fields[QString("id")])
+            elif type == "BoundingBoxBox":
+                widget = BoundingBoxBox(fields[QString("id")])
+            elif type == "PlotTypeBox":
+                widget = PlotTypeBox(fields[QString("id")])
+            elif type == "TitlesBox":
+                widget = TitlesBox(fields[QString("id")])
+            elif type == "ParametersBox":
+                widget = ParametersBox()
+            else: # default to line edit (LineEditBox)
+                widget = LineEdit(fields[QString("id")], fields[QString("label")])
+                widget.widget.setText(fields[QString("default")])
+        except KeyError, e:
+            QMessageBox.warning(self.parent, "manageR - Plugin Error",
+            "Widget missing required field in plugin XML file:\n"
+            +str(e))
+            return
         return widget
 
 class Handler(QXmlDefaultHandler):

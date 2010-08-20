@@ -334,7 +334,7 @@ class MainWindow(QMainWindow):
 
     def createWorkspaceActions(self, console=True):
         if console:
-            workspaceMenu = self.menuBar().addMenu("Wo&rkspace")
+            workspaceMenu = self.menuBar().addMenu("Workspace")
             workspaceLoadAction = self.createAction(
                 "&Load R workspace", self.openWorkspace,
                 "Ctrl+W", "system-file-manager",

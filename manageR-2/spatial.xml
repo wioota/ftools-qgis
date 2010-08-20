@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <manageRTools category="Spatial">
-    <RTool name="Load OGR data" subcategory= "Import/Export" icon="icons/default/plotting/hist.svg">
+    <RTool name="Load OGR data" subcategory= "Import/Export">
         <Query><![CDATA[|2| <- local({
 require(rgdal)
 readOGR('|1|', '|2|', verbose = TRUE, p4s=NULL, drop_unsupported_fields=FALSE,

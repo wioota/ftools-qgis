@@ -28,6 +28,7 @@ class PluginDialog(QDialog):
         self.connect(helpButton, SIGNAL("clicked()"), self.help)
         self.connect(buttonBox, SIGNAL("rejected()"), self.reject)
         self.params = {}
+        self.treeView = None
 
         self.contentsWidget = ListWidget()
         self.setWindowIcon(QIcon(":icon"))
@@ -94,7 +95,17 @@ class PluginDialog(QDialog):
             item = self.pagesWidget.widget(item)
         else:
             item = self.addPage(page)
-        item.layout().addWidget(widget)
+        if type(widget) in (VariableLineBox, VariableListBox, ModelBuilderBox):
+            if self.treeView:
+                widget.parent = self.treeView
+                self.treeView.addWidget(widget)
+            else:
+                self.treeView = VariableTreeBox(-1)
+                item.layout().addWidget(self.treeView)
+                widget.parent = self.treeView
+                self.treeView.addWidget(widget)
+        else:
+            item.layout().addWidget(widget)
         if self.pagesWidget.count() > 1:
             self.contentsWidget.setVisible(True)
 
@@ -321,19 +332,14 @@ class Widget(QWidget):
         return None
 
 class VariableTreeBox(QGroupBox):
-    def __init__(self, id, text1="Select variable",
-                 text2="Independent variable(s)",
-                 type="both", model=None):
-        # types can be single, multiple, or both
-        # default is both
+    def __init__(self, id, model=None):
         QGroupBox.__init__(self)
         if model is None:
             model = TreeModel()
-        if not type in ("single", "multiple", "both"):
-            type = "both"
         self.setTitle("Choose Variables")
         self.setToolTip("<p>Select variables for analysis</p>")
         self.id = id
+        self.pairs = {}
 
         layout = HBoxLayout()
         self.variableTreeView = QTreeView()
@@ -342,152 +348,130 @@ class VariableTreeBox(QGroupBox):
         self.variableTreeView.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.variableTreeView.installEventFilter(self)
         layout.addWidget(self.variableTreeView)
-        box = VBoxLayout()
-        self.dependentLineEdit = QLineEdit()
-        self.dependentLineEdit.setToolTip(text1)
-        self.dependentLineEdit.setReadOnly(True)
-        dependentLabel = QLabel("%s" % text1)
-        dependentLabel.setBuddy(self.dependentLineEdit)
-        self.dependentButton = QToolButton()
-        self.dependentButton.setToolTip(text1)
-        self.dependentButton.setIcon(QIcon(":go-next.svg"))
-        self.connect(self.dependentButton, SIGNAL("clicked()"), self.moveDependent)
-        self.connect(self.dependentLineEdit, SIGNAL("textChanged(QString)"),
-            self.switchButton)
-        vbox = VBoxLayout()
-        vbox.addWidget(dependentLabel)
-        hbox = HBoxLayout()
-        hbox.addWidget(self.dependentButton)
-        hbox.addWidget(self.dependentLineEdit)
-        vbox.addLayout(hbox)
-        if not type in ("single", "both"):
-            self.dependentLineEdit.setVisible(False)
-            self.dependentButton.setEnabled(False)
-            self.dependentButton.setVisible(False)
-            dependentLabel.setEnabled(False)
-            dependentLabel.setVisible(False)
-            dependentLabel.setEnabled(False)
-        box.addLayout(vbox)
-        self.independentList = QListWidget()
-        self.independentList.setToolTip(text2)
-        self.independentList.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.independentList.installEventFilter(self)
-        independentLabel = QLabel("%s" % text2)
-        independentLabel.setBuddy(self.independentList)
-        self.independentButton = QToolButton()
-        self.independentButton.setToolTip(text2)
-        self.independentButton.setIcon(QIcon(":go-next.svg"))
-        self.connect(self.independentButton, SIGNAL("clicked()"), self.moveIndependent)
-        vbox = VBoxLayout()
-        vbox.addWidget(independentLabel)
-        hbox = HBoxLayout()
-        hbox.addWidget(self.independentButton)
-        hbox.addWidget(self.independentList)
-        vbox.addLayout(hbox)
-        if not type in ("multiple", "both"):
-            self.independentList.setEnabled(False)
-            self.independentList.setVisible(False)
-            self.independentButton.setEnabled(False)
-            self.independentButton.setVisible(False)
-            independentLabel.setEnabled(False)
-            independentLabel.setVisible(False)
-            vbox.addStretch()
-        box.addLayout(vbox)
-        layout.addLayout(box)
+        self.widgetsLayout = VBoxLayout()
+        layout.addLayout(self.widgetsLayout)
         self.setLayout(layout)
+        
+    def addWidget(self, widget):
+        hbox = HBoxLayout()
+        button = QToolButton()
+        button.setToolTip("Specify variable")
+        button.setIcon(QIcon(":go-next.svg"))
+        self.connect(button, SIGNAL("clicked()"), self.move)
+        self.connect(widget.widget, SIGNAL("textChanged(QString)"), self.switchButton)
+        widget.widget.installEventFilter(self)
+        hbox.addWidget(button)
+        hbox.addWidget(widget)
+        self.widgetsLayout.addLayout(hbox)
+        self.pairs[button] = widget
 
     def eventFilter(self, object, event):
         if event.type() == QEvent.FocusIn:
-            if object == self.variableTreeView or \
-            object == self.independentList:
-                self.switchButton()
+#            if object == self.variableTreeView or \
+#            object == self.independentList:
+            self.switchButton()
         return False
 
-    def moveDependent(self):
+    def move(self):
+        sender = self.sender()
+        receiver = self.pairs[sender]
         path = QString()
-        if self.dependentLineEdit.text().isEmpty():
-            indexes = self.variableTreeView.selectedIndexes()
-            if len(indexes) < 1:
-                return
-            path = self.variableTreeView.model().parentTree(indexes[0])
-        self.dependentLineEdit.setText(path)
-
-    def moveIndependent(self):
-        path = QString()
-        add = self.variableTreeView.hasFocus()
-        if add:
-            indexes = self.variableTreeView.selectedIndexes()
-            paths = [self.variableTreeView.model().parentTree(index) for index in indexes if index.column() == 0]
-            self.independentList.addItems(paths)
-        else:
-            indexes = self.independentList.selectedItems()
-            for index in indexes:
-                item = self.independentList.takeItem(self.independentList.row(index))
-                del item
+        if isinstance(receiver, VariableLineBox):
+            if receiver.widget.text().isEmpty():
+                indexes = self.variableTreeView.selectedIndexes()
+                if len(indexes) < 1:
+                    return
+                path = self.variableTreeView.model().parentTree(indexes[0])
+            receiver.widget.setText(path)
+        elif isinstance(receiver, VariableListBox):
+            add = self.variableTreeView.hasFocus()
+            if add:
+                indexes = self.variableTreeView.selectedIndexes()
+                paths = [self.variableTreeView.model().parentTree(index) for index in indexes if index.column() == 0]
+                receiver.widget.addItems(paths)
+            else:
+                indexes = receiver.widget.selectedItems()
+                for index in indexes:
+                    item = receiver.widget.takeItem(receiver.row(index))
+                    del item
 
     def switchButton(self, item=None):
-        if isinstance(item, QString):
-            if not item.isEmpty():
-                self.dependentButton.setIcon(QIcon(":go-previous.svg"))
+        sender = self.sender()
+        for key, value in self.pairs.iteritems():
+            print key, value, sender
+            if key == sender:
+                key.setIcon(QIcon(":go-previous.svg"))
             else:
-                self.dependentButton.setIcon(QIcon(":go-next.svg"))
-        else:
-            if self.independentList.hasFocus():
-                self.independentButton.setIcon(QIcon(":go-previous.svg"))
-            else:
-                self.independentButton.setIcon(QIcon(":go-next.svg"))
+                key.setIcon(QIcon(":go-next.svg"))
 
     def parameterValues(self):
-        ind = QString()
-        dep = QString()
-        visdep = self.dependentLineEdit.isEnabled()
-        visind = self.independentList.isEnabled()
-        if visind:
-            self.independentList.selectAll()
-            items = self.independentList.selectedItems()
-            first = True
-            for item in items:
-                if first:
-                    tmp = QString()
-                    first = False
-                else:
-                    tmp = QString("+")
-                ind.append(" %s %s" % (tmp, item.text()))
-        dep = self.dependentLineEdit.text()
-        if (dep.isEmpty() and visdep) or \
-           (ind.isEmpty() and visind):
-            raise Exception("Error: Insufficient number of input variables")
-        if visdep and visind:
-            params = {self.id:"%s ~%s" % (dep, ind)}
-        elif visdep and not visind:
-            params = {self.id:dep}
-        elif not visdep and visind:
-            params = {self.id:ind}
-        else:
-            params = {} # this shouldn't happen
+        return QString()
+
+class ModelBuilderBox(QWidget):
+    def __init__(self, id, parent=None):
+        QWidget.__init__(self)
+        self.dependent = VariableLineBox(id, "Dependant variable", parent)
+        self.independent = VariableListBox(id, "Independant variable(s)", parent)
+        parent.addWidget(dependent)
+        parent.addWidget(independent)
+        self.id = id
+        
+    def parameterValues(self):
+        dep = self.dependent.parameterValues().values()[0]
+        ind = self.independent.parameterValues().values()[0].replace(",", " + ")
+        params = {self.id:"%s ~%s" % (dep, ind)}
         return params
 
-class ModelBuilderBox(VariableTreeBox):
-    def __init__(self, id, model=None):
-        # types can be single, multiple, or both
-        # default is both
-        VariableTreeBox.__init__(self, id, text1="Dependent variable",
-                                 text2 = "Independent variable(s)",
-                                 type="both", model=model)
+class VariableLineBox(QWidget):
+    def __init__(self, id, text):
+        QWidget.__init__(self)
+        self.widget = QLineEdit()
+        self.widget.setToolTip(text)
+        self.widget.setReadOnly(True)
+        label = QLabel(text)
+        label.setBuddy(self.widget)
+        vbox = VBoxLayout()
+        vbox.addWidget(label)
+        vbox.addWidget(self.widget)
+        self.setLayout(vbox)
+        self.id = id
+        
+    def parameterValues(self):
+        var = self.widget.text()
+        if var.isEmpty():
+            raise Exception("Error: Missing input variable")
+        params = {self.id:var}
+        return params
 
-class SingleVariableBox(VariableTreeBox):
-    def __init__(self, id, text, model=None):
-        # types can be single, multiple, or both
-        # default is both
-        VariableTreeBox.__init__(self, id, text1=text, text2 = "",
-                                 type="single", model=model)
-
-class MultipleVariableBox(VariableTreeBox):
-    def __init__(self, id, text, model=None):
-        # types can be single, multiple, or both
-        # default is both
-        VariableTreeBox.__init__(self, id, text1="", text2=text,
-                                 type="multiple", model=model)
+class VariableListBox(QWidget):
+    def __init__(self, id, text):
+        QWidget.__init__(self)
+        self.widget = QListWidget()
+        self.widget.setToolTip(text)
+        self.widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        label = QLabel(text)
+        label.setBuddy(self.widget)
+        vbox = VBoxLayout()
+        vbox.addWidget(label)
+        vbox.addWidget(self.widget)
+        self.setLayout(vbox)
+        self.id = id
+        
+    def parameterValues(self):
+        self.widget.selectAll()
+        items = self.widget.selectedItems()
+        first = True
+        var = QString()
+        for item in items:
+            if first:
+                var.append(item.text())
+                first = False
+            else:
+                var.append(",%s" % item.text())
+        if var.isEmpty():
+            raise Exception("Error: Insufficient number of input variables")
+        params = {self.id:var}
+        return params
 
 class AxesBox(QGroupBox):
 

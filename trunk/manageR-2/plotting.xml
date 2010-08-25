@@ -1,340 +1,108 @@
-<manageRTools category="Spatial">
-    <RTool name="Quick plot" icon="icons/default/plotting/custom-chart-histogram.svg">
+<manageRTools category="Plot">
+    <RTool name="Quick plot" icon="icons/default/plotting/custom-chart-scatter.svg">
         <Query><![CDATA[local({
-plot(|1|, type='|2|', main='|3|', sub='|4|', xlab='|5|', 
-ylab='|6|', bty='|7|', lab=c(|8|,|9|,7), las=|10|)
+plot(x=|1|, type=|2|, |3|, |4|)        
+|5|    
 })]]></Query>
         <Help name="plot.default"/>
-        <Widget id="1" label="X values:" type="VariableLineBox"/>
+        <Widget id="1" label="Input values:" type="VariableLineBox"/>
+        <Widget id="2" label="Plot type:" type="PlotTypeBox"/>
+        <Page name="Options">
+            <Widget id="3" type="PlotOptionsBox" default="titles;box;axes;logscale;style;minmax"/>
+            <Widget id="4" label="Additional paramters:" type="AdditionalParametersBox"/>
+            <Widget id="5" label="Add grid" type="GridCheckBox" default="false"/>
+        </Page>
     </RTool>
-<RTool name="Scatterplot" category= "Plotting" query=
-"local({
-plot(x=|1|, y=|2|, type='p', main='|3|', sub='|4|', xlab='|5|', 
-ylab='|6|', bty='|7|', lab=c(|8|,|9|,7), las=|10|, |11|)        
-if (|12|) {
-tmp.fit <- lm(|2| ~ |1|)
-abline(tmp.fit, lty='|13|')
-}
-})">
-<Widget id= label="X values:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Y values:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Main title:" type="lineEdit" default="Scatterplot" notnull="false"/>
-<Widget id= label="Sub title:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
-<Widget id= label="Y label:" type="lineEdit" default="Y Axis" notnull="false"/>
-<Widget id= label="Bounding box:" type="comboBox" default=
-"outline;l-shape;7-shape;c-shape;u-shape;]-shape;none" notnull="true"/>
-<Widget id= label="X axis ticks:" type="lineEdit" default="5" notnull="true"/>
-<Widget id= label="Y axis ticks:" type="lineEdit" default="5" notnull="true"/>
-<Widget id= label="Axis labels:" type="comboBox" default="1;2;3;0" notnull="true"/>
-<Widget id= label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="Add trend line:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="Trend line style:" type="comboBox" default=
-"solid;dashed;dotted;dotdash;longdash;twodash" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:plot" notnull="true"/>
-</RTool>
-<RTool name="Histogram" category= "Plotting" query=
-"local({
-hist(|1|, breaks='|2|', main='|4|', sub='|5|', xlab='|6|', bty='|7|', 
-freq=ifelse('|3|'=='Frequency',TRUE,FALSE), |10|)
-if (|8|) lines(density(|1|), lty='|9|')
-})">
-<Widget id= label="Input values:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Break calculation:" type="comboBox" default=
-"Sturges;Scott;Freedman-Diaconis" notnull="true"/>
-<Widget id= label="Plot type:" type="comboBox" default="Frequency;Density" notnull="true"/>
-<Widget id= label="Main title:" type="lineEdit" default="Histogram" notnull="false"/>
-<Widget id= label="Sub title:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
-<Widget id= label="Bounding box:" type="comboBox" default=
-"outline;l-shape;7-shape;c-shape;u-shape;]-shape;none" notnull="true"/>
-<Widget id= label="Add probability distribution:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="Line style:" type="comboBox" default=
-"solid;dashed;dotted;dotdash;longdash;twodash" notnull="true"/>
-<Widget id= label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="help" type="helpString" default="topic:hist" notnull="true"/>
-</RTool>
-<RTool name="Box-plot" category= "Plotting" query=
-"local({
-boxplot(|1|, varwidth=|2|, notch=|3|, outline=|4|, horizontal=|5|, 
-main='|6|', sub='|7|', xlab='|8|', ylab='|9|')
-})">
-<Widget id= label="Input data:" type="spComboBox" default="numeric;data.frame;integer" notnull="true"/>
-<Widget id= label="Use variable width boxes:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="Add box notches:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="Show outliers:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
-<Widget id= label="Plot boxes horizontally:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="Main title:" type="lineEdit" default="Box-plot" notnull="false"/>
-<Widget id= label="Sub title:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
-<Widget id= label="Y label:" type="lineEdit" default="Y Axis" notnull="false"/>
-<Widget id= label="help" type="helpString" default="topic:boxplot" notnull="true"/>
-</RTool>
-<RTool name="Pie-chart" category= "Plotting" query=
-"local({
-pie(|1|, clockwise=|2|, main='|3|', sub='|4|', |5| )
-})">
-<Widget id= label="Input data:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Clockwise:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="Main title:" type="lineEdit" default="Pie-chart" notnull="false"/>
-<Widget id= label="Sub title:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="help" type="helpString" default="topic:pie" notnull="true"/>
-</RTool>
-<RTool name="Bar-graph" category= "Plotting" query="
-local({
-barplot(|1|, horiz=|2|, main='|3|', sub='|4|', xlab='|5|', ylab='|6|', |7|)
-})">
-<Widget id= label="Input data:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Horizontal:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="Main title:" type="lineEdit" default="Bar-graph" notnull="false"/>
-<Widget id= label="Sub title:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
-<Widget id= label="Y label:" type="lineEdit" default="Y Axis" notnull="false"/>
-<Widget id= label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="help" type="helpString" default="topic:barplot" notnull="true"/>
-</RTool>
-<RTool name="Density plot" category= "Plotting" query="
-local({
-plot(density(|1|, bw='|2|', adjust=|3|, kern='|4|', n=|5|, na.rm=|6|), 
-main='|7|', sub='|8|', xlab='|9|', ylab='|10|', |11|)
-if (|12|) rug(|1|, |13|, |14|, side=|15|)
-})">
-<Widget id= label="Input data:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Bandwidth:" type="comboBox" default="nrd0;nrd;ucv;bcv;SJ-ste;SJ-dpi" notnull="true"/>
-<Widget id= label="Bandwidth adjustment:" type="doubleSpinBox" default="1" notnull="true"/>
-<Widget id= label="Smoothing kernel:" type="comboBox" default=
-"gaussian;rectangular;triangular;epanechnikov;biweight;cosine;optcosine" notnull="true"/>
-<Widget id= label="Resolution:" type="doubleSpinBox" default="512.00" notnull="true"/>
-<Widget id= label="Remove NA values:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
-<Widget id= label="Main title:" type="lineEdit" default="Density plot" notnull="false"/>
-<Widget id= label="Sub title:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
-<Widget id= label="Y label:" type="lineEdit" default="Y Axis" notnull="false"/>
-<Widget id= label="Additional parameters:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="Add rug:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="Tick size:" type="doubleSpinBox" default="0.03" notnull="true"/>
-<Widget id= label="Tick width:" type="doubleSpinBox" default="0.50" notnull="true"/>
-<Widget id= label="Rug placement:" type="comboBox" default="1;3" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:density" notnull="true"/>
-</RTool>
-<RTool name="Descriptive statistics" category= "Statistics" query=
-"local({
-tmp <- data.frame(|1|)
-keep <- names(tmp)
-first <- TRUE
-for (i in 1:ncol(tmp)) {
-x <- unlist(tmp[i])
-if (!is.numeric(x)) { # Not a numeric vector!
-Res <- list(median=NA, mean=NA, var=NA, stddev=NA, coefvar=NA,
-            min=NA, max=NA, sum=NA, range=NA, nas=NA, nulls=NA, count=NA)
-} else {
-Nas <- sum(as.numeric(is.na(x)))
-x <- x[!is.na(x)]
-Vals <- length(x)
-Nulls <- sum(as.numeric(x==0))
-Min <- min(x)
-Max <- max(x)
-Range <- Max-Min
-Sum <- sum(x)
-Median <- median(x)
-Mean <- mean(x)
-Var <- var(x)
-StdDev <- sqrt(Var)
-CoefVar <- StdDev/Mean
-Res <- list(median=Median, mean=Mean, var=Var, stddev=StdDev, coefvar=CoefVar, 
-min=Min, max=Max, sum=Sum, range=Range, nas=Nas, nulls=Nulls, count=Vals)
-}
-if (first) {
-Out <- data.frame(Res)
-first <- FALSE 
-} else {
-Out <- rbind(Out, Res)
-}
-}
-row.names(Out) <- as.list(keep)
-Out
-})">
-<Widget id= label="Input data:" type="spComboBox" default="numeric;data.frame;integer" notnull="true"/>
-<Widget id= label="help" type="helpString" default="
-&lt;h4&gt;Descriptive statistics help&lt;/h4&gt;
-Produce table of descriptive statistics including median, mean, variance, standard deviation, 
-coeficient of variation, minimum, maximum, sum, range, as well as the number of NAs, Nulls (0),
-and the total count.&lt;br&gt;
-&lt;b&gt;Note&lt;/b&gt;: None numeric vectors and data.frame fields will return NAs for all 
-descriptive statistics.&lt;br&gt;&lt;br&gt;
-This tool is based on the &lt;tt&gt;stat.desc&lt;/tt&gt; function from the &lt;tt&gt;pastecs&lt;/tt&gt;
-library." notnull="true"/>
-</RTool>
-<RTool name="Summary statistics" category= "Statistics" query=
-"local({
-summary(|1|)
-})">
-<Widget id= label="Input data:" type="spComboBox" default="all" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:summary" notnull="true"/>
-</RTool>
-<RTool name="Correlation matrix" category= "Statistics" query=
-"local({
-tmp <- data.frame(|1|)
-cor(tmp, use='|2|', method='|3|')
-})">
-<Widget id= label="Input data:" type="spListWidget" default="numeric;integer" notnull=","/>
-<Widget id= label="Use (with NAs):" type="comboBox" default=
-"everything;all.obs;complete.obs;na.or.complete;pairwise.complete.obs"
-notnull="true"/>
-<Widget id= label="Method:" type="comboBox" default="pearson;kendall;spearman" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:cor" notnull="true"/>
-</RTool>
-<RTool name="Linear regression" category= "Statistics" query=
-"local({
-if (|3|) summary.lm(lm(|1| ~ |2|))
-else summary.lm(lm(|1| ~ 0 + |2|))
-})">
-<Widget id= label="Dependant variable:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Independent variables:" type="spListWidget" default="numeric;integer" notnull="+"/>
-<Widget id= label="Include intercept:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:lm" notnull="true"/>
-</RTool>
-<RTool name="Create spatial weights" category= "Spatial operations" query=
-"require(spdep)
-|7| <- local({
-    input <- |1|
-    type <- '|2|'
-    value <- |3|
-    style <- '|6|'
-    if ('|4|'=='binary') decay <- 1
-    else decay <- |5|
-    if (type=='contiguity') {
-        weights <- poly2nb(pl=input, snap=0.0005, queen=T) #Better parameter for snap?
-        if (value >= 2) {
-            nblags <- nblag(neighbours=weights, maxlag=value)
-            weights <- nblag.cumul(nblags=nblags)
-         }
-    } else {
-        ids <- seq(1,dim(input@data)[1])
-        proj4 <- proj4string(input)
-        coords <- coordinates(obj=input)
-        points <- SpatialPoints(coords=coords, proj4string=CRS(proj4))
-        if (type=='distance') {
-            dist <- dnearneigh(x=points, d1=0, d2=value, row.names=ids)
-        } else { # 'knearest'
-            knear <- knearneigh(x=points, k=value)
-            dist <- knn2nb(knn=knear, row.names=ids, sym=FALSE)
-        }
-        dlist <- nbdists(nb=dist, coords=points)
-        decayfun <- function(x) 1/(x^decay)
-        idlist <- lapply(X=dlist, FUN=decayfun)
-        weights <- nb2listw(neighbours=dist, glist=idlist, style=style, zero.policy=T)
+    <RTool name="Scatterplot" icon="icons/default/plotting/custom-chart-scatter.svg">
+        <Query><![CDATA[local({
+plot(x=|1|, y=|2|, type='p', |3|, |4|)        
+if (|5|) {
+    tmp.fit <- lm(|2| ~ |1|)
+    abline(tmp.fit, lty='|6|')
     }
-})">
-<Widget id= label="Input layer:" type="spComboBox" default=
-"SpatialPointsDataFrame;SpatialLinesDataFrame;SpatialPolygonsDataFrame" notnull="true"/>
-<Widget id= label="Spatial neighbourhood type:" type="comboBox" default="distance;knearest;contiguity" notnull="true"/>
-<Widget id= label="Distance or K neighbours or K lags:" type="doubleSpinBox" default="1.00" notnull="true"/>
-<Widget id= label="Weighting scheme:" type="comboBox" default="binary;inverse.distance" notnull="true"/>
-<Widget id= label="Distance decay:" type="doubleSpinBox" default="1.00" notnull="true"/>
-<Widget id= label="Weighting style:" type="comboBox" default="W;B;C;U;S" notnull="true"/>
-<Widget id= label="Output name:" type="lineEdit" default="weights" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:nb2listw" notnull="true"/>
-</RTool>
-<RTool name="Moran scatterplot" category= "Plotting" query=
-"require(spdep)
-local({
-moran.plot(|1|, |2|, zero.policy=FALSE, spChk=FALSE, quiet=ifelse(|3|,FALSE,TRUE),
-main='|4|', sub='|5|', xlab='|6|', ylab=paste('Spatially lagged','|6|'), 
-bty='|7|', labels=|3|)
-})">
-<Widget id= label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
-<Widget id= label="Display influential variables:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
-<Widget id= label="Main title:" type="lineEdit" default="Moran scatterplot" notnull="false"/>
-<Widget id= label="Sub title:" type="lineEdit" default="" notnull="false"/>
-<Widget id= label="X label:" type="lineEdit" default="X Axis" notnull="false"/>
-<Widget id= label="Bounding box:" type="comboBox" default=
-"outline;l-shape;7-shape;c-shape;u-shape;]-shape;none" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:moran.plot" notnull="true"/>
-</RTool>
-<RTool name="Moran's I" category= "Spatial statistics" query=
-"require(spdep)
-local({
-moran.test(|1|, |2|, randomisation=ifelse('|3|'=='normality',FALSE,TRUE), alternative='|4|', rank=|5|)
-
-})">
-<Widget id= label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
-<Widget id= label="Variance assumption:" type="comboBox" default="randomisation;normality" notnull="true"/>
-<Widget id= label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
-<Widget id= label="Ranked data:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:moran.test" notnull="true"/>
-</RTool>
-<RTool name="Moran's I permutation test" category= "Spatial statistics" query=
-"require(spdep)
-|6| <- moran.mc(|1|, |2|, nsim=|3|, alternative='|4|')
-if (|5|) plot(|6|)
-if (|7|) |6|">
-<Widget id= label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
-<Widget id= label="Number of simulations:" type="doubleSpinBox" default="99" notnull="true"/>
-<Widget id= label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
-<Widget id= label="Display density plot:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="Output name:" type="lineEdit" default="perm.moran" notnull="true"/>
-<Widget id= label="Print results:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:moran.mc" notnull="true"/>
-</RTool>
-<RTool name="Geary's c" category= "Spatial statistics" query=
-"require(spdep)
-local({
-geary.test(|1|, |2|, randomisation=ifelse('|3|'=='normality',FALSE,TRUE), alternative='|4|')
-
-})">
-<Widget id= label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
-<Widget id= label="Variance assumption:" type="comboBox" default="randomisation;normality" notnull="true"/>
-<Widget id= label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:geary.test" notnull="true"/>
-</RTool>
-<RTool name="Geary's c permutation test" category= "Spatial statistics" query=
-"require(spdep)
-|6| <- geary.mc(|1|, |2|, nsim=|3|, alternative='|4|')
-if (|5|) plot(|6|)
-if (|7|) |6|">
-<Widget id= label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
-<Widget id= label="Number of simulations:" type="doubleSpinBox" default="99" notnull="true"/>
-<Widget id= label="Alternative hypothesis:" type="comboBox" default="less;greater" notnull="true"/>
-<Widget id= label="Display density plot:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="Output name:" type="lineEdit" default="perm.gery" notnull="true"/>
-<Widget id= label="Print results:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:geary.mc" notnull="true"/>
-</RTool>
-<RTool name="Local Gi statistics" category= "Spatial statistics" query=
-"require(spdep)
-|4| <- local({
-if (|3|) weights <- nb2listw(include.self(|2|$neighbours),
-style=|2|$style,glist=lapply(|2|$weights, function(x) c(1,x)))
-else weights <- weights
-localG(|1|, weights)
-})
-if (|5|) |4|">
-<Widget id= label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
-<Widget id= label="Gi* Statistic:" type="comboBox" default="TRUE;FALSE" notnull="true"/>
-<Widget id= label="Output name:" type="lineEdit" default="local.Gi" notnull="true"/>
-<Widget id= label="Print results:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:localG" notnull="true"/>
-</RTool>
-<RTool name="Local Moran's Ii statistic" category= "Spatial statistics" query=
-"require(spdep)
-|5| <- local({
-localmoran(|1|, |2|, alternative='|3|', p.adjust.method='|4|')
-})
-if (|6|) |5|">
-<Widget id= label="Input layer:" type="spComboBox" default="numeric;integer" notnull="true"/>
-<Widget id= label="Weights object (listw):" type="spComboBox" default="listw" notnull="true"/>
-<Widget id= label="Alternative hypothesis:" type="comboBox" default="greater;less;two.sided" notnull="true"/>
-<Widget id= label="P-value adjustment:" type="comboBox" default="none;bonferroni;holm;hochberg;hommel;fdr" notnull="true"/>
-<Widget id= label="Output name:" type="lineEdit" default="local.moran" notnull="true"/>
-<Widget id= label="Print results:" type="comboBox" default="FALSE;TRUE" notnull="true"/>
-<Widget id= label="help" type="helpString" default="topic:localmoran" notnull="true"/>
-</RTool>
+|7|    
+})]]></Query>
+        <Help name="plot"/>
+        <Widget id="1" label="X values:" type="VariableLineBox"/>
+        <Widget id="2" label="Y values:" type="VariableLineBox"/>
+        <Page name="Options">
+            <Widget id="3" type="PlotOptionsBox" default="titles;box;axes;logscale;style;minmax"/>
+            <Widget id="4" label="Additional paramters:" type="AdditionalParametersBox"/>
+            <Widget id="7" label="Add grid" type="GridCheckBox" default="false"/>
+        </Page>
+        <Widget id="5" label="Add trend line" type="CheckBox" default="false"/>
+        <Widget id="6" label="Line type:" type="LineStyleBox"/>
+    </RTool>
+    <RTool name="Histogram" icon="icons/default/plotting/custom-chart-histogram.svg">
+        <Query><![CDATA[local({
+hist(|1|, breaks='|2|', freq=|3|, |4|, |5|)
+if (|5|) lines(density(|1|), lty='|6|')
+})]]></Query>
+        <Help name="hist"/>
+        <Widget id="1" label="Input values:" type="VariableLineBox"/>
+        <Widget id="2" label="Break calculation:" type="ComboBox" default=
+        "Sturges;Scott;Freedman-Diaconis"/>
+        <Widget id="3" label="Plot frequencies:" type="CheckBox" default="true"/>
+        <Page name="Options">
+        <Widget id="4" type="PlotOptionsBox" default="box;titles"/>
+        <Widget id="5" label="Add probability distribution:" type="CheckBox" default="false"/>
+        <Widget id="6" label="Line style:" type="LineStyleBox"/>
+        </Page>
+        <Widget id="5" label="Additional parameters:" type="AdditionalParametersBox"/>
+    </RTool>
+    <RTool name="Box-plot" icon="icons/default/plotting/custom-chart-box-plot.svg">
+        <Query><![CDATA[local({
+boxplot(|1|, varwidth=|2|, notch=|3|, outline=|4|, horizontal=|5|, |6|)
+})]]></Query>
+        <Help name="boxplot"/>
+        <Widget id="1" label="Input values:" type="VariableListBox"/>
+        <Widget id="2" label="Variable width boxes" type="CheckBox" default="false"/>
+        <Widget id="3" label="Add box notches" type="CheckBox" default="false"/>
+        <Widget id="4" label="Show outliers" type="CheckBox" default="true"/>
+        <Widget id="5" label="Plot boxes horizontally" type="CheckBox" default="false"/>
+        <Page name="Options">
+            <Widget id="6" type="PlotOptionsBox" default="titles"/>
+        </Page>
+    </RTool>
+    <RTool name="Pie-chart" icon="icons/default/plotting/custom-chart-pie.svg">
+        <Query><![CDATA[local({
+pie(|1|, clockwise=|2|, |3|, |4|)
+})]]></Query>
+        <Help name="pie"/>
+        <Widget id="1" label="Input values:" type="VariableLineBox"/>
+        <Widget id="2" label="Clockwise" type="CheckBox" default="false"/>
+        <Widget id="3" type="PlotOptionsBox" default="titles"/>
+        <Widget id="4" label="Additional parameters:" type="AdditionalParametersBox"/>
+    </RTool>
+    <RTool name="Bar-graph" icon="icons/default/plotting/custom-chart-bar.svg">
+        <Query><![CDATA[local({
+barplot(|1|, horiz=|2|, |3|, |4|)
+})]]></Query>
+        <Help name="barplot"/>
+        <Widget id="1" label="Input values:" type="VariableLineBox"/>
+        <Widget id="2" label="Horizontal" type="CheckBox" default="false"/>
+        <Widget id="3" type="PlotOptionsBox" default="titles"/>
+        <Widget id="4" label="Additional parameters:" type="AdditionalParametersBox"/>
+    </RTool>
+    <RTool name="Density plot" icon="icons/default/plotting/custom-chart-norm.svg">
+        <Query><![CDATA[local({
+plot(density(|1|, bw='|2|', adjust=|3|, kern='|4|', n=|5|, na.rm=|6|), |7|, |8|)
+if (|9|) rug(|1|, |10|, |11|)
+})]]></Query>
+        <Help name="density"/>
+        <Widget id="1" label="Input values:" type="VariableLineBox"/>
+        <Widget id="2" label="Bandwidth calculation:" type="ComboBox" default="nrd0;nrd;ucv;bcv;SJ-ste;SJ-dpi"/>
+        <Widget id="3" label="Bandwidth adjustment:" type="SpinBox" default="1"/>
+        <Widget id="4" label="Smoothing kernel:" type="ComboBox" default=
+        "gaussian;rectangular;triangular;epanechnikov;biweight;cosine;optcosine"/>
+        <Widget id="5" label="Resolution:" type="DoubleSpinBox" default="512.00"/>
+        <Page name="Options">
+            <Widget id="7" type="PlotOptionsBox" default="titles"/>
+            <Widget id="9" label="Add rug" type="CheckBox" default="false"/>
+            <Widget id="10" label="Tick size:" type="DoubleSpinBox" default="0.03"/>
+            <Widget id="11" label="Tick width:" type="DoubleSpinBox" default="0.50"/>
+            <Widget id="6" label="Remove NA values" type="CheckBox" default="true"/>
+            <Widget id="8" label="Additional parameters:" type="AdditionalParametersBox"/>
+        </Page>
+    </RTool>
 </manageRTools>

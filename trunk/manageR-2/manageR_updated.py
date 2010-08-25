@@ -156,6 +156,7 @@ class MainWindow(QMainWindow):
         self.createWorkspaceActions(console)
         self.createWindowActions(console)
         self.createDockWigets(console)
+        self.createPlotsActions(console)
         self.createPluginActions(console)
         self.createHelpActions(console)
         self.restoreState(QSettings().value("manageR/toolbars").toByteArray())
@@ -334,7 +335,7 @@ class MainWindow(QMainWindow):
 
     def createWorkspaceActions(self, console=True):
         if console:
-            workspaceMenu = self.menuBar().addMenu("Workspace")
+            workspaceMenu = self.menuBar().addMenu("&Workspace")
             workspaceLoadAction = self.createAction(
                 "&Load R workspace", self.openWorkspace,
                 "Ctrl+W", "system-file-manager",
@@ -356,6 +357,32 @@ class MainWindow(QMainWindow):
             self.addActions(workspaceMenu, (workspaceLoadAction,
                 workspaceSaveAction, workspaceDataAction, None,
                 workspaceLibraryAction, workspaceRepositoryAction,))
+                
+    def createPlotsActions(self, console=True):
+        if console:
+            plotsMenu = self.menuBar().addMenu("&Plot")
+            plotsSaveAction = self.createAction(
+                "&Save current", self.savePlot,
+                "Ctrl+P", "system-file-manager",
+                "Save active plot as vector file")
+            plotsExportAction = self.createAction(
+                "&Export current", self.exportPlot,
+                "Ctrl+Shift+P", "document-save",
+                "Save active plot as image")
+            plotsCloseAction = self.createAction("Close active",
+                lambda: self.execute("dev.off(dev.cur())"), icon="help-contents",
+                tip="Close plot")
+            plotsNewAction = self.createAction("&Open empty",
+                lambda: self.execute("dev.new()"), icon="system-software-install",
+                tip="Open empty default plotting device")
+            self.addActions(plotsMenu, (plotsSaveAction,
+                plotsExportAction, None, plotsCloseAction, 
+                plotsNewAction, None,))
+            self.plotsSetMenu = plotsMenu.addMenu("&Set active")
+            self.plotsSetMenu.setIcon(QIcon(":document-save.svg"))
+            plotsMenu.addSeparator()
+            self.connect(self.plotsSetMenu, SIGNAL("aboutToShow()"),
+                 self.updatePlotsSetMenu)
 
     def createPluginActions(self, console=True):
         if console:
@@ -406,6 +433,24 @@ class MainWindow(QMainWindow):
             text = text[0:-1]
         args = self.main.editor().functionArguments(text)
         self.statusBar().showMessage(args)
+        
+    def updatePlotsSetMenu(self):
+        # TODO: Update this function to show the currently ACTIVE plot
+        self.plotsSetMenu.clear()
+        dev_list = robjects.r.get('dev.list' , mode='function')
+        menu = self.plotsSetMenu
+        try:
+            # this is throwing exceptions...
+            graphics = dict(zip(list(dev_list()), list(dev_list().names)))
+        except:
+            graphics = {}
+        for key, value in graphics.iteritems():
+            # find better way to add action here so that they are separate...
+            # possibly create a list of devices?
+            action = QAction(QIcon(":system-software-install.svg"),"dev %s (%s)" % (key, value), self)
+            action.setData(QVariant(key))
+            self.connect(action, SIGNAL("activated()"), self.setPlot)
+            menu.addAction(action)
 
     def updateWindowMenu(self):
         self.windowMenu.clear()
@@ -484,6 +529,19 @@ class MainWindow(QMainWindow):
                     return
         browser = RRepositoryBrowser(self)
         browser.exec_()
+        
+    def savePlot(self):
+        pass
+        
+    def exportPlot(self):
+        pass
+        
+    def setPlot(self, id=None):
+        if id is None:
+            sender = self.sender()
+        else:
+            sender = QVariant(id)
+        self.execute(self.execute("dev.set(%s)" % int(sender.data().toInt()[0])))
 
     def saveWorkspace(self, path=None, filter="R workspace (*.RData)"):
         self.saveData(path, filter)
@@ -573,7 +631,7 @@ class MainWindow(QMainWindow):
             QApplication.restoreOverrideCursor()
             reply = QMessageBox.question(self,
                         "editR - Unsaved Changes",
-                        "Save unsaved changes in %s" % self.windowTitle().remove("editR - "),
+                        "Save unsaved changes in %s?" % self.windowTitle().remove("editR - "),
                         QMessageBox.Save|QMessageBox.Discard|QMessageBox.Cancel)
             QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
             if reply == QMessageBox.Save:
@@ -726,7 +784,7 @@ class MainWindow(QMainWindow):
             else:
                 reply = QMessageBox.question(self,
                             "editR - Unsaved Changes",
-                            "Save unsaved changes in %s" % self.windowTitle().remove("editR - "),
+                            "Save unsaved changes in %s?" % self.windowTitle().remove("editR - "),
                             QMessageBox.Save|QMessageBox.Discard|QMessageBox.Cancel)
                 if reply == QMessageBox.Save:
                     self.fileSave()
@@ -1123,46 +1181,50 @@ class PlainTextEdit(QPlainTextEdit):
     def isCheckingSyntax(self):
         return self.__checkSyntax
 
-    def checkSyntax(self, command, block=None, tag=True):
+    def checkSyntax(self, command, block=None, tag=True, debug=False):
         command = unicode(command)
         if block is None:
             block = self.textCursor().block()
+        extra = None
         if not self.isCheckingSyntax():
-            if tag: block.setUserData(UserData(PlainTextEdit.OUTPUT, QString("Output")))
+            if debug:
+                extra = QString("Output")
+            block.setUserData(UserData(PlainTextEdit.OUTPUT, extra))
             return PlainTextEdit.OUTPUT
         try:
             robjects.r.parse(text=command)
         except robjects.rinterface.RRuntimeError, err:
             err = QString(unicode(err))
             if err.contains("unexpected end of input"):
-                if tag: block.setUserData(UserData(PlainTextEdit.CONTINUE, QString("Continue")))
+                if debug:
+                    extra = QString("Continue")
+                block.setUserData(UserData(PlainTextEdit.CONTINUE, extra))
                 return PlainTextEdit.CONTINUE # line continuation
             err = err.split(":", QString.SkipEmptyParts)[1:].join(" ").prepend("Error:")
-            if tag: block.setUserData(UserData(PlainTextEdit.SYNTAX, err))
+            if tag:
+                extra = err
+            block.setUserData(UserData(PlainTextEdit.SYNTAX, extra))
             return PlainTextEdit.SYNTAX # invalid syntax
-        if tag: block.setUserData(UserData(PlainTextEdit.INPUT, QString("Input")))
+        if debug:
+            extra = QString("Input")
+        block.setUserData(UserData(PlainTextEdit.INPUT, extra))
         return PlainTextEdit.INPUT # valid syntax
 
     def insertFromMimeData(self, source):
         if source.hasText():
-            #self.blockSignals(True)
-            cursor = self.textCursor()
-            cursor.beginEditBlock()
+            if isinstance(self, REditor):
+                self.textCursor().beginEditBlock()
             lines = QStringList()
             lines = source.text().split("\n")
-            # might be good to add the \n back in after the split
             tot = len(lines)-1
             for count, line in enumerate(lines):
-                newSource = QMimeData()
                 if count < tot:
                     line += "\n"
-                newSource.setText(line)
-                QPlainTextEdit.insertFromMimeData(self, newSource)
-                if count < tot:
+                self.textCursor().insertText(line)
+                if line.endsWith("\n"):
                     self.entered()
-            cursor.endEditBlock()
-            self.setTextCursor(cursor)
-            #self.blockSignals(False)
+            if isinstance(self, REditor):
+                self.textCursor().endEditBlock()
 
     def entered(self):
         pass
@@ -1209,7 +1271,7 @@ class REditor(PlainTextEdit):
 
     def __init__(self, parent=None, tabwidth=4, autobracket=True):
         PlainTextEdit.__init__(self, parent, tabwidth, autobracket)
-        self.connect(self, SIGNAL("cursorPositionChanged()"), self.textChanged)
+        self.connect(self.document(), SIGNAL("contentsChange(int,int,int)"), self.textChanged)
         self.__tabwidth=tabwidth
         self.__autobracket=autobracket
 
@@ -1323,8 +1385,10 @@ class REditor(PlainTextEdit):
             menu.exec_(e.globalPos())
         PlainTextEdit.mousePressEvent(self, e)
 
-    def textChanged(self):
-        self.checkSyntax(self.currentCommand(self.textCursor().block())[0])
+    def textChanged(self, pos, deleted, added):
+        self.startPos = pos
+        command = self.currentCommand(self.document().findBlock(pos))[0]
+        self.checkSyntax(command, debug=True)
 
 class RConsole(PlainTextEdit):
 
@@ -1431,7 +1495,7 @@ class RConsole(PlainTextEdit):
     def entered(self):
         block = self.textCursor().block().previous()
         command = self.currentCommand(block)[0]
-        check = self.checkSyntax(command, block)
+        check = self.checkSyntax(command, block, tag=False)
         if not check == PlainTextEdit.OUTPUT:
             if not self.lastLine().isEmpty():
                 self.history().update(QStringList(self.lastLine()))
@@ -1467,15 +1531,14 @@ class RConsole(PlainTextEdit):
 
     def acceptCommands(self, commands):
         mime = QMimeData()
-        if not QString(commands).endsWith("\n"):
-            commands += "\n"
         mime.setText(commands)
         self.insertFromMimeData(mime)
+        self.insertPlainText("\n")
+        self.entered()
 
     def printOutput(self, output):
         error = False
         empty = False
-
         if len(output) > 0:
             for line in output.split("\n", QString.SkipEmptyParts):
                 if line.startsWith("Error") or error:
@@ -1489,12 +1552,12 @@ class RConsole(PlainTextEdit):
                         line = line.trimmed()
                         empty = False
                     self.textCursor().block().setUserData(
-                        UserData(PlainTextEdit.ERROR, QString("Error")))
+                        UserData(PlainTextEdit.ERROR))#, QString("Error")))
                 else:
                     self.suspendHighlighting()
                     empty = False
                     self.textCursor().block().setUserData(
-                        UserData(PlainTextEdit.OUTPUT, QString("Output")))
+                        UserData(PlainTextEdit.OUTPUT))#, QString("Output")))
                 line.replace('\xe2\x9c\x93', "").replace('\xe2\x80\x98', "'").replace('\xe2\x80\x99', "'")
                 if not empty:
                     self.insertPlainText("%s\n" % line)
@@ -2075,7 +2138,7 @@ class Highlighter(QSyntaxHighlighter):
                 #"keyword"))
         builtins = ["array", "character", "complex", "data.frame", "double",
                     "factor", "function", "integer", "list", "logical",
-                    "matrix", "numeric", "vector", "numeric"]
+                    "matrix", "numeric", "vector", "numeric", "else"]
         Highlighter.Rules.append((QRegExp(
                 "|".join([r"\b%s\b" % builtin for builtin in builtins])),
                 "builtin"))

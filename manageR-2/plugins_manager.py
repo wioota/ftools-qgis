@@ -10,7 +10,7 @@ from plugins_dialog import (SpinBox, DoubleSpinBox, ComboBox, CheckBox, LineEdit
                             ModelBuilderBox, VariableLineBox, VariableListBox,
                             AxesBox, MinMaxBox, PlotOptionsWidget, LineStyleBox,
                             BoundingBoxBox, PlotTypeBox, TitlesBox, ParametersBox,
-                            PluginDialog, Widget, VariableComboBox)
+                            PluginDialog, Widget, VariableComboBox, GridCheckBox)
 CURRENTDIR = unicode(os.path.abspath(os.path.dirname(__file__)))
 
 class PluginManager(QObject):
@@ -43,7 +43,18 @@ class PluginManager(QObject):
         for (cat, first) in self.structure.iteritems():
             if cat in ("__default__", ""):
                 cat = "Plugins"
-            fst = self.parent.menuBar().addMenu(cat)
+            menu = self.parent.menuBar()
+            found = False
+            for child in menu.findChildren(QMenu):
+                title = child.title()
+                title.remove("&")
+                if title.trimmed() == cat.trimmed():
+                    found = True
+                    break
+            if found:
+                fst = child
+            else:
+                fst = menu.addMenu(cat)
             for (sub, second) in first.iteritems():
                 if sub in ("__default__", ""):
                     snd = fst
@@ -86,7 +97,7 @@ class PluginManager(QObject):
             query = query[0:-1]
         for (key, value) in params.iteritems():
             try:
-                query.replace("|%s|" % key, value)
+                query.replace("|%s|" % key, unicode(value))
             except ValueError:
                 QMessageBox.warning(self.parent, "manageR - Plugin Error",
                 "Error building command string")
@@ -119,25 +130,30 @@ class PluginManager(QObject):
         try:
             if type == "SpinBox":
                 widget = SpinBox(fields[QString("id")], fields[QString("label")])
+                widget.widget.setValue(int(fields[QString("default")]))
             elif type == "DoubleSpinBox":
                 widget = DoubleSpinBox(fields[QString("id")], fields[QString("label")])
+                widget.widget.setValue(float(fields[QString("default")]))
             elif type == "ComboBox":
                 widget = ComboBox(fields[QString("id")], fields[QString("label")])
                 widget.widget.addItems(fields[QString("default")].split(";"))
             elif type == "CheckBox":
                 widget = CheckBox(fields[QString("id")], fields[QString("label")])
-                if fields[QString("default")].lowerCase() == "true":
-                    widget.widget.setChecked(True)
+                if fields[QString("default")].toLower() == "true":
+                    widget.setChecked(True)
                 else:
                     widget.setChecked(False)
-            elif type == "ModelBuilderBox":
-                widget = ModelBuilderBox(fields[QString("id")])
             elif type == "VariableComboBox":
                 widget = VariableComboBox(fields[QString("id")])
             elif type == "VariableLineBox":
                 widget = VariableLineBox(fields[QString("id")], fields[QString("label")])
             elif type == "VariableListBox":
-                widget = VariableListBox(fields[QString("id")], fields[QString("label")])
+                sep=","
+                try:
+                    sep = fields[QString("separator")]
+                except KeyError:
+                    pass
+                widget = VariableListBox(fields[QString("id")], fields[QString("label")], sep)
             elif type == "AxesBox":
                 ops = fields[QString("default")].split(";")
                 logscale = False
@@ -151,6 +167,10 @@ class PluginManager(QObject):
                 widget = MinMaxBox(fields[QString("id")])
             elif type == "GridCheckBox":
                 widget = GridCheckBox(fields[QString("id")])
+                if fields[QString("default")].toLower() == "true":
+                    widget.widget.setChecked(True)
+                else:
+                    widget.setChecked(False)
             elif type == "PlotOptionsBox":
                 ops = fields[QString("default")].split(";")
                 box = False
@@ -199,12 +219,12 @@ class Handler(QXmlDefaultHandler):
 
     def fatalError(self, err):
         QMessageBox.warning(None, "manageR - XML Parsing Error",
-            "Error encountered when building %s tool!\n" % self.currentTool
-            +"XML handler returned:\n"
-            +"Fatal error on line %s" % err.lineNumber()
-            + ", column %s " % err.columnNumber()
-            + ": %s\n" % err.message()
-            + "Some plugin tools and menus may be missing.")
+            "Error encountered when building '%s' tool!\n" % self.currentTool
+            + "There was a problem with the XML file for "
+            + "the '%s' category:\n" % self.currentCat
+            + "    Fatal error on line %s" % err.lineNumber()
+            + ", column %s (%s)\n" % (err.columnNumber(), err.message())
+            + "Some plugin tools and menus have been ignored.")
         return False
 
     def startDocument(self):
@@ -227,10 +247,12 @@ class Handler(QXmlDefaultHandler):
     def endElement(self, str1, str2, name):
         if name == "RTool":
             self.inTool = False
+            self.currentTool = "__default__"
         elif name == "Query":
             self.inQuery = False
         elif name == "Page":
             self.inPage = False
+            self.currentPage = "__default__"
         return True
 
     def characters(self, chars):

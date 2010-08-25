@@ -221,8 +221,10 @@ class TreeModel(QAbstractItemModel):
             parent = parent.parent()
         names.append(name)
         names.pop(0)
-        path = ["[['%s']]" % name if not name.contains(QRegExp(r"\[\[.*\]\]")) 
-            else unicode(name) for name in names[1:]]
+#        path = ["[['%s']]" % name if not name.contains(QRegExp(r"\[\[.*\]\]")) 
+#            else unicode(name) for name in names[1:]]
+        path = [unicode(name) if name.contains(QRegExp(r"\[\[.*\]\]")) 
+            or name=="@data" else "[['%s']]" % name for name in names[1:]]
         if len(names) < 1:
             return ""
         return unicode(names[0])+str.join("", path)

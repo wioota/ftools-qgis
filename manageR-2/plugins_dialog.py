@@ -148,6 +148,7 @@ class PluginDialog(QDialog):
                     QMessageBox.warning(self, "manageR Plugin Error", str(err))
                     return
         self.params = params
+        print self.params
         self.emit(SIGNAL("pluginOutput(PyQt_PyObject)"), self.params)
 
 class LineStyleDelegate(QItemDelegate):
@@ -271,6 +272,8 @@ class DoubleSpinBox(QWidget):
         hbox.addWidget(label)
         hbox.addWidget(self.widget)
         self.setLayout(hbox)
+        self.widget.setMaximum(999999999)
+        self.widget.setMinimum(-999999999)
 
     def parameterValues(self):
         return {self.id:self.widget.value()}
@@ -332,6 +335,19 @@ class Widget(QWidget):
         return None
 
 class VariableTreeBox(QGroupBox):
+
+    class VariableTreeButton(QToolButton):
+        def __init__(self, *args, **kwargs):
+            QToolButton.__init__(self, *args, **kwargs)
+            baseIcon = QIcon(":go-next.svg")
+            secondIcon = QIcon(":go-previous.svg")
+            self.__icons__ = [baseIcon, secondIcon]
+            self.setIcon(baseIcon)
+            
+        def switchIcon(self):
+            self.__icons__.reverse()
+            self.setIcon(self.__icons__[0])
+            
     def __init__(self, id, model=None):
         QGroupBox.__init__(self)
         if model is None:
@@ -354,22 +370,19 @@ class VariableTreeBox(QGroupBox):
         
     def addWidget(self, widget):
         hbox = HBoxLayout()
-        button = QToolButton()
+        button = self.VariableTreeButton()
         button.setToolTip("Specify variable")
-        button.setIcon(QIcon(":go-next.svg"))
         self.connect(button, SIGNAL("clicked()"), self.move)
-        self.connect(widget.widget, SIGNAL("textChanged(QString)"), self.switchButton)
         widget.widget.installEventFilter(self)
         hbox.addWidget(button)
         hbox.addWidget(widget)
         self.widgetsLayout.addLayout(hbox)
+        self.widgetsLayout.addStretch()
         self.pairs[button] = widget
 
     def eventFilter(self, object, event):
         if event.type() == QEvent.FocusIn:
-#            if object == self.variableTreeView or \
-#            object == self.independentList:
-            self.switchButton()
+            self.switchButton(object)
         return False
 
     def move(self):
@@ -382,6 +395,7 @@ class VariableTreeBox(QGroupBox):
                 if len(indexes) < 1:
                     return
                 path = self.variableTreeView.model().parentTree(indexes[0])
+            sender.switchIcon()
             receiver.widget.setText(path)
         elif isinstance(receiver, VariableListBox):
             add = self.variableTreeView.hasFocus()
@@ -392,26 +406,28 @@ class VariableTreeBox(QGroupBox):
             else:
                 indexes = receiver.widget.selectedItems()
                 for index in indexes:
-                    item = receiver.widget.takeItem(receiver.row(index))
+                    item = receiver.widget.takeItem(receiver.widget.row(index))
                     del item
 
-    def switchButton(self, item=None):
-        sender = self.sender()
-        for key, value in self.pairs.iteritems():
-            print key, value, sender
-            if key == sender:
-                key.setIcon(QIcon(":go-previous.svg"))
-            else:
-                key.setIcon(QIcon(":go-next.svg"))
+    def switchButton(self, sender):
+        if not isinstance(sender, QLineEdit):
+            for key, value in self.pairs.iteritems():
+                if value.widget == sender:
+                    key.setIcon(QIcon(":go-previous.svg"))
+                else:
+                    key.setIcon(QIcon(":go-next.svg"))
 
     def parameterValues(self):
-        return QString()
+        params = {}
+        for button, widget in self.pairs.iteritems():
+            params.update(widget.parameterValues())
+        return params
 
 class ModelBuilderBox(QWidget):
     def __init__(self, id, parent=None):
         QWidget.__init__(self)
-        self.dependent = VariableLineBox(id, "Dependant variable", parent)
-        self.independent = VariableListBox(id, "Independant variable(s)", parent)
+        self.dependent = VariableLineBox(id, "Dependant variable")
+        self.independent = VariableListBox(id, "Independant variable(s)")
         parent.addWidget(dependent)
         parent.addWidget(independent)
         self.id = id
@@ -444,7 +460,7 @@ class VariableLineBox(QWidget):
         return params
 
 class VariableListBox(QWidget):
-    def __init__(self, id, text):
+    def __init__(self, id, text, sep=","):
         QWidget.__init__(self)
         self.widget = QListWidget()
         self.widget.setToolTip(text)
@@ -456,6 +472,7 @@ class VariableListBox(QWidget):
         vbox.addWidget(self.widget)
         self.setLayout(vbox)
         self.id = id
+        self.sep = sep
         
     def parameterValues(self):
         self.widget.selectAll()
@@ -467,7 +484,7 @@ class VariableListBox(QWidget):
                 var.append(item.text())
                 first = False
             else:
-                var.append(",%s" % item.text())
+                var.append("%s%s" % (self.sep, item.text()))
         if var.isEmpty():
             raise Exception("Error: Insufficient number of input variables")
         params = {self.id:var}
@@ -676,10 +693,13 @@ class PlotOptionsWidget(QWidget):
 
 class LineStyleBox(QGroupBox):
 
-    def __init__(self, id):
+    def __init__(self, id, text=None):
         QGroupBox.__init__(self)
         self.id = id
-        self.setTitle("Adjust line style")
+        if text is None:
+            self.setTitle("Adjust line style")
+        else:
+            self.setTitle(text)
         self.setToolTip("<p>Adjust line style (leave "
                             "unchecked to use default)</p>")
         hbox = HBoxLayout()
@@ -695,18 +715,18 @@ class LineStyleBox(QGroupBox):
         self.penStyleComboBox.addItem("twodash", pen)
         pen.setDashPattern([3, 2, 5, 2])
         self.penStyleComboBox.addItem("twodash", pen)
-        self.penStyleComboBox.addItem("none", QPen(Qt.black, 2, Qt.NoPen))
+        self.penStyleComboBox.addItem("blank", QPen(Qt.black, 2, Qt.NoPen))
         delegate = LineStyleDelegate(self)
         self.penStyleComboBox.setItemDelegate(delegate)
         hbox.addWidget(self.penStyleComboBox)
-        self.setCheckable(True)
-        self.setChecked(False)
+#        self.setCheckable(True)
+#        self.setChecked(False)
         self.setLayout(hbox)
 
     def parameterValues(self):
         params = QString()
-        if self.isChecked():
-            params = "'%s'" % str(self.penStyleComboBox.currentText())
+#        if self.isChecked():
+        params = "%s" % str(self.penStyleComboBox.currentText())
         return {self.id:params}
 
 class BoundingBoxBox(QGroupBox):
@@ -785,7 +805,7 @@ class BoundingBoxBox(QGroupBox):
     def parameterValues(self):
         params = QString()
         if self.isChecked():
-            params.append("bty='%s'" % str(self.buttonNames[
+            params.append(", bty='%s'" % str(self.buttonNames[
                 self.buttonGroup.checkedId()]))
         return {self.id:params}
 
@@ -865,8 +885,8 @@ class PlotTypeBox(QGroupBox):
     def parameterValues(self):
         params = QString()
         if self.isChecked():
-            params.append("type='%s'" % str(self.buttonNames[
-                self.buttonGroup.checkedId()]))
+            params = "'%s'" % str(self.buttonNames[
+                self.buttonGroup.checkedId()])
         return {self.id:params}
 
 class TitlesBox(QGroupBox):

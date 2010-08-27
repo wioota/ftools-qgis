@@ -11,7 +11,7 @@ from PyQt4.QtGui import (QPixmap, QDialog, QLabel, QIcon, QTabWidget,
                          QComboBox,QListWidgetItem, QFileDialog, QItemDelegate, 
                          QGridLayout, QButtonGroup, QPen, QLayout, QPalette,
                          QStylePainter, QTreeView, QListWidget, QMessageBox,
-                         QSpinBox, QDoubleSpinBox)
+                         QSpinBox, QDoubleSpinBox, QRadioButton)
 
 import rpy2.robjects as robjects
 import sys, os, resources
@@ -29,6 +29,9 @@ class PluginDialog(QDialog):
         self.connect(buttonBox, SIGNAL("rejected()"), self.reject)
         self.params = {}
         self.treeView = None
+        self.currentPage = None
+        self.currentGroup = None
+        self.currentColumn = None
 
         self.contentsWidget = ListWidget()
         self.setWindowIcon(QIcon(":icon"))
@@ -44,11 +47,6 @@ class PluginDialog(QDialog):
             self.changePage)
 
         self.pagesWidget = StackedWidget()
-        #self.mainPage = Widget()
-        #self.mainPage.setLayout(VBoxLayout())
-        #self.pagesWidget.addWidget(self.mainPage)
-
-        #self.createIcons()
         self.contentsWidget.setCurrentRow(0)
 
         horizontalLayout = HBoxLayout()
@@ -78,7 +76,6 @@ class PluginDialog(QDialog):
     def widgetsList(self):
         widgets = []
         pages = self.pagesWidget.children()
-        pages.reverse()
         for child in pages:
             for widget in child.children():
                 if issubclass(type(widget), QWidget):
@@ -87,34 +84,57 @@ class PluginDialog(QDialog):
                     except Exception, err:
                         pass
         return widgets
-
-    def addWidget(self, widget, page="Main"):
-        items = self.contentsWidget.findItems(page,Qt.MatchExactly)
+        
+    def addPage(self, name="Main"):
+        items = self.contentsWidget.findItems(name,Qt.MatchExactly)
         if len(items) > 0:
-            item = self.contentsWidget.row(items[0])
-            item = self.pagesWidget.widget(item)
+            page = self.contentsWidget.row(items[0])
+            page = self.pagesWidget.widget(item)
         else:
-            item = self.addPage(page)
+            page = Widget()
+            page.setLayout(HBoxLayout())
+            self.pagesWidget.addWidget(page)
+            self.addIcon(name)
+        self.currentPage = page
+        if self.pagesWidget.count() > 1:
+            self.contentsWidget.setVisible(True)
+        
+    def addGroup(self, id=-1, name="__default__", checkable=False):
+        if not name == "__default__":
+            child = self.currentColumn.findChild(GroupBox, name)
+            if child is None:
+                if not checkable:
+                    self.currentGroup = GroupBox(id, title=name)
+                else:
+                    self.currentGroup = GroupCheckBox(id, title=name)
+                self.currentGroup.setObjectName(name)
+                self.currentColumn.addWidget(self.currentGroup)
+        else:
+            self.currentGroup = self.currentColumn
+            
+    def addColumn(self, id):
+        name = "column_%s" % id
+        layout = self.currentPage.layout()
+#        child = layout.findChild(VBoxLayout, name)
+#        if child is None:
+        self.currentColumn = VBoxLayout()
+        self.currentColumn.setObjectName(name)
+        self.currentPage.layout().addLayout(self.currentColumn)
+#        else:
+#            self.currentColumn = child
+
+    def addWidget(self, widget):
         if type(widget) in (VariableLineBox, VariableListBox, ModelBuilderBox):
             if self.treeView:
                 widget.parent = self.treeView
                 self.treeView.addWidget(widget)
             else:
                 self.treeView = VariableTreeBox(-1)
-                item.layout().addWidget(self.treeView)
+                self.currentPage.layout().addWidget(self.treeView)
                 widget.parent = self.treeView
                 self.treeView.addWidget(widget)
         else:
-            item.layout().addWidget(widget)
-        if self.pagesWidget.count() > 1:
-            self.contentsWidget.setVisible(True)
-
-    def addPage(self, name="Main"):
-        page = Widget()
-        page.setLayout(VBoxLayout())
-        self.pagesWidget.insertWidget(0, page)
-        self.addIcon(name)
-        return page
+            self.currentGroup.addWidget(widget)
 
     def addIcon(self, page="Main"):
         button = QListWidgetItem()
@@ -132,7 +152,7 @@ class PluginDialog(QDialog):
             button.setText(page)
         button.setTextAlignment(Qt.AlignHCenter)
         button.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-        self.contentsWidget.insertItem(0,button)
+        self.contentsWidget.addItem(button)
 
     def changePage(self, current, previous):
         if not current:
@@ -148,7 +168,7 @@ class PluginDialog(QDialog):
                     QMessageBox.warning(self, "manageR Plugin Error", str(err))
                     return
         self.params = params
-        print self.params
+#        print self.params
         self.emit(SIGNAL("pluginOutput(PyQt_PyObject)"), self.params)
 
 class LineStyleDelegate(QItemDelegate):
@@ -690,6 +710,68 @@ class PlotOptionsWidget(QWidget):
             if not vals is None:
                 params.append(QStringList(vals.values()).join(""))
         return {self.id:params}
+        
+class RadioGroupBox(QGroupBox):
+
+    class RadioButton(QRadioButton):
+        def __init__(self, text, *args, **kwargs):
+            QRadioButton.__init__(self, *args, **kwargs)
+            self.setText(text)
+
+        def parameterValues(self):
+            if self.isChecked():
+                return self.text()
+            else:
+                return None
+
+    def __init__(self, id, *args, **kwargs):
+        QGroupBox.__init__(self, *args, **kwargs)
+        self.id = id
+        vbox = VBoxLayout()
+        self.setLayout(vbox)
+#        self.setTitle(text)
+        
+    def addButton(self, name):
+        button = self.RadioButton(name)
+        self.layout().addWidget(button)
+        
+    def parameterValues(self):
+        params = QString()
+        for widget in self.children():
+            if widget.isChecked():
+                return {self.id:widget.text()}
+        
+class GroupCheckBox(QGroupBox):
+
+    def __init__(self, id, *args, **kwargs):
+        QGroupBox.__init__(self, *args, **kwargs)
+        self.id = id
+        vbox = VBoxLayout()
+        self.setLayout(vbox)
+        self.setCheckable(True)
+        
+    def addWidget(self, widget):
+        self.layout().addWidget(widget)
+        
+    def parameterValues(self):
+        params = "FALSE"
+        if self.isChecked():
+            params = "TRUE"
+        return {self.id:params}
+        
+class GroupBox(QGroupBox):
+
+    def __init__(self, id, *args, **kwargs):
+        QGroupBox.__init__(self, *args, **kwargs)
+        self.id = id
+        vbox = VBoxLayout()
+        self.setLayout(vbox)
+        
+    def addWidget(self, widget):
+        self.layout().addWidget(widget)
+        
+    def parameterValues(self):
+        return {-1:QString()}
 
 class LineStyleBox(QGroupBox):
 

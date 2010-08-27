@@ -70,4 +70,16 @@ else
             <Widget id="2" label="Independent variables:" type="VariableListBox" separator="+"/>
             <Widget id="3" label="Include intercept" type="CheckBox" default="true"/>
     </RTool>
+    <RTool name="One sample t-test">
+            <Query><![CDATA[local({
+t.test(|1|, alternative='|2|', mu=|3|, conf.level=|4|)
+})]]></Query>
+            <Help name="t.test"/>
+            <Widget id="1" label="Input variable:" type="VariableLineBox"/>
+            <Widget id="2" type="RadioGroupBox" label="Alternative hypothesis" default="two.sided;less;greater"/>
+            <Group name="Parameters">
+                <Widget id="3" label="Value of the mean:" type="DoubleSpinBox" default="0.00"/>
+                <Widget id="4" label="Confidence level:" type="DoubleSpinBox" default="0.95"/>
+            </Group>
+    </RTool>
 </manageRTools>

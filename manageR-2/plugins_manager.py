@@ -10,15 +10,162 @@ from plugins_dialog import (SpinBox, DoubleSpinBox, ComboBox, CheckBox, LineEdit
                             ModelBuilderBox, VariableLineBox, VariableListBox,
                             AxesBox, MinMaxBox, PlotOptionsWidget, LineStyleBox,
                             BoundingBoxBox, PlotTypeBox, TitlesBox, ParametersBox,
-                            PluginDialog, Widget, VariableComboBox, GridCheckBox)
+                            PluginDialog, Widget, VariableComboBox, GridCheckBox,
+                            RadioGroupBox)
 CURRENTDIR = unicode(os.path.abspath(os.path.dirname(__file__)))
+
+class Page:
+    def __init__(self, name="Main", parent=None):
+        self.__name__ = name
+        self.__columns__ = []
+        self.__parent__ = parent
+        
+    def parent(self):
+        return self.__parent__
+        
+    def name(self):
+        return self.__name__
+
+    def columns(self):
+        return self.__columns__
+        
+    def addColumn(self, column):
+        self.__columns__.append(column)
+        
+    def widgets(self):
+        widgets = []
+        for column in self.columns():
+            for group in column.groups():
+                for widget in group:
+                    widgets.append(widget)
+        return widgets
+        
+class Group:
+    def __init__(self, name="__default__", parent=None):
+        self.__name__ = name
+        self.__parent__ = parent
+        self.__checkable__ = False
+        self.__id__ = -1
+        self.__widgets__ = []
+        
+    def parent(self):
+        return self.__parent__
+        
+    def name(self):
+        return self.__name__
+        
+    def setName(self, name):
+        if isinstance(name, QString):
+            self.__name__ = name
+            
+    def id(self):
+        return self.__id__
+        
+    def setId(self, id):
+        if isinstance(id, QString):
+            self.__id__ = id
+        
+    def setCheckable(self, checkable):
+        if isinstance(checkable, bool):
+            self.__checkable__ = checkable
+        else:
+            self.__checkable__ = False
+            
+    def isCheckable(self):
+        return self.__checkable__
+        
+    def addWidget(self, widget):
+        self.__widgets__.append(widget)
+        
+    def widgets(self):
+        return self.__widgets__
+        
+class Column:
+    def __init__(self, name="__default__", parent=None):
+        self.__groups__ = []
+        self.__parent__ = parent
+        if not parent is None:
+            self.__id__ = parent.id()+1
+        else:
+            self.__id__ = 0
+        
+    def id(self):
+        return self.__id__
+        
+    def parent(self):
+        return self.__parent__
+        
+    def addGroup(self, group):
+        self.__groups__.append(group)
+        
+    def groups(self):
+        return self.__groups__
+
+class Tool:
+    def __init__(self, name="__default__", query=None,
+                       help=None, icon=None, gui=None):
+        self.__query__ = None
+        self.__help__ = None
+        if gui is None:
+            self.__gui__ = []
+        self.__name__ = name
+        self.__sub__= None
+        self.__icon__ = QIcon(":system-run.svg")
+        
+    def setName(self, name):
+        if not isinstance(name, QString):
+            raise TypeError("Error: Expected type QString")
+        self.__name__ = name
+        
+    def name(self):
+        return self.__name__
+        
+    def setIcon(self, icon):
+        if not isinstance(icon, QString):
+            raise TypeError("Error: Expected type QString")
+        self.__icon__ = icon.trimmed()
+        
+    def icon(self):
+        return self.__icon__
+
+    def setGui(self, gui):
+        if not isinstance(gui, list):
+            raise TypeError("Error: Expected type list")
+        self.__gui__ = gui
+        
+    def gui(self):
+        return self.__gui__
+        
+    def setQuery(self, query):
+        if not isinstance(query, QString):
+            raise TypeError("Error: Expected type QString")
+        self.__query__ = query.trimmed()
+            
+    def query(self):
+        return self.__query__
+        
+    def setHelp(self, help):
+        if not isinstance(help, QString):
+            raise TypeError("Error: Expected type QString")
+        self.__help__ = help.trimmed()
+            
+    def help(self):
+        return self.__help__
+        
+    def setSubcategory(self, sub):
+        if not isinstance(sub, QString):
+            raise TypeError("Error: Expected type QString")
+        self.__sub__ = sub.trimmed()
+            
+    def subcategory(self):
+        return self.__sub__
 
 class PluginManager(QObject):
     def __init__(self, parent=None, path="."):
-        self.parent = parent
-        QObject.__init__(self)
+        QObject.__init__(self, parent)
         filters = QStringList(["*.xml"])
         dir = QDir(path)
+        self.path = path
         dir.setNameFilters(filters)
         self.files = dir.entryInfoList()
 
@@ -40,51 +187,57 @@ class PluginManager(QObject):
                 self.structure = handler.documentStructure()
 
     def createPlugins(self):
-        for (cat, first) in self.structure.iteritems():
-            if cat in ("__default__", ""):
-                cat = "Plugins"
-            menu = self.parent.menuBar()
-            found = False
-            for child in menu.findChildren(QMenu):
+        for (cat, tools) in self.structure.iteritems():
+            main = self.parent().menuBar()
+            menu = None
+            # check to see if we already have a menu by this name
+            for child in main.findChildren(QMenu):
                 title = child.title()
                 title.remove("&")
                 if title.trimmed() == cat.trimmed():
-                    found = True
+                    menu = child
                     break
-            if found:
-                fst = child
-            else:
-                fst = menu.addMenu(cat)
-            for (sub, second) in first.iteritems():
-                if sub in ("__default__", ""):
-                    snd = fst
-                else:
-                    snd = QMenu(sub, fst)
-                    fst.addMenu(snd)
-                    snd.setIcon(QIcon(":extension.svg"))
-                for (tool, third) in second.iteritems():
-                    icon = third.pop("icon", None)
-                    self.createTool(tool, snd, third, icon)
+            if menu is None:
+                menu = main.addMenu(cat)
+            for tool in tools:
+                sub = tool.subcategory()
+                # check to see if we already have a (sub)menu by this name
+                for child in menu.findChildren(QMenu):
+                    title = child.title()
+                    title.remove("&")
+                    if title.trimmed() == sub:
+                        sub = child
+                        break
+                if sub is None:
+                    sub = menu
+                elif isinstance(sub, QString):
+                    sub = menu.addMenu(sub)
+                    sub.setIcon(QIcon(":extension.svg"))
+                self.createTool(tool, sub)
 
-    def run(self, name, data):
-        dialog = PluginDialog(self.parent, name)
-        structure = data.toPyObject()
-        self.query = structure.pop(QString('query'), None)
-        self.help = structure.pop(QString('help'), None)
+    def run(self, tool):
+        dialog = PluginDialog(self.parent(), tool.name())
+        self.query = tool.query()
+        self.help = tool.help()
         if self.query is None:
-            QMessageBox.warning(self.parent, "manageR - Plugin Error",
+            QMessageBox.warning(self.parent(), "manageR - Plugin Error",
             "Error building tool user interface")
             return
-        page = "Main"
-        for (page, rest) in structure.iteritems():
-            if page == "__default__":
-                page = "Main"
-            column = "main"
-            for (column, widgets) in rest.iteritems():
-                if column == "__default__":
-                    column = "main"
-                for widget in widgets:
-                    dialog.addWidget(self.createGuiItem(widget), page)
+        for page in tool.gui():
+            dialog.addPage(page.name())
+            print page.name()
+            for column in page.columns():
+                print column.id()
+                dialog.addColumn(column.id())
+                for group in column.groups():
+                    print group.name()
+                    if group.isCheckable():
+                        dialog.addGroup(group.id(), group.name(), group.isCheckable())
+                    else:
+                        dialog.addGroup(name=group.name())
+                    for widget in group.widgets():
+                        print widget[QString("type")]
+                        dialog.addWidget(self.createGuiItem(widget))
         self.connect(dialog, SIGNAL("pluginOutput(PyQt_PyObject)"), self.runCommand)
         self.connect(dialog, SIGNAL("helpRequested()"), self.runHelp)
         dialog.show()
@@ -99,7 +252,7 @@ class PluginManager(QObject):
             try:
                 query.replace("|%s|" % key, unicode(value))
             except ValueError:
-                QMessageBox.warning(self.parent, "manageR - Plugin Error",
+                QMessageBox.warning(self.parent(), "manageR - Plugin Error",
                 "Error building command string")
         regexp = QRegExp(r",\s*(?=[,\)]\s*)")
         query.remove(regexp)
@@ -109,21 +262,20 @@ class PluginManager(QObject):
         help = QString("?%s" % self.help)
         self.emit(SIGNAL("emitCommands(QString)"), help)
 
-    def createTool(self, name, menu, data, icon=None):
-        if not icon is None:
-            icon = QIcon(os.path.join(CURRENTDIR,unicode(icon)))
-        else:
-            icon = QIcon(":system-run.svg")
-        action = QAction(icon, name, self.parent)
-        action.setData(QVariant(data))
-        QObject.connect(action, SIGNAL("activated()"), lambda: self.run(name, action.data()))
-        self.parent.addActions(menu, (action,))
+    def createTool(self, tool, menu):
+        icon = tool.icon()
+        if not isinstance(icon, QIcon):
+            icon = QIcon(os.path.join(unicode(self.path), unicode(icon)))
+        action = QAction(icon, tool.name(), self.parent())
+        action.setData(QVariant(tool))
+        QObject.connect(action, SIGNAL("activated()"), lambda: self.run(tool))
+        self.parent().addActions(menu, (action,))
 
     def createGuiItem(self, fields):
         try:
             type = fields[QString("type")]
         except KeyError:
-            QMessageBox.warning(self.parent, "manageR - Plugin Error",
+            QMessageBox.warning(self.parent(), "manageR - Plugin Error",
             "Widget missing 'type' field in plugin XML file")
             return
         widget = Widget()
@@ -154,6 +306,12 @@ class PluginManager(QObject):
                 except KeyError:
                     pass
                 widget = VariableListBox(fields[QString("id")], fields[QString("label")], sep)
+            elif type == "RadioGroupBox":
+                ops = fields[QString("default")].split(";")
+                widget = RadioGroupBox(fields[QString("id")])
+                widget.setTitle(fields[QString("label")])
+                for subwidget in ops:
+                    widget.addButton(subwidget)
             elif type == "AxesBox":
                 ops = fields[QString("default")].split(";")
                 logscale = False
@@ -206,7 +364,7 @@ class PluginManager(QObject):
                 widget = LineEdit(fields[QString("id")], fields[QString("label")])
                 widget.widget.setText(fields[QString("default")])
         except KeyError, e:
-            QMessageBox.warning(self.parent, "manageR - Plugin Error",
+            QMessageBox.warning(self.parent(), "manageR - Plugin Error",
             "Widget missing required field in plugin XML file:\n"
             +str(e))
             return
@@ -219,7 +377,7 @@ class Handler(QXmlDefaultHandler):
 
     def fatalError(self, err):
         QMessageBox.warning(None, "manageR - XML Parsing Error",
-            "Error encountered when building '%s' tool!\n" % self.currentTool
+            "Error encountered when building '%s' tool!\n" % self.currentTool.name()
             + "There was a problem with the XML file for "
             + "the '%s' category:\n" % self.currentCat
             + "    Fatal error on line %s" % err.lineNumber()
@@ -231,11 +389,15 @@ class Handler(QXmlDefaultHandler):
         self.inTool = False
         self.inQuery = False
         self.inPage = False
-        self.currentPage = "__default__"
-        self.currentTool = "__default__"
-        self.currentCat = "__default__"
-        self.currentSub = "__default__"
-        self.currentColumn = "__default__"
+        self.inGroup = False
+        self.currentGroup = Group()
+        self.currentColumn = Column()
+        self.currentPage = Page()
+        self.currentColumn.addGroup(self.currentGroup)
+        self.currentPage.addColumn(self.currentColumn)
+        self.currentTool = Tool()
+        self.currentTool.gui().append(self.currentPage)
+        self.currentCat = QString("Plugins")
         return True
 
     def setDocumentStructure(self, structure):
@@ -247,99 +409,103 @@ class Handler(QXmlDefaultHandler):
     def endElement(self, str1, str2, name):
         if name == "RTool":
             self.inTool = False
-            self.currentTool = "__default__"
+            self.struct[self.currentCat].append(self.currentTool)
         elif name == "Query":
             self.inQuery = False
         elif name == "Page":
             self.inPage = False
-            self.currentPage = "__default__"
+            self.currentTool.gui().append(self.currentPage)
+            self.currentPage = self.currentPage.parent()
+        elif name == "Group":
+            self.inGroup = False
+            self.currentColumn.addGroup(self.currentGroup)
+            self.currentGroup = self.currentGroup.parent()
+        elif name == "Column":
+            self.inColumn = False
+            self.currentPage.addColumn(self.currentColumn)
+            self.currentColumn = self.currentColumn.parent()
         return True
 
     def characters(self, chars):
         if self.inQuery:
-            self.struct[self.currentCat][self.currentSub][self.currentTool].update({"query":chars})
+            self.currentTool.setQuery(chars)
         return True
 
     def startElement(self, str1, str2, name, attrs):
         if name == "manageRTools":
-            cat = ""
             for i in range(attrs.count()):
-                if attrs.localName(i) == "category":
-                    cat = attrs.value(i)
-            self.currentCat = cat
+                if attrs.localName(i) == "category" and not attrs.value(i).isEmpty():
+                    self.currentCat = attrs.value(i)
+                    break
             if not self.currentCat in self.struct:
-                self.struct[self.currentCat] = {}
+                self.struct[self.currentCat] = []
         elif name == "RTool":
             self.inTool = True
-            nm = "__default__"
-            scat = "__default__"
-            icn = None
+            tool = Tool()
             for i in range(attrs.count()):
                 tmp = attrs.localName(i)
                 if tmp == "name":
-                    nm = attrs.value(i)
+                    tool.setName(attrs.value(i))
                 elif tmp == "subcategory":
-                    scat = attrs.value(i)
+                    tool.setSubcategory(attrs.value(i))
                 elif tmp == "icon":
-                    icn = attrs.value(i)
-            self.currentSub = scat
-            if not self.currentSub in self.struct[self.currentCat]:
-                self.struct[self.currentCat][self.currentSub] = {}
-            if len(nm) > 1:
-                self.currentTool = nm
-                self.struct[self.currentCat][self.currentSub][self.currentTool] = {}
-                self.struct[self.currentCat][self.currentSub][self.currentTool].update({"icon":icn})
+                    tool.setIcon(attrs.value(i))
+            self.currentGroup = Group()
+            self.currentPage = Page()
+            self.currentColumn = Column()
+            self.currentPage.addColumn(self.currentColumn)
+            self.currentColumn.addGroup(self.currentGroup)
+            self.currentTool = tool
+            self.currentTool.gui().append(self.currentPage)
         elif self.inTool:
             if name == "Help":
-                tmp = ""
                 for i in range(attrs.count()):
-                    ln = attrs.localName(i)
-                    val = attrs.value(i)
-                    if ln == "name" and isinstance(val, QString) and len(val) > 0:
-                        tmp = val
-                self.struct[self.currentCat][self.currentSub][self.currentTool].update({"help":tmp})
+                    if attrs.localName(i) == "name" and not attrs.value(i).isEmpty():
+                        self.currentTool.setHelp(attrs.value(i))
+                        break
             elif name == "Query":
                 self.inQuery = True
             elif name == "Page":
                 if self.inPage:
                     raise Exception("Error: Cannot have nested pages in plugin GUIs")
                 self.inPage = True
-                tmp = "__default__"
                 for i in range(attrs.count()):
-                    ln = attrs.localName(i)
-                    val = attrs.value(i)
-                    if ln == "name" and isinstance(val, QString) and len(val) > 0:
-                        tmp = val
-                self.currentPage = tmp
-                if not self.currentPage in self.struct[self.currentCat][self.currentSub][self.currentTool]:
-                    self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage] = {}
+                    if attrs.localName(i) == "name" and not attrs.value(i).isEmpty():
+                        self.currentPage = Page(attrs.value(i), self.currentPage)
+                        break
+                self.currentColumn = Column()
+                self.currentPage.addColumn(self.currentColumn)
+                self.currentGroup = Group()
+                self.currentColumn.addGroup(self.currentGroup)
             elif name == "Column":
+                if self.inColumn:
+                    raise Exception("Error: Cannot have nested columns in plugin GUIs")
+                if self.inGroup:
+                    raise Exception("Error: Cannot have columns inside groups")
                 self.inColumn = True
-                tmp = "__default__"
+                self.currentColumn = Column(parent=self.currentColumn)
+                self.currentGroup = Group()
+                self.currentColumn.addGroup(self.currentGroup)
+            elif name == "Group":
+                self.inGroup = True
+                group = Group(parent=self.currentGroup)
                 for i in range(attrs.count()):
-                    ln = attrs.localName(i)
-                    val = attrs.value(i)
-                    if ln == "name" and isinstance(val, QString) and len(val) > 0:
-                        tmp = val
-                self.currentColumn = tmp
-                if not self.currentColumn in self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage]:
-                    self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage][self.currentColumn] = []
+                    if attrs.localName(i) == "name" and not attrs.value(i).isEmpty():
+                        group.setName(attrs.value(i))
+                    if attrs.localName(i) == "id" and not attrs.value(i).isEmpty():
+                        group.setId(attrs.value(i))
+                    if attrs.localName(i) == "checkable" and not attrs.value(i).isEmpty():
+                        if attrs.value(i) == "true":
+                            group.setCheckable(True)
+                self.currentGroup = group
             elif name == "Widget":
-                # each tool stores a list of dicts that describe the individual widgets
-                # query is also a dict, with a single key:pair {'query':'plot(|1|)'}
-                wid = { QString("id")     : QString("0"),
-                        QString("label")  : QString(""),
-                        QString("type")   : QString("lineEdit"),
-                        QString("default"): QString("") }
+                widget = { QString("id")     : QString("0"),
+                           QString("label")  : QString(""),
+                           QString("type")   : QString("lineEdit"),
+                           QString("default"): QString("") }
                 for i in range(attrs.count()):
-                    wid[attrs.localName(i)] = attrs.value(i)
-                try:
-                    self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage][self.currentColumn].append(wid)
-                except KeyError:
-                    try:
-                        self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage][self.currentColumn] = [wid]
-                    except KeyError:
-                        self.struct[self.currentCat][self.currentSub][self.currentTool][self.currentPage] = {self.currentColumn:[wid]}
+                    widget[attrs.localName(i)] = attrs.value(i)
+                self.currentGroup.addWidget(widget)
         return True
 
 

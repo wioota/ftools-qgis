@@ -1211,6 +1211,9 @@ class PlainTextEdit(QPlainTextEdit):
         return PlainTextEdit.INPUT # valid syntax
 
     def insertFromMimeData(self, source):
+        # should also check that if this is a console,
+        # whenever we try to past (insert) text, we should
+        # move to the end of the console first...
         if source.hasText():
             if isinstance(self, REditor):
                 self.textCursor().beginEditBlock()

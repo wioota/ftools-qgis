@@ -98,33 +98,11 @@ class PluginDialog(QDialog):
         self.currentPage = page
         if self.pagesWidget.count() > 1:
             self.contentsWidget.setVisible(True)
-        
-    def addGroup(self, id=-1, name="__default__", checkable=False):
-        if not name == "__default__":
-            child = self.currentColumn.findChild(GroupBox, name)
-            if child is None:
-                if not checkable:
-                    self.currentGroup = GroupBox(id, title=name)
-                else:
-                    self.currentGroup = GroupCheckBox(id, title=name)
-                self.currentGroup.setObjectName(name)
-                self.currentColumn.addWidget(self.currentGroup)
-        else:
-            self.currentGroup = self.currentColumn
-            
-    def addColumn(self, id):
-        name = "column_%s" % id
-        layout = self.currentPage.layout()
-#        child = layout.findChild(VBoxLayout, name)
-#        if child is None:
-        self.currentColumn = VBoxLayout()
-        self.currentColumn.setObjectName(name)
-        self.currentPage.layout().addLayout(self.currentColumn)
-#        else:
-#            self.currentColumn = child
 
-    def addWidget(self, widget):
-        if type(widget) in (VariableLineBox, VariableListBox, ModelBuilderBox):
+    def addItem(self, widget):
+        if type(widget) in (VariableLineBox, 
+                            VariableListBox,
+                            ModelBuilderBox):
             if self.treeView:
                 widget.parent = self.treeView
                 self.treeView.addWidget(widget)
@@ -134,7 +112,10 @@ class PluginDialog(QDialog):
                 widget.parent = self.treeView
                 self.treeView.addWidget(widget)
         else:
-            self.currentGroup.addWidget(widget)
+            try:
+                self.currentPage.layout().addWidget(widget)
+            except TypeError:
+                self.currentPage.layout().addLayout(widget)
 
     def addIcon(self, page="Main"):
         button = QListWidgetItem()
@@ -168,7 +149,6 @@ class PluginDialog(QDialog):
                     QMessageBox.warning(self, "manageR Plugin Error", str(err))
                     return
         self.params = params
-#        print self.params
         self.emit(SIGNAL("pluginOutput(PyQt_PyObject)"), self.params)
 
 class LineStyleDelegate(QItemDelegate):
@@ -315,6 +295,12 @@ class LineEdit(QWidget):
 class HBoxLayout(QHBoxLayout):
     def __init__(self, *args, **kwargs):
         QHBoxLayout.__init__(self, *args, **kwargs)
+        
+    def addItem(self, item):
+        try:
+            self.addWidget(item)
+        except TypeError:
+            self.addLayout(item)
 
     def parameterValues(self):
         return None
@@ -322,6 +308,12 @@ class HBoxLayout(QHBoxLayout):
 class VBoxLayout(QVBoxLayout):
     def __init__(self, *args, **kwargs):
         QVBoxLayout.__init__(self, *args, **kwargs)
+        
+    def addItem(self, item):
+        try:
+            self.addWidget(item)
+        except TypeError:
+            self.addLayout(item)
 
     def parameterValues(self):
         return None
@@ -329,6 +321,12 @@ class VBoxLayout(QVBoxLayout):
 class GridLayout(QGridLayout):
     def __init__(self, *args, **kwargs):
         QGridLayout.__init__(self, *args, **kwargs)
+        
+    def addItem(self, item):
+        try:
+            self.addWidget(item)
+        except TypeError:
+            self.addLayout(item)
 
     def parameterValues(self):
         return None
@@ -733,11 +731,13 @@ class RadioGroupBox(QGroupBox):
         
     def addButton(self, name):
         button = self.RadioButton(name)
+        if len(self.children()) == 1:
+            button.setChecked(True)
         self.layout().addWidget(button)
         
     def parameterValues(self):
         params = QString()
-        for widget in self.children():
+        for widget in self.findChildren(self.RadioButton):
             if widget.isChecked():
                 return {self.id:widget.text()}
         
@@ -750,14 +750,25 @@ class GroupCheckBox(QGroupBox):
         self.setLayout(vbox)
         self.setCheckable(True)
         
+    def addItem(self, item):
+        try:
+            self.addWidget(item)
+        except TypeError:
+            self.layout().addLayout(item)
+        
     def addWidget(self, widget):
         self.layout().addWidget(widget)
         
     def parameterValues(self):
-        params = "FALSE"
+        val = "FALSE"
         if self.isChecked():
-            params = "TRUE"
-        return {self.id:params}
+            val = "TRUE"
+        params = {self.id:val}
+        for widget in self.children():
+            dic = widget.parameterValues()
+            if isinstance(dic, dict):
+                params.update(dic)
+        return params
         
 class GroupBox(QGroupBox):
 
@@ -766,12 +777,23 @@ class GroupBox(QGroupBox):
         self.id = id
         vbox = VBoxLayout()
         self.setLayout(vbox)
+
+    def addItem(self, item):
+        try:
+            self.addWidget(item)
+        except TypeError:
+            self.layout().addLayout(item)
         
     def addWidget(self, widget):
         self.layout().addWidget(widget)
         
     def parameterValues(self):
-        return {-1:QString()}
+        params = {}
+        for widget in self.children():
+            dic = widget.parameterValues()
+            if isinstance(dic, dict):
+                params.update(dic)
+        return params
 
 class LineStyleBox(QGroupBox):
 

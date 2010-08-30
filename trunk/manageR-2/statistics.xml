@@ -59,27 +59,33 @@ cor(tmp, use='|2|', method='|3|')
         <Widget id="3" label="Method:" type="ComboBox" default="pearson;kendall;spearman"/>
     </RTool>
     <RTool name="Linear regression">
-            <Query><![CDATA[local({
+        <Query><![CDATA[local({
 if (|3|) # should we include the intercept?
-    summary.lm(lm(|1| ~ |2|))
+summary.lm(lm(|1| ~ |2|))
 else
-    summary.lm(lm(|1| ~ 0 + |2|))
+summary.lm(lm(|1| ~ 0 + |2|))
 })]]></Query>
-            <Help name="lm"/>
-            <Widget id="1" label="Dependant variable:" type="VariableLineBox"/>
-            <Widget id="2" label="Independent variables:" type="VariableListBox" separator="+"/>
-            <Widget id="3" label="Include intercept" type="CheckBox" default="true"/>
+        <Help name="lm"/>
+        <Widget id="1" label="Dependant variable:" type="VariableLineBox"/>
+        <Widget id="2" label="Independent variables:" type="VariableListBox" separator="+"/>
+        <Widget id="3" label="Include intercept" type="CheckBox" default="true"/>
     </RTool>
     <RTool name="One sample t-test">
-            <Query><![CDATA[local({
+        <Query><![CDATA[local({
 t.test(|1|, alternative='|2|', mu=|3|, conf.level=|4|)
 })]]></Query>
-            <Help name="t.test"/>
-            <Widget id="1" label="Input variable:" type="VariableLineBox"/>
-            <Widget id="2" type="RadioGroupBox" label="Alternative hypothesis" default="two.sided;less;greater"/>
-            <Group name="Parameters">
-                <Widget id="3" label="Value of the mean:" type="DoubleSpinBox" default="0.00"/>
-                <Widget id="4" label="Confidence level:" type="DoubleSpinBox" default="0.95"/>
-            </Group>
+        <Help name="t.test"/>
+        <Dialog>
+            <Rows>
+                <Widget id="1" label="Input variable:" type="VariableLineBox"/>
+                <Columns>
+                    <Widget id="2" type="RadioGroupBox" label="Alternative hypothesis" default="two.sided;less;greater"/>
+                    <Group name="Parameters">
+                        <Widget id="3" label="Value of the mean:" type="DoubleSpinBox" default="0.00"/>
+                        <Widget id="4" label="Confidence level:" type="DoubleSpinBox" default="0.95"/>
+                    </Group>
+                </Columns>
+            </Rows>
+        </Dialog>
     </RTool>
 </manageRTools>

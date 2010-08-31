@@ -7,12 +7,12 @@ from PyQt4.QtXml import *
 #from qgis.core import *
 import sys, os, resources
 from plugins_dialog import (SpinBox, DoubleSpinBox, ComboBox, CheckBox, LineEdit, 
-                            ModelBuilderBox, VariableLineBox, VariableListBox,
+                            VariableLineEdit, VariableListBox, HBoxLayout,
                             AxesBox, MinMaxBox, PlotOptionsWidget, LineStyleBox,
                             BoundingBoxBox, PlotTypeBox, TitlesBox, ParametersBox,
                             PluginDialog, Widget, VariableComboBox, GridCheckBox,
-                            RadioGroupBox, GroupBox, RadioGroupBox, VBoxLayout, 
-                            HBoxLayout)
+                            RadioGroupBox, GroupBox, RadioGroupBox, VBoxLayout,
+                            VariableTreeBox, GroupCheckBox)
 CURRENTDIR = unicode(os.path.abspath(os.path.dirname(__file__)))
 
 class ToolsCollection:
@@ -132,12 +132,13 @@ class Page:
         self.__items__.append(item)
         
 class Group:
-    def __init__(self, name="__default__", checkable=False, parent=None):
+    def __init__(self, name="__default__", checkable=False, default=False, parent=None):
         self.__name__ = name
         self.__parent__ = parent
         self.__checkable__ = checkable
         self.__id__ = 0
         self.__items__ = []
+        self.__default__ = default
         
     def parent(self):
         return self.__parent__
@@ -165,6 +166,13 @@ class Group:
     def isCheckable(self):
         return self.__checkable__
         
+    def setDefault(self, default):
+        if isinstance(default, bool):
+            self.__default__ = default
+            
+    def default(self):
+        return self.__default__
+        
     def addItem(self, item):
         self.__items__.append(item)
         
@@ -173,20 +181,20 @@ class Group:
         
 class Layout:
     ROWS, COLUMNS = range(2)
-    def __init__(self, type=0, parent=None):
+    def __init__(self, layoutType=0, parent=None):
         self.__items__ = []
         self.__parent__ = parent
 #        if not parent is None:
 #            self.__id__ = parent.id()+1
 #        else:
 #            self.__id__ = 0
-        self.__type__ = type
+        self.__type__ = layoutType
         
-    def setType(self, type):
-        if type in range(2):
-            self.__type__ = type
+    def setLayoutType(self, layoutType):
+        if layoutType in range(2):
+            self.__type__ = layoutType
             
-    def type(self):
+    def layoutType(self):
         return self.__type__
 
 #    def id(self):
@@ -201,8 +209,31 @@ class Layout:
     def items(self):
         return self.__items__
         
+class Variables:
+
+    def __init__(self, name="__default__", parent=None):
+        self.__items__ = []
+        self.__parent__ = parent
+        self.__name__ = name
+      
+    def parent(self):
+        return self.__parent__
+        
+    def addItem(self, item):
+        self.__items__.append(item)
+        
+    def items(self):
+        return self.__items__
+        
+    def name(self):
+        return self.__name__
+        
+    def setName(self, name):
+        if isinstance(name, QString):
+            self.__name__ = name
+        
 class Widget:
-    def __init__(self, attibutes={}):
+    def __init__(self, attributes={}):
         self.__attributes__ = attributes
         
     def attributes(self):
@@ -278,21 +309,13 @@ class PluginManager(QObject):
             return
         gui = tool.dialog()
         for page in gui.pages():
-            dialog.addPage(page.name())
-            for item in page.items():
-                dialog.addItem(self.recursiveGuiBuilder(item))
+            if len(page.items()) > 0:
+                dialog.addPage(page.name())
+                for item in page.items():
+                    dialog.addItem(self.recursiveGuiBuilder(item))
         self.connect(dialog, SIGNAL("pluginOutput(PyQt_PyObject)"), self.runCommand)
         self.connect(dialog, SIGNAL("helpRequested()"), self.runHelp)
         dialog.show()
-        
-    def recursiveGuiBuilder(self, item):
-        if not isinstance(item, Widget):
-            widget = self.createGuiItem(item)
-            for i in item.items():
-                widget.addItem(self.recursiveGuiBuilder(i))
-        else:
-            widget = self.createGuiItem(item)
-        return widget
 
     def runCommand(self, params):
         query = QString(self.query)
@@ -322,73 +345,87 @@ class PluginManager(QObject):
         action.setData(QVariant(tool))
         QObject.connect(action, SIGNAL("activated()"), lambda: self.run(tool))
         self.parent().addActions(menu, (action,))
+        
+    def recursiveGuiBuilder(self, item):
+        if not isinstance(item, Widget):
+            widget = self.createGuiItem(item)
+            for i in item.items():
+                widget.addItem(self.recursiveGuiBuilder(i))
+        else:
+            widget = self.createGuiItem(item)
+        return widget
 
     def createGuiItem(self, item):
         if isinstance(item, Layout):
-            if item.type() == Layout.COLUMNS:
+            if item.layoutType() == Layout.COLUMNS:
                 return HBoxLayout()
             else:
                 return VBoxLayout()
         elif isinstance(item, Group):
             if item.isCheckable():
-                return GroupCheckBox(id=item.id(), title=item.name())
+                default = item.default()
+                return GroupCheckBox(id=item.id(), default=default, title=item.name())
             else:
-                return GroupBox(title=item.name())
+                return GroupBox(id=-1, title=item.name())
+        elif isinstance(item, Variables):
+            if item.name() == QString("__default__"):
+                    item.setName(QString("Choose Variables"))
+            return VariableTreeBox(id=-1, name=item.name())
         elif isinstance(item, Widget):
             attributes = item.attributes()
-            type = attribtues["type"]
+            widgetType = attributes[QString("type")]
             try:
-                if type == "SpinBox":
-                    widget = SpinBox(fields[QString("id")], fields[QString("label")])
-                    widget.widget.setValue(int(fields[QString("default")]))
-                elif type == "DoubleSpinBox":
-                    widget = DoubleSpinBox(fields[QString("id")], fields[QString("label")])
-                    widget.widget.setValue(float(fields[QString("default")]))
-                elif type == "ComboBox":
-                    widget = ComboBox(fields[QString("id")], fields[QString("label")])
-                    widget.widget.addItems(fields[QString("default")].split(";"))
-                elif type == "CheckBox":
-                    widget = CheckBox(fields[QString("id")], fields[QString("label")])
-                    if fields[QString("default")].toLower() == "true":
+                if widgetType == "SpinBox":
+                    widget = SpinBox(attributes[QString("id")], attributes[QString("label")])
+                    widget.widget.setValue(int(attributes[QString("default")]))
+                elif widgetType == "DoubleSpinBox":
+                    widget = DoubleSpinBox(attributes[QString("id")], attributes[QString("label")])
+                    widget.widget.setValue(float(attributes[QString("default")]))
+                elif widgetType == "ComboBox":
+                    widget = ComboBox(attributes[QString("id")], attributes[QString("label")])
+                    widget.widget.addItems(attributes[QString("default")].split(";"))
+                elif widgetType == "CheckBox":
+                    widget = CheckBox(attributes[QString("id")], attributes[QString("label")])
+                    if attributes[QString("default")].toLower() == "true":
                         widget.setChecked(True)
                     else:
                         widget.setChecked(False)
-                elif type == "VariableComboBox":
-                    widget = VariableComboBox(fields[QString("id")])
-                elif type == "VariableLineBox":
-                    widget = VariableLineBox(fields[QString("id")], fields[QString("label")])
-                elif type == "VariableListBox":
+                elif widgetType == "VariableComboBox":
+                    widget = VariableComboBox(attributes[QString("id")], attributes[QString("label")])
+                elif widgetType == "VariableLineEdit":
+                    widget = VariableLineEdit(attributes[QString("id")], attributes[QString("label")])
+                elif widgetType == "VariableListBox":
                     sep=","
                     try:
-                        sep = fields[QString("separator")]
+                        sep = attributes[QString("separator")]
                     except KeyError:
                         pass
-                    widget = VariableListBox(fields[QString("id")], fields[QString("label")], sep)
-                elif type == "RadioGroupBox":
-                    ops = fields[QString("default")].split(";")
-                    widget = RadioGroupBox(fields[QString("id")])
-                    widget.setTitle(fields[QString("label")])
+                    widget = VariableListBox(attributes[QString("id")], attributes[QString("label")], sep)
+                elif widgetType == "RadioGroupBox":
+                    ops = attributes[QString("default")].split(";")
+                    widget = RadioGroupBox(attributes[QString("id")])
+                    widget.setTitle(attributes[QString("label")])
                     for subwidget in ops:
                         widget.addButton(subwidget)
-                elif type == "AxesBox":
-                    ops = fields[QString("default")].split(";")
+                elif widgetType == "AxesBox":
+                    ops = attributes[QString("default")].split(";")
                     logscale = False
                     style = False
                     if "logscale" in ops:
                         logscale = True
                     if "style" in ops:
                         style = True
-                    widget = AxesBox(fields[QString("id")], logscale, style)
-                elif type == "MinMaxBox":
-                    widget = MinMaxBox(fields[QString("id")])
-                elif type == "GridCheckBox":
-                    widget = GridCheckBox(fields[QString("id")])
-                    if fields[QString("default")].toLower() == "true":
+                    widget = AxesBox(attributes[QString("id")], logscale, style)
+                elif widgetType == "MinMaxBox":
+                    widget = MinMaxBox(attributes[QString("id")])
+                elif widgetType == "GridCheckBox":
+                    widget = GridCheckBox(attributes[QString("id")])
+                    if attributes[QString("default")].toLower() == "true":
                         widget.widget.setChecked(True)
                     else:
                         widget.setChecked(False)
-                elif type == "PlotOptionsBox":
-                    ops = fields[QString("default")].split(";")
+                elif widgetType == "PlotOptionsBox":
+                    ops = attributes[QString("default")].split(";")
                     box = False
                     titles = False
                     axes = False
@@ -407,20 +444,20 @@ class PluginManager(QObject):
                         box = True
                     if "minmax" in ops:
                         minmax = True
-                    widget = PlotOptionsWidget(fields[QString("id")], box, titles, axes, logscale, style, minmax)
-                elif type == "LineStyleBox":
-                    widget = LineStyleBox(fields[QString("id")])
-                elif type == "BoundingBoxBox":
-                    widget = BoundingBoxBox(fields[QString("id")])
-                elif type == "PlotTypeBox":
-                    widget = PlotTypeBox(fields[QString("id")])
-                elif type == "TitlesBox":
-                    widget = TitlesBox(fields[QString("id")])
-                elif type == "ParametersBox":
+                    widget = PlotOptionsWidget(attributes[QString("id")], box, titles, axes, logscale, style, minmax)
+                elif widgetType == "LineStyleBox":
+                    widget = LineStyleBox(attributes[QString("id")])
+                elif widgetType == "BoundingBoxBox":
+                    widget = BoundingBoxBox(attributes[QString("id")])
+                elif widgetType == "PlotTypeBox":
+                    widget = PlotTypeBox(attributes[QString("id")])
+                elif widgetType == "TitlesBox":
+                    widget = TitlesBox(attributes[QString("id")])
+                elif widgetType == "ParametersBox":
                     widget = ParametersBox()
                 else: # default to line edit (LineEditBox)
-                    widget = LineEdit(fields[QString("id")], fields[QString("label")])
-                    widget.widget.setText(fields[QString("default")])
+                    widget = LineEdit(attributes[QString("id")], attributes[QString("label")])
+                    widget.widget.setText(attributes[QString("default")])
                 return widget
             except KeyError, e:
                 QMessageBox.warning(self.parent(), "manageR - Plugin Error",
@@ -471,10 +508,17 @@ class Handler(QXmlDefaultHandler):
             self.inDialog = False
         elif name == "Query":
             self.inQuery = False
-        elif name == "Page":
-            self.inPage = False
-        elif name  in ("Group", "Columns", "Rows"):
-            self.currentItem = self.currentItem.parent()
+        elif name  in ("Group", "Columns", "Rows", 
+                       "Variables", "Page"):
+            try:
+                self.currentItem = self.currentItem.parent()
+            except AttributeError:
+                pass
+            if name == "Variables":
+                self.inVariables = False
+            elif name == "Page":
+                self.inPage = False
+#                self.inBase = True
         return True
 
     def characters(self, chars):
@@ -506,7 +550,9 @@ class Handler(QXmlDefaultHandler):
             self.collection.addTool(tool)
             self.inDialog = False
             self.inQuery = False
+#            self.inBase = True
             self.currentItem = None
+            self.inVariables = False
         elif self.inTool:
             if name == "Help":
                 for i in range(attrs.count()):
@@ -524,7 +570,8 @@ class Handler(QXmlDefaultHandler):
                     raise Exception("Error: Nested dialogs not allowed")
                 self.inDialog = True
                 self.collection.currentTool().setDialog(Dialog())
-                self.inPage = True
+                self.inPage = False
+#                self.inBase = True
                 page = Page()
                 self.collection.currentTool().dialog().addPage(page)
                 self.currentItem = page
@@ -533,6 +580,7 @@ class Handler(QXmlDefaultHandler):
                     if self.inPage:
                         raise Exception("Error: Nested pages not allowed")
                     self.inPage = True
+#                    self.inBase = False
                     for i in range(attrs.count()):
                         if attrs.localName(i) == "name" and not attrs.value(i).isEmpty():
                             page = Page(attrs.value(i), self.currentItem)
@@ -540,11 +588,11 @@ class Handler(QXmlDefaultHandler):
                             break
                     self.currentItem = page
                 elif name == "Columns":
-                    item = Layout(type=Layout.COLUMNS, parent=self.currentItem)
+                    item = Layout(layoutType=Layout.COLUMNS, parent=self.currentItem)
                     self.currentItem.addItem(item)
                     self.currentItem = item
                 elif name == "Rows":
-                    item = Layout(type=Layout.ROWS, parent=self.currentItem)
+                    item = Layout(layoutType=Layout.ROWS, parent=self.currentItem)
                     self.currentItem.addItem(item)
                     self.currentItem = item
                 elif name == "Group":
@@ -557,6 +605,20 @@ class Handler(QXmlDefaultHandler):
                         if attrs.localName(i) == "checkable" and not attrs.value(i).isEmpty():
                             if attrs.value(i) == "true":
                                 item.setCheckable(True)
+                        if attrs.localName(i) == "default" and not attrs.value(i).isEmpty():
+                            if attrs.value(i) == "true":
+                                item.setDefault(True)
+                    self.currentItem.addItem(item)
+                    self.currentItem = item
+                elif name == "Variables":
+                    if self.inVariables:
+                        raise Exception("Error: Nested variable tags not allowed")
+                    self.inVariables = True
+                    item = Variables(parent=self.currentItem)
+                    for i in range(attrs.count()):
+                        if attrs.localName(i) == "name" and not attrs.value(i).isEmpty():
+                            item.setName(attrs.value(i))
+                            break
                     self.currentItem.addItem(item)
                     self.currentItem = item
                 elif name == "Widget":
@@ -565,24 +627,12 @@ class Handler(QXmlDefaultHandler):
                                QString("type")   : QString("lineEdit"),
                                QString("default"): QString("") }
                     for i in range(attrs.count()):
+                        if self.inVariables and \
+                            attrs.localName(i) == QString("type") and \
+                            not attrs.value(i) in (QString("VariableLineEdit"), 
+                                                   QString("VariableListBox")):
+                            raise Exception("Error: Currently only VariableLineEdit and "
+                                            "VariableListBox allowed in Variables environment")
                         item[attrs.localName(i)] = attrs.value(i)
-                    self.currentItem.addItem(item)
+                    self.currentItem.addItem(Widget(attributes=item))
         return True
-
-
-def main():
-    app = QApplication(sys.argv)
-    #if not sys.platform.startswith(("linux", "win")):
-        #app.setCursorFlashTime(0)
-    #robjects.r.load(".RData")
-    window = QMainWindow(None)
-    window.show()
-    filters = QStringList(["*.xml"])
-    dir = QDir(".")
-    dir.setNameFilters(filters)
-    files = dir.entryList(QDir.Readable|QDir.Files)
-    
-    sys.exit(app.exec_())
-
-if __name__ == '__main__':
-    main()

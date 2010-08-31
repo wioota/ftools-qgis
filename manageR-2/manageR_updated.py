@@ -106,12 +106,10 @@ class MainWindow(QMainWindow):
         if console:
             self.setWindowTitle("manageR")
             if QSettings().value("manageR/remembergeometry", True).toBool():
-                width = QSettings().value("manageR/consolewidth", 50).toInt()[0]
-                height = QSettings().value("manageR/consoleheight", 50).toInt()[0]
-                x = QSettings().value("manageR/consolex", 0).toInt()[0]
-                y = QSettings().value("manageR/consoley", 0).toInt()[0]
-                self.resize(width, height)
-                self.move(x, y)
+                pos = QSettings().value("manageR/consoleposition", QPoint(200,200)).toPoint()
+                size = QSettings().value("manageR/consolesize", QSize(800,500)).toSize()
+                self.resize(size)
+                self.move(pos)
             self.main.editor().setCheckSyntax(False)
             self.main.editor().suspendHighlighting()
             data = QMimeData()
@@ -131,13 +129,6 @@ class MainWindow(QMainWindow):
             self.connect(self, SIGNAL("requestExecuteCommands(QString)"),
                 self.main.editor().acceptCommands)
         else:
-            if QSettings().value("manageR/remembergeometry", True).toBool():
-                width = QSettings().value("manageR/windowwidth", 50).toInt()[0]
-                height = QSettings().value("manageR/windowheight", 50).toInt()[0]
-                x = QSettings().value("manageR/windowx", 0).toInt()[0]
-                y = QSettings().value("manageR/windowy", 0).toInt()[0]
-                self.resize(width, height)
-                self.move(x, y)
             self.setWindowTitle("editR - untitled")
             self.columnCountLabel = QLabel("Column 1")
             self.statusBar().addPermanentWidget(self.columnCountLabel)
@@ -758,6 +749,9 @@ class MainWindow(QMainWindow):
             if not window == self:
                 window.close()
         QSettings().setValue("manageR/toolbars", self.saveState())
+        if QSettings().value("manageR/remembergeometry", True).toBool():
+            QSettings().setValue("manageR/consoleposition", self.pos())
+            QSettings().setValue("manageR/consolesize", self.size())
         self.close()
 
     def closeEvent(self, event):
@@ -2191,18 +2185,27 @@ class Highlighter(QSyntaxHighlighter):
         baseFormat = QTextCharFormat()
         baseFormat.setFontFamily(QSettings().value("manageR/fontfamily", "DejaVu Sans Mono").toString())
         baseFormat.setFontPointSize(QSettings().value("manageR/fontsize", 10).toInt()[0])
-        for name in ("normal", "keyword", "builtin", "constant",
-                "delimiter", "comment", "string", "number", "error",
-                "assignment", "syntax"):
+        for name, color, bold, italic in (
+                ("normal", "#000000", False, False),
+                ("keyword", "#000080", True, False),
+                ("builtin", "#0000A0", False, False),
+                ("constant", "#0000C0", False, False),
+                ("delimiter", "#0000E0", False, False),
+                ("comment", "#007F00", False, True),
+                ("string", "#808000", False, False),
+                ("number", "#924900", False, False),
+                ("error", "#FF0000", False, False),
+                ("assignment", "#50621A", False, False),
+                ("syntax", "#FF0000", False, True)):
             format = QTextCharFormat(baseFormat)
             format.setForeground(
-                            QColor(QSettings().value("manageR/%sfontcolor" % name).toString()))
+                            QColor(QSettings().value("manageR/%sfontcolor" % name, color).toString()))
             if name == "syntax":
-                format.setFontUnderline(QSettings().value("manageR/%sfontunderline" % name).toBool())
+                format.setFontUnderline(QSettings().value("manageR/%sfontunderline" % name, bold).toBool())
             else:
-                if QSettings().value("manageR/%sfontbold" % name).toBool():
+                if QSettings().value("manageR/%sfontbold" % name, bold).toBool():
                     format.setFontWeight(QFont.Bold)
-            format.setFontItalic(QSettings().value("manageR/%sfontitalic" % name).toBool())
+            format.setFontItalic(QSettings().value("manageR/%sfontitalic" % name, italic).toBool())
             Highlighter.Formats[name] = format
 
         format = QTextCharFormat(baseFormat)

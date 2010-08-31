@@ -668,7 +668,7 @@ class PlotOptionsWidget(QWidget):
                  log=False, style=True, minmax=False):
         QWidget.__init__(self)
         button = QToolButton(self)
-        button.setText("Show additional plot options")
+        button.setText("Additional plot options")
         button.setCheckable(True)
         button.setChecked(False)
         button.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)

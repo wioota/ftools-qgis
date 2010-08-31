@@ -396,25 +396,29 @@ class HighlightingPage(QWidget):
         gbox.addWidget(label,2,0,1,1)
         gbox.addWidget(colorButton,2,3,1,1)
         count = 1
-        #labels = []
-        #buttons = []
-        for name, labelText in (("normal", "Normal:"), ("keyword", "Keywords:"),
-                                ("builtin", "Builtins:"), ("constant", "Constants:"),
-                                ("delimiter", "Delimiters:"), ("comment", "Comments:"),
-                                ("string", "Strings:"), ("number", "Numbers:"),
-                                ("error", "Errors:"), ("assignment", "Assignment operator:"),
-                                ("syntax", "Syntax errors:")):
+        for name, labelText, color, bold, italic in (
+                                ("normal", "Normal:", "#000000", False, False), 
+                                ("keyword", "Keywords:", "#000080", True, False),
+                                ("builtin", "Builtins:", "#0000A0", False, False), 
+                                ("constant", "Constants:", "#0000C0", False, False),
+                                ("delimiter", "Delimiters:", "#0000E0", False, False),
+                                ("comment", "Comments:", "#007F00", False, True),
+                                ("string", "Strings:", "#808000", False, False),
+                                ("number", "Numbers:", "#924900", False, False),
+                                ("error", "Errors:", "#FF0000", False, False),
+                                ("assignment", "Assignment operator:", "#50621A", False, False),
+                                ("syntax", "Syntax errors:", "#FF0000", False, True)):
             label = QLabel(labelText)
             #labels.append(label)
             if name == "syntax":
                 boldCheckBox = QCheckBox("Underline")
-                boldCheckBox.setChecked(settings.value("manageR/%sfontunderline" % name, False).toBool())
+                boldCheckBox.setChecked(settings.value("manageR/%sfontunderline" % name, bold).toBool())
             else:
                 boldCheckBox = QCheckBox("Bold")
-                boldCheckBox.setChecked(settings.value("manageR/%sfontbold" % name, False).toBool())
+                boldCheckBox.setChecked(settings.value("manageR/%sfontbold" % name, bold).toBool())
             #self.boldCheckBoxes[name] = boldCheckBox
             italicCheckBox = QCheckBox("Italic")
-            italicCheckBox.setChecked(settings.value("manageR/%sfontitalic" % name, False).toBool())
+            italicCheckBox.setChecked(settings.value("manageR/%sfontitalic" % name, italic).toBool())
             #self.italicCheckBoxes[name] = italicCheckBox
             #self.colors[name] = [Config["%sfontcolor" % name], None]
             if count <= 9:
@@ -422,7 +426,7 @@ class HighlightingPage(QWidget):
             else:
                 colorButton = QPushButton("&%s Color..." % labelText[0])
             count += 1
-            pixmap.fill(QColor(settings.value("manageR/%sfontcolor" % name).toString()))
+            pixmap.fill(QColor(settings.value("manageR/%sfontcolor" % name, color).toString()))
             colorButton.setIcon(QIcon(pixmap))
             minButtonWidth = max(minButtonWidth, 10 + pixmap.width()+fm.width(colorButton.text()))
             #buttons.append(colorButton)

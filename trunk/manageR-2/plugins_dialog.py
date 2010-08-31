@@ -11,7 +11,7 @@ from PyQt4.QtGui import (QPixmap, QDialog, QLabel, QIcon, QTabWidget,
                          QComboBox,QListWidgetItem, QFileDialog, QItemDelegate, 
                          QGridLayout, QButtonGroup, QPen, QLayout, QPalette,
                          QStylePainter, QTreeView, QListWidget, QMessageBox,
-                         QSpinBox, QDoubleSpinBox, QRadioButton)
+                         QSpinBox, QDoubleSpinBox, QRadioButton, QSizePolicy)
 
 import rpy2.robjects as robjects
 import sys, os, resources
@@ -86,13 +86,15 @@ class PluginDialog(QDialog):
         return widgets
         
     def addPage(self, name="Main"):
+        if name == QString("__default__"):
+            name = QString("Main")
         items = self.contentsWidget.findItems(name,Qt.MatchExactly)
         if len(items) > 0:
-            page = self.contentsWidget.row(items[0])
+            item = self.contentsWidget.row(items[0])
             page = self.pagesWidget.widget(item)
         else:
             page = Widget()
-            page.setLayout(HBoxLayout())
+            page.setLayout(VBoxLayout())
             self.pagesWidget.addWidget(page)
             self.addIcon(name)
         self.currentPage = page
@@ -100,22 +102,10 @@ class PluginDialog(QDialog):
             self.contentsWidget.setVisible(True)
 
     def addItem(self, widget):
-        if type(widget) in (VariableLineBox, 
-                            VariableListBox,
-                            ModelBuilderBox):
-            if self.treeView:
-                widget.parent = self.treeView
-                self.treeView.addWidget(widget)
-            else:
-                self.treeView = VariableTreeBox(-1)
-                self.currentPage.layout().addWidget(self.treeView)
-                widget.parent = self.treeView
-                self.treeView.addWidget(widget)
-        else:
-            try:
-                self.currentPage.layout().addWidget(widget)
-            except TypeError:
-                self.currentPage.layout().addLayout(widget)
+        try:
+            self.currentPage.layout().addWidget(widget)
+        except TypeError:
+            self.currentPage.layout().addLayout(widget)
 
     def addIcon(self, page="Main"):
         button = QListWidgetItem()
@@ -144,11 +134,14 @@ class PluginDialog(QDialog):
         params = {}
         for widget in self.widgets:
                 try:
-                    params.update(widget.parameterValues())
+                    tmp = widget.parameterValues()
+                    print tmp
+                    params.update(tmp)
                 except Exception, err:
                     QMessageBox.warning(self, "manageR Plugin Error", str(err))
                     return
         self.params = params
+        print params
         self.emit(SIGNAL("pluginOutput(PyQt_PyObject)"), self.params)
 
 class LineStyleDelegate(QItemDelegate):
@@ -366,11 +359,11 @@ class VariableTreeBox(QGroupBox):
             self.__icons__.reverse()
             self.setIcon(self.__icons__[0])
             
-    def __init__(self, id, model=None):
+    def __init__(self, id, name="Choose Variables", model=None):
         QGroupBox.__init__(self)
         if model is None:
             model = TreeModel()
-        self.setTitle("Choose Variables")
+        self.setTitle(name)
         self.setToolTip("<p>Select variables for analysis</p>")
         self.id = id
         self.pairs = {}
@@ -386,7 +379,7 @@ class VariableTreeBox(QGroupBox):
         layout.addLayout(self.widgetsLayout)
         self.setLayout(layout)
         
-    def addWidget(self, widget):
+    def addItem(self, widget):
         hbox = HBoxLayout()
         button = self.VariableTreeButton()
         button.setToolTip("Specify variable")
@@ -407,7 +400,7 @@ class VariableTreeBox(QGroupBox):
         sender = self.sender()
         receiver = self.pairs[sender]
         path = QString()
-        if isinstance(receiver, VariableLineBox):
+        if isinstance(receiver, VariableLineEdit):
             if receiver.widget.text().isEmpty():
                 indexes = self.variableTreeView.selectedIndexes()
                 if len(indexes) < 1:
@@ -441,22 +434,7 @@ class VariableTreeBox(QGroupBox):
             params.update(widget.parameterValues())
         return params
 
-class ModelBuilderBox(QWidget):
-    def __init__(self, id, parent=None):
-        QWidget.__init__(self)
-        self.dependent = VariableLineBox(id, "Dependant variable")
-        self.independent = VariableListBox(id, "Independant variable(s)")
-        parent.addWidget(dependent)
-        parent.addWidget(independent)
-        self.id = id
-        
-    def parameterValues(self):
-        dep = self.dependent.parameterValues().values()[0]
-        ind = self.independent.parameterValues().values()[0].replace(",", " + ")
-        params = {self.id:"%s ~%s" % (dep, ind)}
-        return params
-
-class VariableLineBox(QWidget):
+class VariableLineEdit(QWidget):
     def __init__(self, id, text):
         QWidget.__init__(self)
         self.widget = QLineEdit()
@@ -657,12 +635,11 @@ class GridCheckBox(QCheckBox):
             text = "grid()"
         return {self.id:text}
 
-class VariableComboBox(QGroupBox):
+class VariableComboBox(QWidget):
 
-    def __init__(self, id, model=None):
-        QGroupBox.__init__(self)
-        self.setTitle("Input data")
-        self.setToolTip("<p>Select input dataset for plotting</p>")
+    def __init__(self, id, text="Input data", model=None):
+        QWidget.__init__(self)
+        self.setToolTip("<p>Select input dataset</p>")
         self.id = id
         if model is None:
             model = TreeModel()
@@ -676,8 +653,9 @@ class VariableComboBox(QGroupBox):
         treeView.hideColumn(2)
         treeView.hideColumn(3)
         treeView.viewport().installEventFilter(self.comboBox)
-        label = QLabel("Input data")
+        label = QLabel(text)
         hbox = HBoxLayout()
+        hbox.addWidget(label)
         hbox.addWidget(self.comboBox)
         self.setLayout(hbox)
 
@@ -689,6 +667,12 @@ class PlotOptionsWidget(QWidget):
     def __init__(self, id, box=True, titles=True, axes=False,
                  log=False, style=True, minmax=False):
         QWidget.__init__(self)
+        button = QToolButton(self)
+        button.setText("Show additional plot options")
+        button.setCheckable(True)
+        button.setChecked(False)
+        button.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        widget = QWidget()
         vbox = VBoxLayout()
         self.id = id
         if titles:
@@ -699,7 +683,14 @@ class PlotOptionsWidget(QWidget):
             vbox.addWidget(AxesBox(self.id, log, style))
         if minmax:
             vbox.addWidget(MinMaxBox(self.id))
+        vbox.setMargin(0)
+        widget.setLayout(vbox)
+        vbox = VBoxLayout()
+        vbox.addWidget(button)
+        vbox.addWidget(widget)
         self.setLayout(vbox)
+        self.connect(button, SIGNAL("toggled(bool)"), widget.setVisible)
+        widget.hide()
 
     def parameterValues(self):
         params = QString()
@@ -743,12 +734,13 @@ class RadioGroupBox(QGroupBox):
         
 class GroupCheckBox(QGroupBox):
 
-    def __init__(self, id, *args, **kwargs):
+    def __init__(self, id, default=False, *args, **kwargs):
         QGroupBox.__init__(self, *args, **kwargs)
         self.id = id
         vbox = VBoxLayout()
         self.setLayout(vbox)
         self.setCheckable(True)
+        self.setChecked(default)
         
     def addItem(self, item):
         try:
@@ -795,15 +787,11 @@ class GroupBox(QGroupBox):
                 params.update(dic)
         return params
 
-class LineStyleBox(QGroupBox):
+class LineStyleBox(QWidget):
 
     def __init__(self, id, text=None):
-        QGroupBox.__init__(self)
+        QWidget.__init__(self)
         self.id = id
-        if text is None:
-            self.setTitle("Adjust line style")
-        else:
-            self.setTitle(text)
         self.setToolTip("<p>Adjust line style (leave "
                             "unchecked to use default)</p>")
         hbox = HBoxLayout()
@@ -822,9 +810,13 @@ class LineStyleBox(QGroupBox):
         self.penStyleComboBox.addItem("blank", QPen(Qt.black, 2, Qt.NoPen))
         delegate = LineStyleDelegate(self)
         self.penStyleComboBox.setItemDelegate(delegate)
+        label = QLabel()
+        if text is None:
+            label.setText("Adjust line style")
+        else:
+            label.setText(text)
+        hbox.addWidget(label)
         hbox.addWidget(self.penStyleComboBox)
-#        self.setCheckable(True)
-#        self.setChecked(False)
         self.setLayout(hbox)
 
     def parameterValues(self):

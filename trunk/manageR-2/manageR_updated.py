@@ -1561,7 +1561,10 @@ class RConsole(PlainTextEdit):
                     empty = False
                     self.textCursor().block().setUserData(
                         UserData(PlainTextEdit.OUTPUT))#, QString("Output")))
-                line.replace('\xe2\x9c\x93', "").replace('\xe2\x80\x98', "'").replace('\xe2\x80\x99', "'")
+                line.replace('\xe2\x9c\x93', "")
+                line.replace('\xe2\x80\x98', "'")
+                line.replace('\xe2\x80\x99', "'")
+                line.replace("_", "")
                 if not empty:
                     self.insertPlainText("%s\n" % line)
                 else:

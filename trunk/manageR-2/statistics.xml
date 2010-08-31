@@ -38,14 +38,20 @@ row.names(Out) <- as.list(keep)
 Out
 })]]></Query>
         <Help name="mean"/>
-        <Widget id="1" label="Input data:" type="VariableListBox"/>
+        <Dialog>
+            <Variables>
+                <Widget id="1" label="Input data:" type="VariableListBox"/>
+            </Variables>
+        </Dialog>
     </RTool>
     <RTool name="Summary statistics"  subcategory= "Summary">
         <Query><![CDATA[local({
 summary(|1|)
 })]]></Query>
         <Help name="summary"/>
-        <Widget id="1" label="Input data:" type="VariableComboBox"/>
+        <Dialog>
+            <Widget id="1" label="Input data:" type="VariableComboBox"/>
+        </Dialog>
     </RTool>
     <RTool name="Correlation matrix">
         <Query><![CDATA[local({
@@ -53,10 +59,14 @@ tmp <- data.frame(|1|)
 cor(tmp, use='|2|', method='|3|')
 })]]></Query>
         <Help name="cor"/>
-        <Widget id="1" label="Input data:" type="VariableListBox"/>
-        <Widget id="2" label="Use (with NAs):" type="ComboBox" default=
-"everything;all.obs;complete.obs;na.or.complete;pairwise.complete.obs"/>
-        <Widget id="3" label="Method:" type="ComboBox" default="pearson;kendall;spearman"/>
+        <Dialog>
+            <Variables>
+                <Widget id="1" label="Input data:" type="VariableListBox"/>
+            </Variables>
+            <Widget id="2" label="Use (with NAs):" type="ComboBox" default=
+    "everything;all.obs;complete.obs;na.or.complete;pairwise.complete.obs"/>
+            <Widget id="3" label="Method:" type="ComboBox" default="pearson;kendall;spearman"/>
+        </Dialog>
     </RTool>
     <RTool name="Linear regression">
         <Query><![CDATA[local({
@@ -66,9 +76,13 @@ else
 summary.lm(lm(|1| ~ 0 + |2|))
 })]]></Query>
         <Help name="lm"/>
-        <Widget id="1" label="Dependant variable:" type="VariableLineBox"/>
-        <Widget id="2" label="Independent variables:" type="VariableListBox" separator="+"/>
-        <Widget id="3" label="Include intercept" type="CheckBox" default="true"/>
+        <Dialog>
+            <Variables>
+                <Widget id="1" label="Dependant variable:" type="VariableLineEdit"/>
+                <Widget id="2" label="Independent variables:" type="VariableListBox" separator="+"/>
+            </Variables>
+            <Widget id="3" label="Include intercept" type="CheckBox" default="true"/>
+        </Dialog>
     </RTool>
     <RTool name="One sample t-test">
         <Query><![CDATA[local({
@@ -76,16 +90,20 @@ t.test(|1|, alternative='|2|', mu=|3|, conf.level=|4|)
 })]]></Query>
         <Help name="t.test"/>
         <Dialog>
-            <Rows>
-                <Widget id="1" label="Input variable:" type="VariableLineBox"/>
-                <Columns>
-                    <Widget id="2" type="RadioGroupBox" label="Alternative hypothesis" default="two.sided;less;greater"/>
-                    <Group name="Parameters">
-                        <Widget id="3" label="Value of the mean:" type="DoubleSpinBox" default="0.00"/>
-                        <Widget id="4" label="Confidence level:" type="DoubleSpinBox" default="0.95"/>
-                    </Group>
-                </Columns>
-            </Rows>
+            <Page name="Main">
+                <Rows>
+                    <Variables name="Choose variables">
+                        <Widget id="1" label="Input variable:" type="VariableLineEdit"/>
+                    </Variables>
+                    <Columns>
+                        <Widget id="2" type="RadioGroupBox" label="Alternative hypothesis" default="two.sided;less;greater"/>
+                        <Group name="Parameters">
+                            <Widget id="3" label="Value of the mean:" type="DoubleSpinBox" default="0.00"/>
+                            <Widget id="4" label="Confidence level:" type="DoubleSpinBox" default="0.95"/>
+                        </Group>
+                    </Columns>
+                </Rows>
+            </Page>
         </Dialog>
     </RTool>
 </manageRTools>

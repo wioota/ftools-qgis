@@ -11,7 +11,7 @@ from PyQt4.QtGui import (QTreeWidget, QAbstractItemView, QAction, QVBoxLayout,
                          QHBoxLayout, QTreeWidgetItem, QFileSystemModel, QCheckBox,
                          QTextEdit, QFileDialog, QDialog, QSpinBox, QLabel,
                          QApplication, QCursor, QInputDialog, QTreeView,
-                         )
+                         QSizePolicy, QFontMetrics)
 # local imports
 import resources, os, sys
 from environment import TreeModel
@@ -39,6 +39,7 @@ class WorkingDirectoryWidget(RWidget):
         self.currentEdit.setToolTip("Current working directory")
         self.currentEdit.setWhatsThis("Current working directory")
         self.currentEdit.setText(self.base)
+        self.currentEdit.setMinimumHeight(QFontMetrics(self.font()).height()*1.5)
 
         self.setwdButton = QToolButton(self)
         self.setwdButton.setToolTip("Set working directory")

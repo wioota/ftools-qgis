@@ -11,7 +11,7 @@ from PyQt4.QtGui import (QTreeWidget, QAbstractItemView, QAction, QVBoxLayout,
                          QHBoxLayout, QTreeWidgetItem, QFileSystemModel, QCheckBox,
                          QTextEdit, QFileDialog, QDialog, QSpinBox, QLabel,
                          QApplication, QCursor, QInputDialog, QTreeView,
-                         QSizePolicy, QFontMetrics)
+                         QSizePolicy, QFontMetrics, QSortFilterProxyModel)
 # local imports
 import resources, os, sys
 from environment import TreeModel
@@ -402,7 +402,7 @@ class WorkspaceWidget(RWidget):
 
     class TreeView(QTreeView):
         def __init__(self, parent):
-            QTreeWidget.__init__(self, parent)
+            QTreeView.__init__(self, parent)
             self.setAlternatingRowColors(True)
             self.setSelectionBehavior(QAbstractItemView.SelectRows)
             self.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -424,7 +424,14 @@ class WorkspaceWidget(RWidget):
     def __init__(self, parent=None):
         RWidget.__init__(self, parent)
         self.workspaceTree = self.TreeView(self)
-        self.updateEnvironment()
+#        self.workspaceTree.setSortingEnabled(True)
+#        self.proxyModel = QSortFilterProxyModel()
+#        self.proxyModel.setDynamicSortFilter(True)
+#        self.proxyModel.setFilterKeyColumn(1)
+#        model = TreeModel()
+#        self.proxyModel.setSourceModel(model)
+#        self.workspaceTree.setModel(model)
+#        self.workspaceTree.setModel(self.proxyModel)
 
         self.actions = []
         self.refreshAction = QAction("Re&fresh variables", self)
@@ -646,6 +653,7 @@ class WorkspaceWidget(RWidget):
     def updateEnvironment(self):
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         model = TreeModel()
+#        self.proxyModel.setSourceModel(model)
         self.workspaceTree.setModel(model)
         QApplication.restoreOverrideCursor()
         return True

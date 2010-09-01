@@ -226,7 +226,13 @@ class ComboBox(QWidget):
         self.setLayout(hbox)
 
     def parameterValues(self):
-        return {self.id:self.widget.currentText()}
+        index = self.widget.currentIndex()
+        data = self.widget.itemData(index).toString()
+        if not data.isEmpty():
+            text = data
+        else:
+            text = self.widget.currentText()
+        return {self.id:text}
 
 class SpinBox(QWidget):
     def __init__(self, id, text, **kwargs):
@@ -642,25 +648,34 @@ class VariableComboBox(QWidget):
         self.setToolTip("<p>Select input dataset</p>")
         self.id = id
         if model is None:
-            model = TreeModel()
+            self.model = TreeModel()
+        else:
+            self.model = model
         self.comboBox = TreeComboBox()
-        treeView = QTreeView(self.comboBox)
-        treeView.header().hide()
+        self.treeView = QTreeView(self.comboBox)
+        self.treeView.header().hide()
+        self.currentText = QString()
 
-        self.comboBox.setModel(model)
-        self.comboBox.setView(treeView)
-        treeView.hideColumn(1)
-        treeView.hideColumn(2)
-        treeView.hideColumn(3)
-        treeView.viewport().installEventFilter(self.comboBox)
+        self.comboBox.setModel(self.model)
+        self.comboBox.setView(self.treeView)
+        self.treeView.hideColumn(1)
+        self.treeView.hideColumn(2)
+        self.treeView.hideColumn(3)
+        self.treeView.viewport().installEventFilter(self.comboBox)
         label = QLabel(text)
         hbox = HBoxLayout()
         hbox.addWidget(label)
         hbox.addWidget(self.comboBox)
         self.setLayout(hbox)
+        self.connect(self.comboBox, SIGNAL("currentIndexChanged(int)"), 
+            self.changeSelectedText)
+        
+    def changeSelectedText(self, index):
+        index = self.treeView.currentIndex()
+        self.currentText = self.model.parentTree(index)
 
     def parameterValues(self):
-        return {self.id:self.comboBox.currentText()}
+        return {self.id:self.currentText}
 
 class PlotOptionsWidget(QWidget):
 
@@ -1040,26 +1055,96 @@ class TitlesBox(QGroupBox):
             params.append(", ylab='%s'" % self.ylabLineEdit.text())
         return {self.id:params}
 
-class ParametersBox(QGroupBox):
+class ParametersBox(QWidget):
 
     def __init__(self, id):
         QGroupBox.__init__(self)
         self.id = id
-        self.setTitle("Additional parameters")
-        self.setToolTip("<p>Add/adjust plotting parameters</p>")
-        self.setCheckable(True)
-        self.setChecked(False)
+        self.setToolTip("<p>Add/adjust plotting parameters.</p>")
         hbox = HBoxLayout()
+        label = QLabel("Additional parameters:")
         self.parameterLineEdit = QLineEdit()
         self.parameterLineEdit.setToolTip("<p>Enter additional (comma separated) "
                                       "parameter=value pairs here</p>")
+        hbox.addWidget(label)
         hbox.addWidget(parameterLineEdit)
         self.setLayout(hbox)
 
     def parameterValues(self):
         params = QString()
-        if self.isChecked():
-            params = self.parameterLineEdit.text()
+        params = self.parameterLineEdit.text().trimmed()
+        return {self.id:params}
+        
+class FileOpenLineEdit(QWidget):
+
+    def __init__(self, id, text="Input file:"):
+        QWidget.__init__(self)
+        self.id = id
+        
+        label = QLabel(text)
+        self.pathLineEdit = QLineEdit()
+        self.pathLineEdit.setToolTip("<p>Enter Input file path here</p>")
+        
+        button = QToolButton(self)
+        button.setToolTip("Browse to existing file")
+        button.setWhatsThis("Browse to existing file")
+        button.setIcon(QIcon(":document-open.svg"))
+        button.setText("...")
+        button.setAutoRaise(True)
+
+        horiz = HBoxLayout()
+        horiz.addWidget(label)
+        horiz.addWidget(self.pathLineEdit)
+        horiz.addWidget(button)
+        self.connect(button, SIGNAL("clicked()"), self.browseToFolder)
+
+    def browseToFolder(self):
+        f = QFileDialog.getOpenFileName(
+        self.parent(), "Specify input file",self.pathLineEdit.text())
+        if not f.isEmpty():
+            self.pathLineEdit.setText(f)
+            
+    def parameterValues(self):
+        if self.isEnabled() and self.pathLineEdit.text().isEmpty():
+            raise Exception("Error: Missing input path")
+        params = QString()
+        params = self.pathLineEdit.text().trimmed()
+        return {self.id:params}
+        
+class FileSaveLineEdit(QWidget):
+
+    def __init__(self, id, text="Output file:"):
+        QWidget.__init__(self)
+        self.id = id
+        
+        label = QLabel(text)
+        self.pathLineEdit = QLineEdit()
+        self.pathLineEdit.setToolTip("<p>Enter output file path here</p>")
+        
+        button = QToolButton(self)
+        button.setToolTip("Browse to new file")
+        button.setWhatsThis("Browse to new file")
+        button.setIcon(QIcon(":document-new.svg"))
+        button.setText("...")
+        button.setAutoRaise(True)
+
+        horiz = HBoxLayout()
+        horiz.addWidget(label)
+        horiz.addWidget(self.pathLineEdit)
+        horiz.addWidget(button)
+        self.connect(button, SIGNAL("clicked()"), self.browseToFolder)
+
+    def browseToFolder(self):
+        f = QFileDialog.getSaveFileName(
+        self.parent(), "Specify output file",self.pathLineEdit.text())
+        if not f.isEmpty():
+            self.pathLineEdit.setText(f)
+            
+    def parameterValues(self):
+        if self.isEnabled() and self.pathLineEdit.text().isEmpty():
+            raise Exception("Error: Missing output path")
+        params = QString()
+        params = self.pathLineEdit.text().trimmed()
         return {self.id:params}
 
 def main():

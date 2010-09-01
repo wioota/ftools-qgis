@@ -383,7 +383,14 @@ class PluginManager(QObject):
                     widget.widget.setValue(float(attributes[QString("default")]))
                 elif widgetType == "ComboBox":
                     widget = ComboBox(attributes[QString("id")], attributes[QString("label")])
-                    widget.widget.addItems(attributes[QString("default")].split(";"))
+                    vals = attributes[QString("default")].split(";")
+                    if QString("alternate") in attributes:
+                        data = attributes[QString("alternate")].split(";")
+                        if len(data) == len(vals):
+                            for i in range(len(vals)):
+                                widget.widget.addItem(data[i], QVariant(vals[i]))
+                    else:
+                        widget.widget.addItems(vals)
                 elif widgetType == "CheckBox":
                     widget = CheckBox(attributes[QString("id")], attributes[QString("label")])
                     if attributes[QString("default")].toLower() == "true":
@@ -416,6 +423,10 @@ class PluginManager(QObject):
                     if "style" in ops:
                         style = True
                     widget = AxesBox(attributes[QString("id")], logscale, style)
+                elif widgetType == "FileOpenLineEdit":
+                    widget = FileOpenLineEdit(attributes[QString("id")], attributes[QString("label")])
+                elif widgetType == "FileSaveLineEdit":
+                    widget = FileSaveLineEdit(attributes[QString("id")], attributes[QString("label")])
                 elif widgetType == "MinMaxBox":
                     widget = MinMaxBox(attributes[QString("id")])
                 elif widgetType == "GridCheckBox":

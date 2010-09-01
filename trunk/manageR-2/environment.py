@@ -336,18 +336,48 @@ class TreeModel(QAbstractItemModel):
                         props = [nm[k], md, dim, str(mem)]
                         node.appendChild(Node(props, node))
                         parent.appendChild(node)
-            
+                        
+class Widget(QWidget):
+    def __init__(self):
+        QWidget.__init__(self)
+        view = QTreeView()
+        view.setSortingEnabled(True)
+        self.proxy = QSortFilterProxyModel()
+        self.proxy.setDynamicSortFilter(True)
+        self.proxy.setFilterKeyColumn(1)
+        view.setModel(self.proxy)
+        hbox = QHBoxLayout()
+        hbox.addWidget(view)
+        self.setLayout(hbox)
+        
+def main2():
+    robjects.r.load("/home/cfarmer/working/.RData")
+    app = QApplication(sys.argv)
+    widget = Widget()
+    widget.setWindowTitle("Simple Tree Model")
+    model = TreeModel()
+    widget.proxy.setSourceModel(model)
+    widget.show()
+    app.exec_()
 
 def main():
-    robjects.r.load(".RData")
-    print robjects.r.ls()
+    robjects.r.load("/home/cfarmer/working/.RData")
     app = QApplication(sys.argv)
-    model = TreeModel()
     view = QTreeView()
-    view.setModel(model)
+    view.setSortingEnabled(True)
+    proxy = QSortFilterProxyModel()
+    proxy.setDynamicSortFilter(True)
+    proxy.setFilterKeyColumn(1)
+    view.setModel(proxy)
     view.setWindowTitle("Simple Tree Model")
+    model = TreeModel()
+    proxy.setSourceModel(model)
+#    regexp = QRegExp(r"Spatial.*")
+#    proxy.setFilterRegExp(regexp)
+    
+#    proxy.setSourceModel(model)
     view.show()
     app.exec_()
 
 if __name__ == '__main__':
-    main()
+    main2()

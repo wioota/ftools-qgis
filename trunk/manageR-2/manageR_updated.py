@@ -50,6 +50,7 @@ from widgets import *
 from browsers import *
 from config import ConfigDialog
 from plugins_manager import PluginManager
+from environment import TreeModel
 
 # rpy2 (R) imports
 import rpy2
@@ -178,7 +179,7 @@ class MainWindow(QMainWindow):
             self.connect(cwdWidget, SIGNAL("emitCommands(QString)"), self.main.editor().acceptCommands)
             widgets.append(cwdDockWidget)
 
-            workspaceWidget = WorkspaceWidget(self.main.editor())
+            workspaceWidget = WorkspaceWidget(self.main.editor())            
             workspaceDockWidget = QDockWidget("Workspace Manager", self)
             workspaceDockWidget.setObjectName("workspaceDockWidget")
             workspaceDockWidget.setAllowedAreas(Qt.LeftDockWidgetArea|Qt.RightDockWidgetArea)
@@ -2133,12 +2134,11 @@ class Highlighter(QSyntaxHighlighter):
         self.initializeFormats()
         Highlighter.Rules.append((QRegExp(
                 r"[a-zA-Z_]+[a-zA-Z_\.0-9]*(?=[\s]*[(])"), "keyword"))
-        #Highlighter.Rules.append((QRegExp(
-                #"|".join([r"\b%s\b" % keyword for keyword in KEYWORDS])),
-                #"keyword"))
+        Highlighter.Rules.append((QRegExp(r"\b%s\b" % "else"),"keyword"))
+        # other keywords can be added above
         builtins = ["array", "character", "complex", "data.frame", "double",
                     "factor", "function", "integer", "list", "logical",
-                    "matrix", "numeric", "vector", "numeric", "else"]
+                    "matrix", "numeric", "vector", "numeric"]
         Highlighter.Rules.append((QRegExp(
                 "|".join([r"\b%s\b" % builtin for builtin in builtins])),
                 "builtin"))

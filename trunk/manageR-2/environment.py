@@ -349,19 +349,37 @@ class Widget(QWidget):
         hbox = QHBoxLayout()
         hbox.addWidget(view)
         self.setLayout(hbox)
+        self.model = TreeModel()
+        self.proxy.setSourceModel(self.model)
+        
+class MainWindow(QMainWindow):
+    def __init__(self):
+        QMainWindow.__init__(self)
+        widget = Widget()
+        self.setCentralWidget(widget)
+        self.model = TreeModel()
+        self.centralWidget().proxy.setSourceModel(self.model)
+        
+def main3():
+    robjects.r.load("/home/cfarmer/working/test.RData")
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.setWindowTitle("Simple Tree Model")
+    window.show()
+    app.exec_()
         
 def main2():
-    robjects.r.load("/home/cfarmer/working/.RData")
+    robjects.r.load("/home/cfarmer/working/test.RData")
     app = QApplication(sys.argv)
     widget = Widget()
     widget.setWindowTitle("Simple Tree Model")
-    model = TreeModel()
-    widget.proxy.setSourceModel(model)
+#    model = TreeModel()
+#    widget.proxy.setSourceModel(model)
     widget.show()
     app.exec_()
 
 def main():
-    robjects.r.load("/home/cfarmer/working/.RData")
+    robjects.r.load("/home/cfarmer/working/test.RData")
     app = QApplication(sys.argv)
     view = QTreeView()
     view.setSortingEnabled(True)

@@ -40,7 +40,7 @@ if (|5|) { # Should we add a trend line?
     </RTool>
     <RTool name="Histogram" icon="icons/default/plotting/custom-chart-histogram.svg">
         <Query><![CDATA[local({
-hist(|1|, breaks='|2|', freq=|3|, |4|, |7|)
+hist(|1|, breaks='|2|', freq=|3|, |7|)
 if (|5|) { # should we add a probability distribution?
     lines(density(|1|), lty='|6|')
 }
@@ -53,13 +53,13 @@ if (|5|) { # should we add a probability distribution?
             <Widget id="2" label="Break calculation:" type="ComboBox" default=
                "Sturges;Scott;Freedman-Diaconis"/>
             <Widget id="3" label="Plot as frequencies" type="CheckBox" default="true"/>
-            <Page name="Options">
-                <Widget id="4" type="PlotOptionsBox" default="box;titles"/>
+<!--            <Page name="Options">-->
+<!--                <Widget id="4" type="PlotOptionsBox" default="box;titles"/>-->
                 <Group id="5" checkable="true" name="Add probability distribution" default="false">
                     <Widget id="6" label="Line style" type="LineStyleBox"/>
                 </Group>
                 <Widget id="7" label="Additional parameters:" type="AdditionalParametersBox"/>
-            </Page>
+<!--            </Page>-->
         </Dialog>
     </RTool>
     <RTool name="Box-plot" icon="icons/default/plotting/custom-chart-box-plot.svg">

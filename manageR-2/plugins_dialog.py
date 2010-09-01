@@ -687,7 +687,7 @@ class PlotOptionsWidget(QWidget):
         button.setCheckable(True)
         button.setChecked(False)
         button.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
-        widget = QWidget()
+        self.widget = Widget()
         vbox = VBoxLayout()
         self.id = id
         if titles:
@@ -699,17 +699,17 @@ class PlotOptionsWidget(QWidget):
         if minmax:
             vbox.addWidget(MinMaxBox(self.id))
         vbox.setMargin(0)
-        widget.setLayout(vbox)
+        self.widget.setLayout(vbox)
         vbox = VBoxLayout()
         vbox.addWidget(button)
-        vbox.addWidget(widget)
+        vbox.addWidget(self.widget)
         self.setLayout(vbox)
-        self.connect(button, SIGNAL("toggled(bool)"), widget.setVisible)
-        widget.hide()
+        self.connect(button, SIGNAL("toggled(bool)"), self.widget.setVisible)
+        self.widget.hide()
 
     def parameterValues(self):
         params = QString()
-        for widget in self.children():
+        for widget in self.widget.children():
             vals = widget.parameterValues()
             if not vals is None:
                 params.append(QStringList(vals.values()).join(""))

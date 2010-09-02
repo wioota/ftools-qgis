@@ -278,7 +278,8 @@ class PluginManager(QObject):
             for child in main.findChildren(QMenu):
                 title = child.title()
                 title.remove("&")
-                if title.trimmed() == collection.category().trimmed():
+                if title.trimmed() == collection.category().trimmed() and \
+                   child.parent() == main:
                     menu = child
                     break
             if menu is None:
@@ -398,7 +399,9 @@ class PluginManager(QObject):
                     else:
                         widget.setChecked(False)
                 elif widgetType == "VariableComboBox":
-                    widget = VariableComboBox(attributes[QString("id")], attributes[QString("label")])
+                    widget = VariableComboBox(attributes[QString("id")], 
+                                              attributes[QString("label")], 
+                                              attributes[QString("default")].split(";"))
                 elif widgetType == "VariableLineEdit":
                     widget = VariableLineEdit(attributes[QString("id")], attributes[QString("label")])
                 elif widgetType == "VariableListBox":
@@ -412,8 +415,14 @@ class PluginManager(QObject):
                     ops = attributes[QString("default")].split(";")
                     widget = RadioGroupBox(attributes[QString("id")])
                     widget.setTitle(attributes[QString("label")])
-                    for subwidget in ops:
-                        widget.addButton(subwidget)
+                    if QString("alternate") in attributes:
+                        data = attributes[QString("alternate")].split(";")
+                        if len(data) == len(ops):
+                            for i in range(len(ops)):
+                                widget.addButton(ops[i], data[i])
+                    else:
+                        for subwidget in ops:
+                            widget.addButton(subwidget)
                 elif widgetType == "AxesBox":
                     ops = attributes[QString("default")].split(";")
                     logscale = False

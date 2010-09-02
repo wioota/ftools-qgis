@@ -119,7 +119,7 @@ local({
 })]]></Query>
         <Help name="nb2listw"/>
         <Dialog>
-            <Widget id="1" label="Input layer:" type="VariableComboBox"/>
+            <Widget id="1" label="Input layer:" type="VariableComboBox" default="Spatial.*DataFrame"/>
             <Widget id="7" label="Output name:" type="LineEdit" default="weights"/>
             <Group name="Spatial neighbourhood">
                 <Widget id="2" label="Spatial neighbourhood type:" type="ComboBox" default="distance;knearest;contiguity" alternate=

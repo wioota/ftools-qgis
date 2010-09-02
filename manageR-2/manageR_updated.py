@@ -1482,6 +1482,13 @@ class RConsole(PlainTextEdit):
             else:
                 PlainTextEdit.keyPressEvent(self, e)
         self.ensureCursorVisible()
+        
+    def insertFromMimeData(self, source):
+        cursor = self.textCursor()
+        cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
+        cursor.block().setUserData(UserData(PlainTextEdit.INPUT))
+        self.setTextCursor(cursor)
+        PlainTextEdit.insertFromMimeData(self, source)
 
     def cancel(self):
         cursor = self.textCursor()

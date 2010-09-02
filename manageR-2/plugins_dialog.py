@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from PyQt4.QtCore import (QString, QStringList, SIGNAL, SLOT, QFileInfo,
-                          Qt, QVariant, QObject, QModelIndex, QEvent, QSize, )
+                          Qt, QVariant, QObject, QModelIndex, QEvent, QSize,
+                          QRegExp, )
 from PyQt4.QtGui import (QPixmap, QDialog, QLabel, QIcon, QTabWidget,
                          QToolButton, QAction, QWidget, QShortcut, QKeySequence,
                          QVBoxLayout, QHBoxLayout, QCheckBox, QPushButton,
@@ -11,11 +12,11 @@ from PyQt4.QtGui import (QPixmap, QDialog, QLabel, QIcon, QTabWidget,
                          QComboBox,QListWidgetItem, QFileDialog, QItemDelegate, 
                          QGridLayout, QButtonGroup, QPen, QLayout, QPalette,
                          QStylePainter, QTreeView, QListWidget, QMessageBox,
-                         QSpinBox, QDoubleSpinBox, QRadioButton, QSizePolicy)
+                         QSpinBox, QDoubleSpinBox, QRadioButton, QSizePolicy, )
 
 import rpy2.robjects as robjects
 import sys, os, resources
-from environment import TreeModel
+from environment import TreeModel,SortFilterProxyModel
 
 class PluginDialog(QDialog):
 
@@ -135,13 +136,11 @@ class PluginDialog(QDialog):
         for widget in self.widgets:
                 try:
                     tmp = widget.parameterValues()
-                    print tmp
                     params.update(tmp)
                 except Exception, err:
                     QMessageBox.warning(self, "manageR Plugin Error", str(err))
                     return
         self.params = params
-        print params
         self.emit(SIGNAL("pluginOutput(PyQt_PyObject)"), self.params)
 
 class LineStyleDelegate(QItemDelegate):
@@ -199,10 +198,10 @@ class TreeComboBox(QComboBox):
         self.view().viewport().installEventFilter(self)
 
     def eventFilter(self, object, event):
-        if (event.type() == QEvent.MouseButtonPress and object == self.view().viewport()):
-            mouseEvent = event
-            index = self.view().indexAt(mouseEvent.pos())
-            if not self.view().visualRect(index).contains(mouseEvent.pos()):
+        if (event.type() == QEvent.MouseButtonPress and \
+           object == self.view().viewport()):
+            index = self.view().indexAt(event.pos())
+            if not self.view().visualRect(index).contains(event.pos()):
                 self.skipNextHide = True
         return False
 
@@ -212,6 +211,10 @@ class TreeComboBox(QComboBox):
             self.skipNextHide = False
         else:
             QComboBox.hidePopup(self)
+            
+    def showPopup(self):
+        self.view().setMinimumHeight(200)
+        QComboBox.showPopup(self)
 
 class ComboBox(QWidget):
     def __init__(self, id, text, **kwargs):
@@ -221,7 +224,6 @@ class ComboBox(QWidget):
         label = QLabel(text)
         hbox = HBoxLayout()
         hbox.addWidget(label)
-        hbox.addStretch(1)
         hbox.addWidget(self.widget, alignment=Qt.AlignRight)
         self.setLayout(hbox)
 
@@ -643,7 +645,7 @@ class GridCheckBox(QCheckBox):
 
 class VariableComboBox(QWidget):
 
-    def __init__(self, id, text="Input data", model=None):
+    def __init__(self, id, text="Input data", default=[], model=None):
         QWidget.__init__(self)
         self.setToolTip("<p>Select input dataset</p>")
         self.id = id
@@ -653,10 +655,19 @@ class VariableComboBox(QWidget):
             self.model = model
         self.comboBox = TreeComboBox()
         self.treeView = QTreeView(self.comboBox)
+        self.connect(self.comboBox, SIGNAL("currentIndexChanged(int)"), 
+            self.changeSelectedText)
+        self.proxyModel = SortFilterProxyModel()
+        self.proxyModel.setDynamicSortFilter(True)
+        self.proxyModel.setFilterKeyColumn(1)
+        self.proxyModel.setSourceModel(self.model)
+        regexp = QRegExp("|".join([r"%s" % i for i in default]))
+        self.proxyModel.setFilterRegExp(regexp)
         self.treeView.header().hide()
         self.currentText = QString()
+        self.treeView.setModel(self.proxyModel)
 
-        self.comboBox.setModel(self.model)
+        self.comboBox.setModel(self.proxyModel)
         self.comboBox.setView(self.treeView)
         self.treeView.hideColumn(1)
         self.treeView.hideColumn(2)
@@ -667,12 +678,14 @@ class VariableComboBox(QWidget):
         hbox.addWidget(label)
         hbox.addWidget(self.comboBox)
         self.setLayout(hbox)
-        self.connect(self.comboBox, SIGNAL("currentIndexChanged(int)"), 
-            self.changeSelectedText)
+        self.changeSelectedText(None)
         
     def changeSelectedText(self, index):
-        index = self.treeView.currentIndex()
-        self.currentText = self.model.parentTree(index)
+        item = self.treeView.currentIndex()
+        if not item.isValid():
+            item = self.proxyModel.index(0,0, QModelIndex())
+        tree = self.treeView.model().parentTree(item)
+        self.currentText = tree
 
     def parameterValues(self):
         return {self.id:self.currentText}
@@ -733,19 +746,24 @@ class RadioGroupBox(QGroupBox):
         self.id = id
         vbox = VBoxLayout()
         self.setLayout(vbox)
-#        self.setTitle(text)
+        self.alternates = []
         
-    def addButton(self, name):
-        button = self.RadioButton(name)
+    def addButton(self, name, alternate=None):
+        if alternate is None:
+            alternate = name
+        self.alternates.append(name)
+        button = self.RadioButton(alternate)
         if len(self.children()) == 1:
             button.setChecked(True)
         self.layout().addWidget(button)
         
     def parameterValues(self):
         params = QString()
+        count = 0
         for widget in self.findChildren(self.RadioButton):
             if widget.isChecked():
-                return {self.id:widget.text()}
+                return {self.id:self.alternates[count]}
+            count += 1
         
 class GroupCheckBox(QGroupBox):
 

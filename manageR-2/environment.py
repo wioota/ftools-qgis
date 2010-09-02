@@ -195,7 +195,8 @@ class TreeModel(QAbstractItemModel):
             objName = self.parentTree(idx)
             obj = robjects.r(objName)
             tmp = self.getItem(idx)
-            if tmp.childCount() < 1 and not QString(objName).endsWith("[['call']]"):
+            if tmp.childCount() < 1 and \
+               not QString(objName).endsWith("[['call']]"):
                 self.browseObject(obj, idx)
 
     def updateData(self, item, count):
@@ -214,6 +215,7 @@ class TreeModel(QAbstractItemModel):
         #name.remove("[[").remove("]]")
         parent = item.parent()
         names = []
+        
         while not parent is None:
             tmp = QString(parent.data(0))
             #tmp.remove("[[").remove("]]")
@@ -223,7 +225,7 @@ class TreeModel(QAbstractItemModel):
         names.pop(0)
 #        path = ["[['%s']]" % name if not name.contains(QRegExp(r"\[\[.*\]\]")) 
 #            else unicode(name) for name in names[1:]]
-        path = [unicode(name) if name.contains(QRegExp(r"\[\[.*\]\]")) 
+        path = [unicode(name) if name.contains(QRegExp(r"\[\[.*\]\]")) \
             or name=="@data" else "[['%s']]" % name for name in names[1:]]
         if len(names) < 1:
             return ""
@@ -336,6 +338,22 @@ class TreeModel(QAbstractItemModel):
                         props = [nm[k], md, dim, str(mem)]
                         node.appendChild(Node(props, node))
                         parent.appendChild(node)
+                        
+class SortFilterProxyModel(QSortFilterProxyModel):
+    def __init__(self):
+        QSortFilterProxyModel.__init__(self)
+        
+    def updateEntry(self, index):
+        index = self.mapToSource(index)
+        return self.sourceModel().updateEntry(index)
+
+    def parentTree(self, index):
+        index = self.mapToSource(index)
+        return self.sourceModel().parentTree(index)
+        
+    def getItem(self, index):
+        index = self.mapToSource(index)
+        return self.sourceModel().getItem(index)
                         
 class Widget(QWidget):
     def __init__(self):

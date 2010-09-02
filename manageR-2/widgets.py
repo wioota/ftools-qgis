@@ -14,7 +14,7 @@ from PyQt4.QtGui import (QTreeWidget, QAbstractItemView, QAction, QVBoxLayout,
                          QSizePolicy, QFontMetrics, QSortFilterProxyModel)
 # local imports
 import resources, os, sys
-from environment import TreeModel
+from environment import TreeModel, SortFilterProxyModel
 
 class RWidget(QWidget):
 
@@ -424,14 +424,14 @@ class WorkspaceWidget(RWidget):
     def __init__(self, parent=None):
         RWidget.__init__(self, parent)
         self.workspaceTree = self.TreeView(self)
-#        self.workspaceTree.setSortingEnabled(True)
-#        self.proxyModel = QSortFilterProxyModel()
-#        self.proxyModel.setDynamicSortFilter(True)
+        self.workspaceTree.setSortingEnabled(True)
+        self.proxyModel = SortFilterProxyModel()
+        self.proxyModel.setDynamicSortFilter(True)
 #        self.proxyModel.setFilterKeyColumn(1)
-#        model = TreeModel()
-#        self.proxyModel.setSourceModel(model)
-#        self.workspaceTree.setModel(model)
-#        self.workspaceTree.setModel(self.proxyModel)
+        self.model = TreeModel()
+        self.proxyModel.setSourceModel(self.model)
+#        self.workspaceTree.setModel(self.model)
+        self.workspaceTree.setModel(self.proxyModel)
 
         self.actions = []
         self.refreshAction = QAction("Re&fresh variables", self)
@@ -563,7 +563,8 @@ class WorkspaceWidget(RWidget):
         items = self.workspaceTree.selectedIndexes()
         if len(items) < 1:
             return False
-        tree = self.workspaceTree.model().parentTree(items[0])
+        index = items[0]
+        tree = self.workspaceTree.model().parentTree(index)
         self.runCommand('plot(%s)' % tree)
 
     def removeVariable(self):
@@ -584,7 +585,7 @@ class WorkspaceWidget(RWidget):
         items = self.workspaceTree.selectedIndexes()
         if len(items) < 1:
             return False
-        tree = self.variablePath(items[0])
+        tree = self.workspaceTree.model().parentTree(items[0])
         fd = QFileDialog(self.parent, "Save data to file", str(robjects.r.getwd()),
         "Comma separated (*.csv);;Text file (*.txt);;All files (*.*)")
         fd.setAcceptMode(QFileDialog.AcceptSave)
@@ -609,13 +610,18 @@ class WorkspaceWidget(RWidget):
         items = self.workspaceTree.selectedIndexes()
         if len(items) < 1:
             return False
-        parent = item[0].parent()
-        name = items[0].text(0)
-        while parent:
-            name = parent.text(0)
+        item = self.workspaceTree.model().getItem(items[0])
+        name = item.data(0)
+        parent = item.parent()
+        names = [name]
+        while not parent is None:
+            names.append(QString(parent.data(0)))
             parent = parent.parent()
+        if len(names) > 1:
+            names.pop(-1)
+        name = names[-1]
         fd = QFileDialog(self.parent, "Save data to file",
-        str(robjects.r.getwd()[0]), "R data file (*.Rdata)")
+        os.path.join(str(robjects.r.getwd()[0]), unicode(name)+".Rdata"), "R data file (*.Rdata)")
         fd.setAcceptMode(QFileDialog.AcceptSave)
         if not fd.exec_() == QDialog.Accepted:
             return False
@@ -652,9 +658,9 @@ class WorkspaceWidget(RWidget):
 
     def updateEnvironment(self):
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        model = TreeModel()
-#        self.proxyModel.setSourceModel(model)
-        self.workspaceTree.setModel(model)
+        self.model = TreeModel()
+        self.proxyModel.setSourceModel(self.model)
+#        self.workspaceTree.setModel(model)
         QApplication.restoreOverrideCursor()
         return True
 

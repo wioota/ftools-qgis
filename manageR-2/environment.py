@@ -105,19 +105,22 @@ class TreeModel(QAbstractItemModel):
         
     def getIcon(self, type):
         if type in ("data.frame", "table"):
-            return QIcon(":icon")
-        elif type in ("list", "vector", "numeric"):
-            return QIcon(":document-open")
+            return QIcon(":custom-data-frame")
+        elif type in ("vector", "numeric", "double", 
+                      "interger", "complex", "real"):
+            return QIcon(":custom-numeric")
         elif QString(type).startsWith("Spatial"):
             return QIcon(":custom-vector")
         elif type in ("factor"):
-            return QIcon(":edit-copy")
+            return QIcon(":custom-factor")
+        elif type in ("character"):
+            return QIcon(":custom-character")
         elif type in ("matrix"):
-            return QIcon(":edit-cut")
-        elif type in ("function"):
-            return QIcon(":edit-paste")
+            return QIcon(":custom-matrix")
+        elif type in ("list"):
+            return QIcon(":custom-list")
         else:
-            return QIcon(":file-save")
+            return QIcon(":application-default-icon")
 
     def flags(self, index):
         if not index.isValid():

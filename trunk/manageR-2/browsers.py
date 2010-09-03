@@ -144,7 +144,7 @@ class LayerImportBrowser(QDialog):
 
     def createIcons(self):
         vectorButton = QListWidgetItem(self.contentsWidget)
-        vectorButton.setIcon(QIcon(":internet-web-browser.svg"))
+        vectorButton.setIcon(QIcon(":custom-vector.svg"))
         vectorButton.setText("Vector Layer")
         vectorButton.setTextAlignment(Qt.AlignHCenter)
         vectorButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)

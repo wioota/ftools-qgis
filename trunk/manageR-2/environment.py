@@ -4,7 +4,7 @@
 import rpy2.robjects as robjects
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-import sys
+import sys, resources
 
 # -*- coding: utf-8 -*-
 class Node(QObject):
@@ -95,10 +95,29 @@ class TreeModel(QAbstractItemModel):
     def data(self, index, role):
         if not index.isValid():
             return QVariant()
+        item = self.getItem(index)
+        if role == Qt.DecorationRole:
+            if index.column() == 0:
+                return self.getIcon(item.data(1))
         if not role in (Qt.DisplayRole, Qt.EditRole):
             return QVariant()
-        item = self.getItem(index)
         return item.data(index.column())
+        
+    def getIcon(self, type):
+        if type in ("data.frame", "table"):
+            return QIcon(":icon")
+        elif type in ("list", "vector", "numeric"):
+            return QIcon(":document-open")
+        elif QString(type).startsWith("Spatial"):
+            return QIcon(":custom-vector")
+        elif type in ("factor"):
+            return QIcon(":edit-copy")
+        elif type in ("matrix"):
+            return QIcon(":edit-cut")
+        elif type in ("function"):
+            return QIcon(":edit-paste")
+        else:
+            return QIcon(":file-save")
 
     def flags(self, index):
         if not index.isValid():

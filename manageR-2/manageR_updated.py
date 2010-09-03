@@ -233,14 +233,14 @@ class MainWindow(QMainWindow):
                 self.fileSaveAs, QKeySequence.SaveAs,
                 "document-save-as", "Save R script as...")
             fileCloseAction = self.createAction("&Close", self.fileClose,
-                QKeySequence.Close, "process-stop",
+                QKeySequence.Close, "window-close",
                 "Close this editR window")
             self.addActions(fileMenu, (fileOpenAction, fileSaveAction,
                 fileSaveAsAction, None, fileCloseAction,))
         if console:
             fileConfigureAction = self.createAction("Config&ure...",
                 self.fileConfigure, "Ctrl+Shift+P",
-                "preferences-desktop", "Configure manageR")
+                "gconf-editor", "Configure manageR")
             fileQuitAction = self.createAction("&Quit", self.fileQuit,
                 "Ctrl+Q", "system-shutdown", "Quit manageR")
             self.addActions(fileMenu, (fileConfigureAction, None,
@@ -270,7 +270,7 @@ class MainWindow(QMainWindow):
             editPasteAction, editSelectAllAction, None))
         if autocomplete:
             editCompleteAction = self.createAction("Com&plete",
-                self.main.completer().suggest, icon="help-faq",
+                self.main.completer().suggest, icon="applications-chat",
                 tip="Initiate autocomplete suggestions")
             self.addActions(editMenu, (editCompleteAction, None,))
         editFindNextAction = self.createAction("&Find",
@@ -282,7 +282,7 @@ class MainWindow(QMainWindow):
                 self.main.toggleReplace, QKeySequence.Replace,
                 "edit-find-replace", "Replace text")
             editGotoLineAction =  self.createAction("&Go to line",
-                self.main.editor().gotoLine, "Ctrl+G", "view-sort-descending",
+                self.main.editor().gotoLine, "Ctrl+G", "go-jump",
                 "Move cursor to line")
             editIndentRegionAction = self.createAction("&Indent Region",
                 self.main.editor().indentRegion, "Ctrl+I", "format-indent-more",
@@ -330,7 +330,7 @@ class MainWindow(QMainWindow):
             workspaceMenu = self.menuBar().addMenu("&Workspace")
             workspaceLoadAction = self.createAction(
                 "&Load R workspace", self.openWorkspace,
-                "Ctrl+W", "system-file-manager",
+                "Ctrl+W", "document-load",
                 "Load R workspace")
             workspaceSaveAction = self.createAction(
                 "&Save R workspace", self.saveWorkspace,
@@ -341,7 +341,7 @@ class MainWindow(QMainWindow):
                 "Ctrl+D", "package-x-generic",
                 "Load R data")
             workspaceLibraryAction = self.createAction("Library &browser",
-                self.libraryBrowser, "Ctrl+H", icon="help-contents",
+                self.libraryBrowser, "Ctrl+H", icon="gnome-panel-notification-area",
                 tip="Browse R package library")
             workspaceRepositoryAction = self.createAction("&Install packages",
                 self.repositoryBrowser, icon="system-software-install",
@@ -355,23 +355,23 @@ class MainWindow(QMainWindow):
             plotsMenu = self.menuBar().addMenu("&Plot")
             plotsSaveAction = self.createAction(
                 "&Save current", self.savePlot,
-                "Ctrl+P", "system-file-manager",
+                "Ctrl+P", "document-save",
                 "Save active plot as vector file")
             plotsExportAction = self.createAction(
                 "&Export current", self.exportPlot,
-                "Ctrl+Shift+P", "document-save",
+                "Ctrl+Shift+P", "document-import",
                 "Save active plot as image")
             plotsCloseAction = self.createAction("Close active",
-                lambda: self.execute("dev.off(dev.cur())"), icon="help-contents",
+                lambda: self.execute("dev.off(dev.cur())"), icon="window-close",
                 tip="Close plot")
             plotsNewAction = self.createAction("&Open empty",
-                lambda: self.execute("dev.new()"), icon="system-software-install",
+                lambda: self.execute("dev.new()"), icon="bookmark-new",
                 tip="Open empty default plotting device")
             self.addActions(plotsMenu, (plotsSaveAction,
                 plotsExportAction, None, plotsCloseAction, 
                 plotsNewAction, None,))
             self.plotsSetMenu = plotsMenu.addMenu("&Set active")
-            self.plotsSetMenu.setIcon(QIcon(":document-save.svg"))
+            self.plotsSetMenu.setIcon(QIcon(":dialog-apply.svg"))
             plotsMenu.addSeparator()
             self.connect(self.plotsSetMenu, SIGNAL("aboutToShow()"),
                  self.updatePlotsSetMenu)
@@ -388,7 +388,7 @@ class MainWindow(QMainWindow):
     def createHelpActions(self, console=True):
         helpMenu = self.menuBar().addMenu("&Help")
         helpSearchAction = self.createAction("&Help", self.helpBrowser,
-            QKeySequence.HelpContents, icon="help-browser",
+            QKeySequence.HelpContents, icon="help-contents",
             tip="Commands help")
         helpAboutAction = self.createAction("&About", self.helpAbout,
             icon="help-about", tip="About manageR")
@@ -431,6 +431,15 @@ class MainWindow(QMainWindow):
         self.plotsSetMenu.clear()
         dev_list = robjects.r.get('dev.list' , mode='function')
         menu = self.plotsSetMenu
+        def getIcon(type):
+            if type == "X11cairo":
+                return QIcon(":preferences-system-windows")
+            elif type == "postscript":
+                return QIcon(":x-office-drawing")
+            elif type == "pdf":
+                return QIcon(":gnome-mime-application-pdf")
+            else:
+                return QIcon(":image-x-generic")
         try:
             # this is throwing exceptions...
             graphics = dict(zip(list(dev_list()), list(dev_list().names)))
@@ -439,7 +448,7 @@ class MainWindow(QMainWindow):
         for key, value in graphics.iteritems():
             # find better way to add action here so that they are separate...
             # possibly create a list of devices?
-            action = QAction(QIcon(":system-software-install.svg"),"dev %s (%s)" % (key, value), self)
+            action = QAction(getIcon(value),"dev %s (%s)" % (key, value), self)
             action.setData(QVariant(key))
             self.connect(action, SIGNAL("activated()"), self.setPlot)
             menu.addAction(action)
@@ -1367,7 +1376,7 @@ class REditor(PlainTextEdit):
                        [QIcon(":edit-select-all.svg"),
                         "Select all", self.selectAll,
                         QKeySequence(QKeySequence.SelectAll)],
-                       [QIcon(":insert-text.svg"),
+                       [QIcon(":gtk-edit.svg"),
                         "Insert keywords", self.insertParameters,
                         QKeySequence("Ctrl+I")],
                        [QIcon(":edit-paste.svg"),
@@ -1583,7 +1592,7 @@ class RConsole(PlainTextEdit):
             norms = [[QIcon(":edit-select-all.svg"),
                     "Select all", self.selectAll,
                     QKeySequence(QKeySequence.SelectAll)],
-                    [QIcon(":insert-text.svg"),
+                    [QIcon(":gtk-edit.svg"),
                     "Function keywords", self.insertParameters,
                     QKeySequence("Ctrl+P")],
                     [QIcon(":edit-paste.svg"),
@@ -1711,7 +1720,7 @@ class SearchBar(QWidget):
         self.closeButton = QToolButton(self)
         self.closeButton.setText("Close")
         self.closeButton.setToolButtonStyle(Qt.ToolButtonIconOnly)
-        self.closeButton.setIcon(QIcon(":process-stop.svg"))
+        self.closeButton.setIcon(QIcon(":window-close.svg"))
         self.closeButton.setToolTip("Close search bar")
         self.closeButton.setAutoRaise(True)
         self.searchEdit = QLineEdit(self)

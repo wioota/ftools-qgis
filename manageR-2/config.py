@@ -68,7 +68,7 @@ class ConfigDialog(QDialog):
 
     def createIcons(self):
         generalButton = QListWidgetItem(self.contentsWidget)
-        generalButton.setIcon(QIcon(":preferences-system.svg"))
+        generalButton.setIcon(QIcon(":gconf-editor.svg"))
         generalButton.setText("General")
         generalButton.setTextAlignment(Qt.AlignHCenter)
         generalButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)

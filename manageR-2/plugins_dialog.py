@@ -190,31 +190,31 @@ class LineStyleComboBox(QComboBox):
         else:
             QComboBox.paintEvent(self, e)
 
-class TreeComboBox(QComboBox):
-    def __init__(self, parent=None):
-        QComboBox.__init__(self, parent)
-        self.skipNextHide = False
-        self.setView(QTreeView(self))
-        self.view().viewport().installEventFilter(self)
+#class TreeComboBox(QComboBox):
+#    def __init__(self, parent=None):
+#        QComboBox.__init__(self, parent)
+#        self.skipNextHide = False
+#        self.setView(QTreeView(self))
+#        self.view().viewport().installEventFilter(self)
 
-    def eventFilter(self, object, event):
-        if (event.type() == QEvent.MouseButtonPress and \
-           object == self.view().viewport()):
-            index = self.view().indexAt(event.pos())
-            if not self.view().visualRect(index).contains(event.pos()):
-                self.skipNextHide = True
-        return False
+#    def eventFilter(self, object, event):
+#        if (event.type() == QEvent.MouseButtonPress and \
+#           object == self.view().viewport()):
+#            index = self.view().indexAt(event.pos())
+#            if not self.view().visualRect(index).contains(event.pos()):
+#                self.skipNextHide = True
+#        return False
 
-    def hidePopup(self):
-        self.setCurrentIndex(self.view().currentIndex().row())
-        if self.skipNextHide:
-            self.skipNextHide = False
-        else:
-            QComboBox.hidePopup(self)
-            
-    def showPopup(self):
-        self.view().setMinimumHeight(200)
-        QComboBox.showPopup(self)
+#    def hidePopup(self):
+#        self.setCurrentIndex(self.view().currentIndex().row())
+#        if self.skipNextHide:
+#            self.skipNextHide = False
+#        else:
+#            QComboBox.hidePopup(self)
+#            
+#    def showPopup(self):
+#        self.view().setMinimumHeight(200)
+#        QComboBox.showPopup(self)
 
 class ComboBox(QWidget):
     def __init__(self, id, text, **kwargs):
@@ -653,8 +653,8 @@ class VariableComboBox(QWidget):
             self.model = TreeModel()
         else:
             self.model = model
-        self.comboBox = TreeComboBox()
-        self.treeView = QTreeView(self.comboBox)
+        self.comboBox = QComboBox()
+        self.treeView = QListView(self.comboBox)
         self.connect(self.comboBox, SIGNAL("currentIndexChanged(int)"), 
             self.changeSelectedText)
         self.proxyModel = SortFilterProxyModel()
@@ -663,15 +663,15 @@ class VariableComboBox(QWidget):
         self.proxyModel.setSourceModel(self.model)
         regexp = QRegExp("|".join([r"%s" % i for i in default]))
         self.proxyModel.setFilterRegExp(regexp)
-        self.treeView.header().hide()
+#        self.treeView.header().hide()
         self.currentText = QString()
         self.treeView.setModel(self.proxyModel)
 
         self.comboBox.setModel(self.proxyModel)
         self.comboBox.setView(self.treeView)
-        self.treeView.hideColumn(1)
-        self.treeView.hideColumn(2)
-        self.treeView.hideColumn(3)
+#        self.treeView.hideColumn(1)
+#        self.treeView.hideColumn(2)
+#        self.treeView.hideColumn(3)
         self.treeView.viewport().installEventFilter(self.comboBox)
         label = QLabel(text)
         hbox = HBoxLayout()

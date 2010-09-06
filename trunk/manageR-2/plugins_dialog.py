@@ -111,16 +111,16 @@ class PluginDialog(QDialog):
     def addIcon(self, page="Main"):
         button = QListWidgetItem()
         if page == "Main":
-            button.setIcon(QIcon(":preferences-system.svg"))
+            button.setIcon(QIcon(":gconf-editor"))
             button.setText("Main")
         elif page == "Configure":
-            button.setIcon(QIcon(":preferences-desktop.svg"))
+            button.setIcon(QIcon(":preferences-system"))
             button.setText("Configure")
-        elif page == "PlotOptions":
-            button.setIcon(QIcon(":applications-graphics.svg"))
+        elif page == "Plot Options":
+            button.setIcon(QIcon(":applications-graphics"))
             button.setText("Plot Options")
         else:
-            button.setIcon(QIcon(":preferences-desktop.svg"))
+            button.setIcon(QIcon(":applications-debugging"))
             button.setText(page)
         button.setTextAlignment(Qt.AlignHCenter)
         button.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)

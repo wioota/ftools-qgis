@@ -1,5 +1,5 @@
 <manageRTools category="Plot">
-    <RTool name="Quick plot" icon="icons/default/plotting/custom-chart-scatter.svg">
+    <RTool name="Quick plot" icon="icons/default/gnome-fs-bookmark-missing.svg">
         <Query><![CDATA[local({
 plot(x=|1|, type=|2|, |3|, |4|)        
 |5|    
@@ -71,7 +71,7 @@ boxplot(|1|, varwidth=|2|, notch=|3|, outline=|4|, horizontal=|5|, |6|)
             <Variables>
                 <Widget id="1" label="Input values:" type="VariableListBox"/>
             </Variables>
-            <Page name="Options">
+            <Page name="Plot Options">
                 <Columns>
                     <Widget id="2" label="Variable width boxes" type="CheckBox" default="false"/>
                     <Widget id="3" label="Add box notches" type="CheckBox" default="false"/>

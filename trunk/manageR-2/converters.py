@@ -65,10 +65,10 @@ def qQGISVectorDataFrame(layer, keep=False):
         except:
             raise Exception("Error: unable to assign spatial object to environment")
         length, width = list(robjects.r.dim(result))
-        robjects.r['print']("Name: %s\nSource: %s\n" % (unicode(newname), unicode(source)))
-        robjects.r['print']("with %s rows and %s columns\n" % (unicode(length), unicode(width)))
+        print "Name: %s\nSource: %s\n" % (unicode(newname), unicode(source))
+        print "with %s rows and %s columns\n" % (unicode(length), unicode(width))
         if not newname == name:
-            robjects.r['print']("**Note: layer name syntax changed")
+            print "**Note: layer name syntax changed"
     except Exception, e:
         raise Exception("Error: %s" % unicode(e))
     return True
@@ -198,6 +198,8 @@ def qSpatialDataFrame(spatial, data, type):
         raise Exception("unable to create spatial dataset: %s" % unicode(e))
 
 def qOGRVectorDataFrame(source, name, encode="", keep=True):
+    source = unicode(source)
+    name = unicode(name)
     make_names = robjects.r.get('make.names', mode='function')
     newname = make_names(name)[0]
     try:
@@ -208,15 +210,17 @@ def qOGRVectorDataFrame(source, name, encode="", keep=True):
     except Exception, e:
         raise Exception("Error: unable to read vector dataset (%s)" % unicode(e))
     #length, width = list(robjects.r.dim(result))
-    #robjects.r['print']("Name: %s\nSource: %s\n" % (unicode(newname), unicode(source)))
-    #robjects.r['print']("with %s rows and %s columns\n" % (unicode(length), unicode(width)))
+    #print "Name: %s\nSource: %s\n" % (unicode(newname), unicode(source))
+    #print "with %s rows and %s columns\n" % (unicode(length), unicode(width))
     if not newname == name:
-        robjects.r['print']("**Note: layer name syntax changed")
+        print "**Note: layer name syntax changed"
     return True
 
 # ---------------------------   RASTER LAYERS   -------------------------------#
 
 def qGDALRasterDataFrame(dsn, name, package='raster'):
+    dsn = unicode(dsn)
+    name = unicode(name)
     make_names = robjects.r.get('make.names', mode='function')
     newname = make_names(name)[0]
     try:
@@ -233,16 +237,15 @@ def qGDALRasterDataFrame(dsn, name, package='raster'):
         raise Exception("Error: unable to assign raster object to environment")
     summary = robjects.r.get('summary', mode='function')
     slot = robjects.r.get('@', mode='function')
-    robjects.r['print']("QGIS Raster Layer\n")
-    robjects.r['print']("Name: %s\n" % unicode(newname))
-    robjects.r['print']("Source: %s\n" % unicode(dsn))
+    print "Name: %s" % unicode(newname)
+    print "Source: %s" % unicode(dsn)
     if package == 'raster':
-        robjects.r['print']("Used package 'raster'\n")
+        print "Used package 'raster'"
     else:
-        robjects.r['print'](unicode(summary(slot(result, 'grid'))))
-        robjects.r['print']("Used package 'rgdal'\n")
+        print unicode(summary(slot(result, 'grid')))
+        print "Used package 'rgdal'"
     if not newname == name:
-        robjects.r['print']("**Note: layer name syntax changed")
+        print "**Note: layer name syntax changed"
     return True
 
 # ---------------------------   RVECTOR LAYERS   -------------------------------#
@@ -256,7 +259,7 @@ def spQgsVectorLayer(name):
     if crs.createFromProj4(proj):
         layer.setCrs(crs)
     else:
-        robjects.r['print']("Error: unable to parse proj4string: using QGIS default\n")
+        print "Error: unable to parse proj4string: using QGIS default"
     provider = layer.dataProvider()
     fields = spFields(spatial)
     provider.addAttributes(fields)

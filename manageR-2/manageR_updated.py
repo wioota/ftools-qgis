@@ -216,7 +216,7 @@ class MainWindow(QMainWindow):
     def createFileActions(self, console=True):
         fileMenu = self.menuBar().addMenu("&File")
         fileToolBar = self.addToolBar("File Toolbar")
-#        fileToolBar.setObjectName("FileToolBar")
+        fileToolBar.setObjectName("FileToolBar")
         if console:
             fileNewAction = self.createAction("&New", self.fileNew,
                 QKeySequence.New, "document-new", "Open empty R script")
@@ -262,7 +262,7 @@ class MainWindow(QMainWindow):
     def createEditActions(self, console=True, autocomplete=True):
         editMenu = self.menuBar().addMenu("&Edit")
         editToolBar = self.addToolBar("Edit Toolbar")
-#        editToolBar.setObjectName("EditToolBar")
+        editToolBar.setObjectName("EditToolBar")
 
         if not console:
             editUndoAction = self.createAction("&Undo", self.main.editor().undo,
@@ -944,9 +944,12 @@ class MainWindow(QMainWindow):
             OutputWriter(self.main.editor().insertFromMimeData))
         self.main.editor().setCheckSyntax(False)
         self.main.editor().suspendHighlighting()
-        return self.importLayer()
+        res = self.importLayer()
         self.main.editor().resumeHighlighting()
         self.main.editor().setCheckSyntax(True)
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
+        return res
         
 
     def importLayer(self, layer=None, geom=True):

@@ -15,7 +15,7 @@
    height="48"
    id="svg2604"
    inkscape:version="0.47 r22583"
-   sodipodi:docname="custom-layer-export.svg">
+   sodipodi:docname="custom-layer-canvas.svg">
   <metadata
      id="metadata68">
     <rdf:RDF>
@@ -24,7 +24,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -1412,7 +1412,7 @@
      transform="matrix(0.96592583,-0.25881905,0.90807229,0.41881347,0,0)" />
   <g
      id="g3080"
-     transform="translate(0,-12)">
+     transform="translate(-8,-12)">
     <path
        style="fill:url(#linearGradient3085);fill-opacity:1;fill-rule:nonzero;stroke:url(#linearGradient3087);stroke-width:0.99493349;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:7;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:block;overflow:visible"
        id="path1432"

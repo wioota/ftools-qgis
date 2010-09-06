@@ -56,7 +56,6 @@ class LayerImportBrowser(QDialog):
                 unicode(robjects.r.getwd()[0]), self.filters)
             if not dialog.exec_() == QDialog.Accepted:
                 return
-            print dialog.selectedFilter()
             files = dialog.selectedFiles()
             file = files.first().trimmed()
             self.layerLineEdit.setText(file)

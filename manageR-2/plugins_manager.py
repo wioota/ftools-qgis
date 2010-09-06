@@ -297,7 +297,7 @@ class PluginManager(QObject):
                     sub = menu
                 elif isinstance(sub, QString):
                     sub = menu.addMenu(sub)
-                    sub.setIcon(QIcon(":extension.svg"))
+                    sub.setIcon(QIcon(":preferences-others"))
                 self.createTool(tool, sub)
 
     def run(self, tool):

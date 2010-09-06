@@ -133,7 +133,25 @@ t.test(|1|, alternative='|2|', mu=|3|, conf.level=|4|)
     </RTool>
     <RTool name="Paired sample t-test">
         <Query><![CDATA[local({
-t.test(x=|1|, y=|2| alternative='|3|', conf.level=|4|, paired=TRUE)
+t.test(x=|1|, y=|2|, alternative='|3|', conf.level=|4|, paired=TRUE)
+})]]></Query>
+        <Help name="t.test"/>
+        <Dialog>
+            <Variables name="Choose variables">
+                <Widget id="1" label="First variable:" type="VariableLineEdit"/>
+                <Widget id="2" label="Second variable:" type="VariableLineEdit"/>
+            </Variables>
+            <Columns>
+                <Widget id="3" type="RadioGroupBox" label="Alternative hypothesis" 
+                    default="two.sided;less;greater" alternate=
+                    "Two-sided;Difference less than 0;Difference greater than 0"/>
+                <Widget id="4" label="Confidence level:" type="DoubleSpinBox" default="0.95"/>
+            </Columns>
+        </Dialog>
+    </RTool>
+    <RTool name="Two sample t-test">
+        <Query><![CDATA[local({
+t.test(x=|1|, y=|2|, alternative='|3|', conf.level=|4|)
 })]]></Query>
         <Help name="t.test"/>
         <Dialog>

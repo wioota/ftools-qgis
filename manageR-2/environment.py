@@ -109,9 +109,11 @@ class TreeModel(QAbstractItemModel):
         elif type in ("vector", "numeric", "double", 
                       "interger", "complex", "real"):
             return QIcon(":custom-numeric")
+        elif type in ("SpatialGridDataFrame", "SpatialPixelsDataFrame"):
+            return QIcon(":custom-raster")
         elif QString(type).startsWith("Spatial"):
             return QIcon(":custom-vector")
-        elif type in ("factor"):
+        elif type in ("factor", "ordered"):
             return QIcon(":custom-factor")
         elif type in ("character"):
             return QIcon(":custom-character")
@@ -119,6 +121,10 @@ class TreeModel(QAbstractItemModel):
             return QIcon(":custom-matrix")
         elif type in ("list"):
             return QIcon(":custom-list")
+        elif type in ("function"):
+            return QIcon(":custom-function")
+        elif type in ("logical"):
+            return QIcon(":custom-logical")
         else:
             return QIcon(":application-default-icon")
 

@@ -15,7 +15,7 @@
    height="48"
    id="svg3082"
    inkscape:version="0.47 r22583"
-   sodipodi:docname="custom-factor.svg">
+   sodipodi:docname="custom-character.svg">
   <metadata
      id="metadata58">
     <rdf:RDF>
@@ -24,7 +24,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -38,14 +38,14 @@
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
      inkscape:window-width="1020"
-     inkscape:window-height="851"
+     inkscape:window-height="677"
      id="namedview56"
      showgrid="false"
      inkscape:zoom="9.8333334"
      inkscape:cx="29.051782"
      inkscape:cy="23.52863"
-     inkscape:window-x="1823"
-     inkscape:window-y="84"
+     inkscape:window-x="344"
+     inkscape:window-y="24"
      inkscape:window-maximized="0"
      inkscape:current-layer="svg3082" />
   <defs
@@ -853,15 +853,12 @@
      y="6.9301953"
      id="rect6287"
      style="fill:url(#linearGradient2915);fill-opacity:1;stroke:none" />
-  <text
-     xml:space="preserve"
+  <g
      style="font-size:24px;font-style:italic;font-weight:bold;fill:url(#linearGradient3786);fill-opacity:1;stroke:#42770c;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Charter Italic"
-     x="12.703115"
-     y="32.209419"
-     id="text2973"><tspan
-       sodipodi:role="line"
-       x="12.703115"
-       y="32.209419"
-       id="tspan2979"
-       style="font-size:24px;fill:url(#linearGradient3786);fill-opacity:1;stroke:#42770c;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1">T</tspan></text>
+     id="text2973">
+    <path
+       d="m 16.324209,14.713326 16.125,0 -0.691406,3.410156 -5.800781,0 -2.8125,14.085937 -4.511719,0 2.8125,-14.085937 -5.8125,0 0.691406,-3.410156"
+       style="stroke:#42770c"
+       id="path2958" />
+  </g>
 </svg>

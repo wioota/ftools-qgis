@@ -92,7 +92,7 @@ class MainWindow(QMainWindow):
 
         font = QFont(fontfamily, fontsize)
         self.setFont(font)
-        self.setMinimumSize(50, 50)
+        self.setMinimumSize(600, 400)
         self.startTimer(30)
         self.main = BaseFrame(self, tabwidth, autobracket, autopopup, sidepanel, console)
         if QSettings().value("manageR/enablehighlighting", True).toBool():
@@ -123,10 +123,6 @@ class MainWindow(QMainWindow):
                 QSettings().value("manageR/afteroutput", "+").toString())
             self.main.editor().setPrompt(*prompts)
             self.prepareEnvironment()
-            QShortcut(QKeySequence("Ctrl+L"), self, self.importMapLayer)
-            QShortcut(QKeySequence("Ctrl+T"), self, self.importMapTable)
-            QShortcut(QKeySequence("Ctrl+M"), self, self.exportCanvasLayer)
-            QShortcut(QKeySequence("Ctrl+E"), self, self.exportFileLayer)
             self.connect(self, SIGNAL("requestExecuteCommands(QString)"),
                 self.main.editor().acceptCommands)
         else:
@@ -142,8 +138,10 @@ class MainWindow(QMainWindow):
             self.main.editor().setPlainText(QSettings().value("manageR/newfile", "").toString())
         self.setCentralWidget(self.main)
         self.paths = QStringList(os.path.join(CURRENTDIR, "doc", "html"))
+        self.viewMenu = QMenu("&View") # create this first...
         self.createFileActions(console)
         self.createEditActions(console)
+        self.menuBar().addMenu(self.viewMenu)
         self.createActionActions(console)
         self.createWorkspaceActions(console)
         self.createWindowActions(console)
@@ -155,7 +153,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Ready", 5000)
         self.connect(self.main, SIGNAL("doneCompletion(QString, QString)"),   
             self.updateStatusbar)
-
+            
     def createDockWigets(self, console=True):
         if console:
             widgets = []
@@ -210,20 +208,33 @@ class MainWindow(QMainWindow):
             self.tabifyDockWidget(historyDockWidget, workspaceDockWidget)
             self.tabifyDockWidget(scratchPadDockWidget, directoryDockWidget)
 
-            viewMenu = self.menuBar().addMenu("&View")
             for widget in widgets:
                 #text = widget.windowTitle()
                 action = widget.toggleViewAction()
-                viewMenu.addAction(action)
+                self.viewMenu.addAction(action)
 
     def createFileActions(self, console=True):
         fileMenu = self.menuBar().addMenu("&File")
+        fileToolBar = self.addToolBar("File Toolbar")
+#        fileToolBar.setObjectName("FileToolBar")
         if console:
             fileNewAction = self.createAction("&New", self.fileNew,
                 QKeySequence.New, "document-new", "Open empty R script")
             fileOpenAction = self.createAction("&Open...", self.fileOpen,
                 QKeySequence.Open, "document-open", "Open existing R script")
-            self.addActions(fileMenu, (fileNewAction, fileOpenAction, None, ))
+            fileSaveInputAction = self.createAction("Save &input", 
+                self.fileSaveInput, QKeySequence.Save, "document-save", 
+                "Save console input as R script")
+            fileSaveOutputAction = self.createAction("Export &output", 
+                self.fileSaveOutput, QKeySequence.SaveAs, "document-export", 
+                "Export console output to file")
+            fileSaveConsoleAction = self.createAction("&Export console text", 
+                self.fileSaveConsole, "", "document-export", 
+                "Export console input/output to file")
+            self.addActions(fileMenu, (fileNewAction, fileOpenAction, None, 
+                                       fileSaveInputAction, fileSaveOutputAction,
+                                       fileSaveConsoleAction, None))
+            self.addActions(fileToolBar, (fileNewAction, fileOpenAction,))
         else:
             fileOpenAction = self.createAction("&Open...", self.fileOverwrite,
                 QKeySequence.Open, "document-open", "Open existing R script")
@@ -237,17 +248,22 @@ class MainWindow(QMainWindow):
                 "Close this editR window")
             self.addActions(fileMenu, (fileOpenAction, fileSaveAction,
                 fileSaveAsAction, None, fileCloseAction,))
+            self.addActions(fileToolBar, (fileOpenAction, fileSaveAction,))
         if console:
             fileConfigureAction = self.createAction("Config&ure...",
-                self.fileConfigure, "Ctrl+Shift+P",
+                self.fileConfigure, "",
                 "gconf-editor", "Configure manageR")
             fileQuitAction = self.createAction("&Quit", self.fileQuit,
                 "Ctrl+Q", "system-shutdown", "Quit manageR")
             self.addActions(fileMenu, (fileConfigureAction, None,
                 fileQuitAction,))
+        self.addActions(self.viewMenu, (fileToolBar.toggleViewAction(),))
 
     def createEditActions(self, console=True, autocomplete=True):
         editMenu = self.menuBar().addMenu("&Edit")
+        editToolBar = self.addToolBar("Edit Toolbar")
+#        editToolBar.setObjectName("EditToolBar")
+
         if not console:
             editUndoAction = self.createAction("&Undo", self.main.editor().undo,
                 QKeySequence.Undo, "edit-undo",
@@ -277,6 +293,9 @@ class MainWindow(QMainWindow):
             self.main.toggleSearch, QKeySequence.Find,
             "edit-find", "Find text")
         self.addActions(editMenu, (editFindNextAction,))
+        self.addActions(editToolBar,(editCopyAction, editCutAction, 
+                                     editPasteAction, None, 
+                                     editFindNextAction,))
         if not console:
             editReplaceNextAction = self.createAction("&Replace",
                 self.main.toggleReplace, QKeySequence.Replace,
@@ -301,20 +320,30 @@ class MainWindow(QMainWindow):
             self.addActions(editMenu, (editReplaceNextAction, None,
                 editGotoLineAction, editIndentRegionAction, editUnindentRegionAction,
                 editCommentRegionAction, editUncommentRegionAction,))
+            self.addActions(editToolBar, (editReplaceNextAction, None, 
+                              editUndoAction, editRedoAction,
+                              None,))
+        self.addActions(self.viewMenu, (editToolBar.toggleViewAction(),))
 
     def createActionActions(self, console=True):
         actionMenu = self.menuBar().addMenu("&Action")
+        actionToolBar = self.addToolBar("Action Toolbar")
+        actionToolBar.setObjectName("ActionToolBar")
+            
         if not console:
             actionRunAction = self.createAction("E&xecute",
                 self.send, "Ctrl+Return", "utilities-terminal",
                 "Execute the (selected) text in the manageR console")
             actionLineAction = self.createAction("Execute &Line",
-                self.sendLine,"Ctrl+Shift+Return", "utilities-terminal",
-                "Execute the current line in the manageR console")
+                self.sendLine,"Ctrl+Shift+Return", "custom-terminal-line",
+                "Execute commands in manageR console line by line")
             actionSourceAction = self.createAction("Run S&cript",
                 self.source,"", "system-run",
                 "Run the current EditR script")
-            self.addActions(actionMenu, (actionRunAction, actionLineAction, None, actionSourceAction,))
+            self.addActions(actionMenu, (actionRunAction, actionLineAction, 
+                                         None, actionSourceAction,))
+            self.addActions(actionToolBar, (actionRunAction,actionLineAction,
+                                            actionSourceAction,))
         else:
             actionShowPrevAction = self.createAction(
                 "Show Previous Command", self.main.editor().previous,
@@ -322,23 +351,43 @@ class MainWindow(QMainWindow):
             actionShowNextAction = self.createAction(
                 "Show Next Command", self.main.editor().next,
                 "Down", "go-down", "Show next command")
+            actionImportLayerAction = self.createAction(
+                "Open spatial data", self.importMapLayer, 
+                "Ctrl+L", "custom-layer-import", "Open spatial data")
+            actionImportTableAction = self.createAction(
+                "Open spatial attributes", self.importMapTable, 
+                "Ctrl+T", "custom-table-import", "Open spatial attributes")
+            actionExportFileAction = self.createAction(
+                "Save spatial data as...", self.exportFileLayer, 
+                "Ctrl+E", "custom-layer-export", "Save spatial data as...")
             self.addActions(actionMenu, (actionShowPrevAction,
-                actionShowNextAction,))
+                actionShowNextAction, actionImportLayerAction,
+                actionImportTableAction, actionExportFileAction,))
+            self.addActions(actionToolBar, (actionShowPrevAction,
+                actionShowNextAction, None, actionImportLayerAction,
+                actionImportTableAction, actionExportFileAction,))
+            if WITHQGIS:
+                actionExportCanvasAction = self.createAction(
+                    "Export spatial data as layer", self.exportCanvasLayer, 
+                    "Ctrl+M", "custom-layer-canvas", "Export spatial data as layer")
+                self.addActions(actionMenu, (actionExportCanvasAction,))
+                self.addActions(actionToolBar, (actionExportCanvasAction,))
+        self.addActions(self.viewMenu, (actionToolBar.toggleViewAction(),))
 
     def createWorkspaceActions(self, console=True):
         if console:
             workspaceMenu = self.menuBar().addMenu("&Workspace")
             workspaceLoadAction = self.createAction(
                 "&Load R workspace", self.openWorkspace,
-                "Ctrl+W", "document-load",
+                "Ctrl+W", "custom-open-workspace",
                 "Load R workspace")
             workspaceSaveAction = self.createAction(
                 "&Save R workspace", self.saveWorkspace,
-                "Ctrl+Shift+W", "document-save",
+                "Ctrl+Shift+W", "custom-save-workspace",
                 "Save R workspace")
             workspaceDataAction = self.createAction(
                 "Load R &data", self.openData,
-                "Ctrl+D", "package-x-generic",
+                "Ctrl+D", "custom-open-data",
                 "Load R data")
             workspaceLibraryAction = self.createAction("Library &browser",
                 self.libraryBrowser, "Ctrl+H", icon="gnome-panel-notification-area",
@@ -359,7 +408,7 @@ class MainWindow(QMainWindow):
                 "Save active plot as vector file")
             plotsExportAction = self.createAction(
                 "&Export current", self.exportPlot,
-                "Ctrl+Shift+P", "document-import",
+                "Ctrl+Shift+P", "custom-document-export",
                 "Save active plot as image")
             plotsCloseAction = self.createAction("Close active",
                 lambda: self.execute("dev.off(dev.cur())"), icon="window-close",
@@ -371,7 +420,9 @@ class MainWindow(QMainWindow):
                 plotsExportAction, None, plotsCloseAction, 
                 plotsNewAction, None,))
             self.plotsSetMenu = plotsMenu.addMenu("&Set active")
-            self.plotsSetMenu.setIcon(QIcon(":dialog-apply.svg"))
+            self.plotsSetMenu.setToolTip("<p>Set current plotting device "
+                                         "('*' indicates currently active device)</p>")
+            self.plotsSetMenu.setIcon(QIcon(":dialog-apply"))
             plotsMenu.addSeparator()
             self.connect(self.plotsSetMenu, SIGNAL("aboutToShow()"),
                  self.updatePlotsSetMenu)
@@ -430,6 +481,7 @@ class MainWindow(QMainWindow):
         # TODO: Update this function to show the currently ACTIVE plot
         self.plotsSetMenu.clear()
         dev_list = robjects.r.get('dev.list' , mode='function')
+        dev_cur = robjects.r.get('dev.cur' , mode='function')
         menu = self.plotsSetMenu
         def getIcon(type):
             if type == "X11cairo":
@@ -443,12 +495,16 @@ class MainWindow(QMainWindow):
         try:
             # this is throwing exceptions...
             graphics = dict(zip(list(dev_list()), list(dev_list().names)))
+            cur = dev_cur()[0]
         except:
             graphics = {}
+            cur = 1
         for key, value in graphics.iteritems():
-            # find better way to add action here so that they are separate...
-            # possibly create a list of devices?
-            action = QAction(getIcon(value),"dev %s (%s)" % (key, value), self)
+            if key == cur:
+                add = " *"
+            else:
+                add = ""
+            action = QAction(getIcon(value),"dev %s (%s)%s" % (key, value, add), self)
             action.setData(QVariant(key))
             self.connect(action, SIGNAL("activated()"), self.setPlot)
             menu.addAction(action)
@@ -457,7 +513,7 @@ class MainWindow(QMainWindow):
         self.windowMenu.clear()
         action = self.windowMenu.addAction("&Console", self.raise_)
         action.setData(QVariant(long(id(self))))
-        action.setIcon(QIcon(":utilities-terminal.svg"))
+        action.setIcon(QIcon(":utilities-terminal"))
         i = 1
         menu = self.windowMenu
         windows = QApplication.findChildren(self, MainWindow)
@@ -475,7 +531,7 @@ class MainWindow(QMainWindow):
             i += 1
             action = menu.addAction(text, window.raise_)
             action.setData(QVariant(long(id(window))))
-            action.setIcon(QIcon(":preferences-system-windows.svg"))
+            action.setIcon(QIcon(":preferences-system-windows"))
 
     def addActions(self, target, actions):
         for action in actions:
@@ -489,7 +545,7 @@ class MainWindow(QMainWindow):
                      param=None):
         action = QAction(text, self)
         if icon is not None:
-            action.setIcon(QIcon(":%s.svg" % icon))
+            action.setIcon(QIcon(":%s" % icon))
         if shortcut is not None:
             action.setShortcut(shortcut)
         if tip is not None:
@@ -545,7 +601,7 @@ class MainWindow(QMainWindow):
         self.execute(self.execute("dev.set(%s)" % int(sender.data().toInt()[0])))
 
     def saveWorkspace(self, path=None, filter="R workspace (*.RData)"):
-        self.saveData(path, filter)
+        self.saveData(path, "ls(all=TRUE)", filter)
 
     def openWorkspace(self, path=None, filter="R workspace (*.RData)", visible=True):
         self.openData(path, filter, visible)
@@ -559,7 +615,7 @@ class MainWindow(QMainWindow):
                             "manageR - Save Data File",
                             unicode(robjects.r.getwd()[0]), filter)
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        if not path.isEmpty():
+        if not QString(path).isEmpty():
             path = QDir(path).absolutePath()
             command = "save(file='%s', list=%s)" % (unicode(path),unicode(objects))
             try:
@@ -573,7 +629,7 @@ class MainWindow(QMainWindow):
     def openData(self, path=None, filter=None, visible=True):
         command = ""
         if filter is None:
-            filter = "R data (*.Rdata *.Rda *.RData);;All files (*)"
+            filter = "*.Rdata;;*.Rda;;*.RData;;All files (*)"
         if path is None:
             path = QFileDialog.getOpenFileName(self,
                             "manageR - Open Data File",
@@ -615,7 +671,7 @@ class MainWindow(QMainWindow):
             path = QFileDialog.getOpenFileName(self,
                             "manageR - Open File",
                             unicode(robjects.r.getwd()[0]),
-                            "R scripts (*.R);;All files (*)")
+                            "*.R;;All files (*)")
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         if not path.isEmpty():
             # To prevent opening the same file twice
@@ -649,7 +705,7 @@ class MainWindow(QMainWindow):
             path = QFileDialog.getOpenFileName(self,
                             "manageR - Open File",
                             unicode(robjects.r.getwd()[0]),
-                            "R scripts (*.R);;All files (*)")
+                            "*.R;;All files (*)")
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         if not path.isEmpty():
             # To prevent opening the same file twice
@@ -671,9 +727,10 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Opened %s" % path, 5000)
         QApplication.restoreOverrideCursor()
 
-    def fileSave(self):
+    def fileSave(self, path=None):
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        path = self.windowTitle().remove("editR - ")
+        if path is None:
+            path = self.windowTitle().remove("editR - ")
         if path == "untitled":
             QApplication.restoreOverrideCursor()
             return self.fileSaveAs()
@@ -715,12 +772,61 @@ class MainWindow(QMainWindow):
                 fh.close()
         QApplication.restoreOverrideCursor()
         return True
+        
+    def fileSaveOutput(self):
+        outputTypes = (PlainTextEdit.OUTPUT, PlainTextEdit.SYNTAX)
+        self.fileSaveConsole(outputTypes=outputTypes)
+        
+    def fileSaveInput(self):
+        outputTypes = (PlainTextEdit.INPUT, PlainTextEdit.CONTINUE)
+        self.fileSaveConsole(outputTypes=outputTypes)
+        
+    def fileSaveConsole(self, path=None, outputTypes=None):
+        if path is None:
+            path = QFileDialog.getSaveFileName(self,
+                   "manageR - Save Console Input/Output",
+                   "output.R", "*.R;;*.Routput;;*.Rinput")
+        if outputTypes is None:
+            outputTypes = (PlainTextEdit.INPUT, PlainTextEdit.CONTINUE,
+                           PlainTextEdit.OUTPUT, PlainTextEdit.SYNTAX)
+        if not path.isEmpty():
+            QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+            path = QDir(path).absolutePath()
+            fh = None
+            try:
+                try:
+                    fh = QFile(path)
+                    if not fh.open(QIODevice.WriteOnly):
+                        raise IOError, unicode(fh.errorString())
+                    stream = QTextStream(fh)
+                    stream.setCodec("UTF-8")
+                    document = self.main.editor().document()
+                    block = document.begin()
+                    while block.isValid():
+                        try:
+                            data = block.userData().data()
+                        except:
+                            data = None
+                        if data in outputTypes:
+                            stream << block.text() << "\n"
+                        block = block.next()        
+                    self.statusBar().showMessage("Saved %s" % path, 5000)
+                except (IOError, OSError), e:
+                    QMessageBox.warning(self, "manageR - Save Error",
+                            "Failed to save output file %s: %s" % (path, e))
+            finally:
+                if fh is not None:
+                    fh.close()
+            QApplication.restoreOverrideCursor()
+            return True
+        QApplication.restoreOverrideCursor()
+        return False
 
     def fileSaveAs(self, path=None):
         if path is None:
             path = QFileDialog.getSaveFileName(self,
                    "editR - Save File As",
-                   "untitled", "R scripts (*.R)")
+                   "untitled.R", "*.R")
         if not path.isEmpty():
             self.setWindowTitle("editR - %s" % QDir(path).absolutePath())
             return self.fileSave()
@@ -751,6 +857,10 @@ class MainWindow(QMainWindow):
         QApplication.restoreOverrideCursor()
 
     def fileClose(self):
+        QSettings().setValue("manageR/toolbars", self.saveState())
+        if QSettings().value("manageR/remembergeometry", True).toBool():
+            QSettings().setValue("manageR/consoleposition", self.pos())
+            QSettings().setValue("manageR/consolesize", self.size())
         self.close()
 
     def fileQuit(self):
@@ -758,11 +868,7 @@ class MainWindow(QMainWindow):
         for window in windows:
             if not window == self:
                 window.close()
-        QSettings().setValue("manageR/toolbars", self.saveState())
-        if QSettings().value("manageR/remembergeometry", True).toBool():
-            QSettings().setValue("manageR/consoleposition", self.pos())
-            QSettings().setValue("manageR/consolesize", self.size())
-        self.close()
+        self.fileClose()
 
     def closeEvent(self, event):
         if self.main.editor().document().isModified():
@@ -814,6 +920,9 @@ class MainWindow(QMainWindow):
         commands = cursor.selectedText()
         if not commands.isEmpty():
             self.execute(commands)
+        cursor.movePosition(QTextCursor.Down)
+        cursor.select(QTextCursor.LineUnderCursor)
+        self.main.editor().setTextCursor(cursor)
 
     def execute(self, commands):
         if not commands == "":
@@ -829,8 +938,20 @@ class MainWindow(QMainWindow):
 
     def exportFileLayer(self):
         pass
+        
+    def importMapLayer(self):
+        sys.stdout = sys.stderr = OutputCatcher(
+            OutputWriter(self.main.editor().insertFromMimeData))
+        self.main.editor().setCheckSyntax(False)
+        self.main.editor().suspendHighlighting()
+        return self.importLayer()
+        self.main.editor().resumeHighlighting()
+        self.main.editor().setCheckSyntax(True)
+        
 
-    def importMapLayer(self, layer=None, geom=True):
+    def importLayer(self, layer=None, geom=True):
+#        self.main.editor().setCheckSyntax(False)
+#        self.main.editor().suspendHighlighting()
         if not robjects.r.require('sp')[0]:
             QMessageBox.warning(self, "manageR - Import Error",
                 "Missing R package 'sp', please install via install.packages()"
@@ -890,6 +1011,18 @@ class MainWindow(QMainWindow):
                     package = 'raster'
                 else:
                     package = 'rgdal'
+                if not robjects.r.require(package)[0]:
+                    if package == 'raster':
+                        extraText = "Note: you have selected to use the 'raster' package"
+                        + "to import raster layers, this can be disabled via File > "
+                        + "Configure.. > Console (will default to using the 'rgdal' package)."
+                    else:
+                        extraText = ""
+                    QMessageBox.warning(self, "manageR - Import Error",
+                        "Missing R package %s, please install "  % package
+                        +"via install.packages()"
+                        +"or Workspace > Install Packages\n%s" % extraText)
+                    return False
                 source = unicode(layer.publicSource())
                 source.replace("\\", "/")
                 name = unicode(layer.name())
@@ -904,7 +1037,7 @@ class MainWindow(QMainWindow):
                     "Unknown spatial data type, unable to import layer into manageR")
                 return False
         else:
-            vFilters = "All files (*);;Comma Separated (*.csv)"
+            vFilters = "All files (*);;*.csv"
             rFilters = "All files (*)"
             dialog = LayerImportBrowser(self, vFilters, rFilters, encodings)
             if not dialog.exec_() == QDialog.Accepted:
@@ -914,9 +1047,40 @@ class MainWindow(QMainWindow):
                 return False
             name = QFileInfo(path).completeBaseName()
             if dialog.layerType() == 0:
-                return converters.qOGRVectorDataFrame(path, name, keep=geom)
+                if not robjects.r.require('rgdal')[0]:
+                    QMessageBox.warning(self, "manageR - Import Error",
+                        "Missing R package 'rgdal', please install via install.packages()"
+                        "or Workspace > Install Packages")
+                return False
+                try:
+                    return converters.qOGRVectorDataFrame(path, name, keep=geom)
+                except Exception, e:
+                    QMessageBox.warning(self, "manageR - Import Error",
+                        "Unable to import layer:\n%s" % unicode(e))
+                    return False
             else:
-                return converters.qGDALRasterDataFrame(path, name)
+                if QSettings().value("manageR/useraster", True).toBool():
+                    package = 'raster'
+                else:
+                    package = 'rgdal'
+                if not robjects.r.require(package)[0]:
+                    if package == 'raster':
+                        extraText = "Note: you have selected to use the 'raster' package"
+                        + "to import raster layers, this can be disabled via File > "
+                        + "Configure.. > Console (will default to using the 'rgdal' package)."
+                    else:
+                        extraText = ""
+                    QMessageBox.warning(self, "manageR - Import Error",
+                        "Missing R package %s, please install "  % package
+                        +"via install.packages()"
+                        +"or Workspace > Install Packages\n%s" % extraText)
+                    return False
+                try:
+                    return converters.qGDALRasterDataFrame(path, name, package)
+                except Exception, e:
+                    QMessageBox.warning(self, "manageR - Import Error",
+                        "Unable to import layer:\n%s" % unicode(e))
+                    return False
         return True            
         
 #------------------------------------------------------------------------------#
@@ -1357,9 +1521,9 @@ class REditor(PlainTextEdit):
                     pixmap = QPixmap()
                     if block == self.textCursor().block():
                         
-                        pixmap.load(":dialog-warning.svg")
+                        pixmap.load(":dialog-warning")
                     else:
-                        pixmap.load(":dialog-error.svg")
+                        pixmap.load(":dialog-error")
                     painter.drawPixmap(rect, pixmap)
                 else:
                     painter.drawText(rect, Qt.AlignRight, unicode(count))
@@ -1371,18 +1535,18 @@ class REditor(PlainTextEdit):
     def mousePressEvent(self, e):
         cursor = self.textCursor()
         if e.button() == Qt.RightButton:
-            actions = [[QIcon(":edit-copy.svg"),
+            actions = [[QIcon(":edit-copy"),
                         "Copy", self.copy, QKeySequence(QKeySequence.Copy)],
-                       [QIcon(":edit-select-all.svg"),
+                       [QIcon(":edit-select-all"),
                         "Select all", self.selectAll,
                         QKeySequence(QKeySequence.SelectAll)],
-                       [QIcon(":gtk-edit.svg"),
+                       [QIcon(":gtk-edit"),
                         "Insert keywords", self.insertParameters,
                         QKeySequence("Ctrl+I")],
-                       [QIcon(":edit-paste.svg"),
+                       [QIcon(":edit-paste"),
                         "Paste", self.paste,
                         QKeySequence(QKeySequence.Paste)],
-                       [QIcon(":edit-cut.svg"),
+                       [QIcon(":edit-cut"),
                         "Cut", self.cut, QKeySequence(QKeySequence.Cut)]]
             menu = QMenu()
             if not cursor.hasSelection():
@@ -1589,18 +1753,18 @@ class RConsole(PlainTextEdit):
             cursor = self.cursorForPosition(e.pos())
             self.setTextCursor(cursor)
         if e.button() == Qt.RightButton:
-            norms = [[QIcon(":edit-select-all.svg"),
+            norms = [[QIcon(":edit-select-all"),
                     "Select all", self.selectAll,
                     QKeySequence(QKeySequence.SelectAll)],
-                    [QIcon(":gtk-edit.svg"),
+                    [QIcon(":gtk-edit"),
                     "Function keywords", self.insertParameters,
                     QKeySequence("Ctrl+P")],
-                    [QIcon(":edit-paste.svg"),
+                    [QIcon(":edit-paste"),
                     "Paste", self.paste,
                     QKeySequence(QKeySequence.Paste)]]
-            sels = [[QIcon(":edit-copy.svg"),
+            sels = [[QIcon(":edit-copy"),
                     "Copy", self.copy, QKeySequence(QKeySequence.Copy)],
-                    [QIcon(":edit-cut.svg"),
+                    [QIcon(":edit-cut"),
                     "Cut", self.cut, QKeySequence(QKeySequence.Cut)]]
             menu = QMenu()
             if self.isCursorInEditionZone():
@@ -1720,7 +1884,7 @@ class SearchBar(QWidget):
         self.closeButton = QToolButton(self)
         self.closeButton.setText("Close")
         self.closeButton.setToolButtonStyle(Qt.ToolButtonIconOnly)
-        self.closeButton.setIcon(QIcon(":window-close.svg"))
+        self.closeButton.setIcon(QIcon(":window-close"))
         self.closeButton.setToolTip("Close search bar")
         self.closeButton.setAutoRaise(True)
         self.searchEdit = QLineEdit(self)
@@ -1728,13 +1892,13 @@ class SearchBar(QWidget):
         self.nextButton = QToolButton(self)
         self.nextButton.setText("Next")
         self.nextButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.nextButton.setIcon(QIcon(":go-next.svg"))
+        self.nextButton.setIcon(QIcon(":go-next"))
         self.nextButton.setToolTip("Find next")
         self.nextButton.setAutoRaise(True)
         self.previousButton = QToolButton(self)
         self.previousButton.setToolTip("Find previous")
         self.previousButton.setText("Prev")
-        self.previousButton.setIcon(QIcon(":go-previous.svg"))
+        self.previousButton.setIcon(QIcon(":go-previous"))
         self.previousButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.previousButton.setAutoRaise(True)
         self.wholeCheckbox = QCheckBox()
@@ -1765,10 +1929,14 @@ class SearchBar(QWidget):
         self.replaceButton = QToolButton(self)
         self.replaceButton.setText("Replace")
         self.replaceButton.setToolTip("Replace text")
+        self.replaceButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.replaceButton.setIcon(QIcon(":gtk-edit"))
         self.replaceButton.setAutoRaise(True)
         self.allButton = QToolButton(self)
         self.allButton.setToolTip("Replace all")
         self.allButton.setText("Replace all")
+        self.allButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.allButton.setIcon(QIcon(":accessories-text-editor"))
         self.allButton.setAutoRaise(True)
         # add replace elements to widget
         hbox = QHBoxLayout()
@@ -2454,6 +2622,17 @@ class History(QAbstractListModel):
         except:
             return False
         return True
+        
+class OutputWriter(QObject):
+
+    def __init__(self, target):
+        QObject.__init__(self, None)
+        self.target = target
+        
+    def send(self, output):
+        mime = QMimeData()
+        mime.setText(output)
+        self.target(mime)
 
 class OutputCatcher(QObject):
 

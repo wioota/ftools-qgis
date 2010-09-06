@@ -5,12 +5,12 @@ import rpy2.robjects as robjects
 
 #PyQt imports
 from PyQt4.QtCore import (Qt, SIGNAL, SLOT, QStringList, QString, QDir, QSettings,
-                          QModelIndex, QObject, QCoreApplication, QEventLoop )
+                          QModelIndex, QObject, QCoreApplication, QEventLoop, QRegExp )
 from PyQt4.QtGui import (QTreeWidget, QAbstractItemView, QAction, QVBoxLayout,
                          QMenu, QWidget, QListView, QIcon, QLineEdit, QToolButton,
                          QHBoxLayout, QTreeWidgetItem, QFileSystemModel, QCheckBox,
                          QTextEdit, QFileDialog, QDialog, QSpinBox, QLabel,
-                         QApplication, QCursor, QInputDialog, QTreeView,
+                         QApplication, QCursor, QInputDialog, QTreeView,QMessageBox,
                          QSizePolicy, QFontMetrics, QSortFilterProxyModel)
 # local imports
 import resources, os, sys
@@ -44,7 +44,7 @@ class WorkingDirectoryWidget(RWidget):
         self.setwdButton = QToolButton(self)
         self.setwdButton.setToolTip("Set working directory")
         self.setwdButton.setWhatsThis("Set working directory")
-        self.setwdButton.setIcon(QIcon(":folder-home.svg"))
+        self.setwdButton.setIcon(QIcon(":folder-home"))
         self.setwdButton.setText("setwd")
         self.setwdButton.setAutoRaise(True)
 
@@ -81,6 +81,16 @@ class ScratchPadWidget(RWidget):
         hbox = QHBoxLayout(self)
         hbox.addWidget(textEdit)
         self.setFocusProxy(textEdit)
+        
+class FileSystemProxyModel(QSortFilterProxyModel):
+    def __init__(self):
+        QSortFilterProxyModel.__init__(self)
+        
+    def filterAcceptsRow(self, row, parent):
+        if self.sourceModel().isDir(parent.child(row,0)):
+            return True
+        else:
+            return QSortFilterProxyModel.filterAcceptsRow(self, row, parent)
 
 
 class DirectoryWidget(RWidget):
@@ -90,66 +100,73 @@ class DirectoryWidget(RWidget):
         self.base = base
         self.model = QFileSystemModel()
         self.model.setRootPath(QDir.rootPath())
-        self.model.setFilter(QDir.AllDirs|QDir.AllEntries|QDir.NoDotAndDotDot)
-        #self.proxy = QSortFilterProxyModel(self)
-        #self.proxy.setSourceModel(self.model)
-        #self.proxy.setDynamicSortFilter(True)
+        self.proxyModel = FileSystemProxyModel()
+        self.proxyModel.setDynamicSortFilter(True)
+        self.proxyModel.setFilterKeyColumn(0)
+        self.proxyModel.setSourceModel(self.model)
+        
         self.listView = QListView(self)
-        self.listView.setModel(self.model)
-        self.listView.setRootIndex(self.model.index(QDir.currentPath()))
+        self.listView.setModel(self.proxyModel)
+        index = self.model.index(QDir.currentPath())
+        self.listView.setRootIndex(self.proxyModel.mapFromSource(index))
         self.listView.setContextMenuPolicy(Qt.CustomContextMenu)
         self.lineEdit = QLineEdit(self)
-        hiddenCheckbox = QCheckBox("Show hidden files", self)
-        hiddenCheckbox.setChecked(False)
-        #self.filterEdit = QLineEdit(self)
-        #self.model.setNameFilters(QStringList(["*.R","*.Rdata",
-                                               #"*.Rd","*.RData",
-                                               #"*.csv","*.txt"]))
+        
+        filterLineEdit = QLineEdit()
+        filterLabel = QLabel("Filter:")
+        self.connect(filterLineEdit, SIGNAL("textChanged(QString)"), 
+            self.proxyModel.setFilterWildcard)
         self.actions = []
 
         self.upAction = QAction("&Up", self)
         self.upAction.setStatusTip("Move to parent directory")
         self.upAction.setToolTip("Move to parent directory")
-        self.upAction.setIcon(QIcon(":go-up.svg"))
+        self.upAction.setIcon(QIcon(":go-up"))
         self.upAction.setEnabled(True)
         self.actions.append(self.upAction)
         self.newAction = QAction("&New Directory", self)
         self.newAction.setStatusTip("Create new directory")
         self.newAction.setToolTip("Create new directory")
-        self.newAction.setIcon(QIcon(":folder-new.svg"))
+        self.newAction.setIcon(QIcon(":folder-new"))
         self.newAction.setEnabled(True)
         self.actions.append(self.newAction)
         self.synchAction = QAction("&Synch", self)
         self.synchAction.setStatusTip("Synch with current working directory")
         self.synchAction.setToolTip("Synch with current working directory")
-        self.synchAction.setIcon(QIcon(":view-refresh.svg"))
+        self.synchAction.setIcon(QIcon(":view-refresh"))
         self.synchAction.setEnabled(True)
         self.actions.append(self.synchAction)
         self.rmAction = QAction("&Delete", self)
         self.rmAction.setStatusTip("Delete selected item")
         self.rmAction.setToolTip("delete selected item")
-        self.rmAction.setIcon(QIcon(":edit-delete.svg"))
+        self.rmAction.setIcon(QIcon(":edit-delete"))
         self.rmAction.setEnabled(True)
         self.actions.append(self.rmAction)
         self.openAction = QAction("&Open", self)
         self.openAction.setStatusTip("Open selected R script")
         self.openAction.setToolTip("Open selected R script")
-        self.openAction.setIcon(QIcon(":document-open.svg"))
+        self.openAction.setIcon(QIcon(":document-open"))
         self.openAction.setEnabled(True)
         self.actions.append(self.openAction)
         self.loadAction = QAction("&Load", self)
         self.loadAction.setStatusTip("Load selected R data")
         self.loadAction.setToolTip("Load selected R data")
-        self.loadAction.setIcon(QIcon(":document-open.svg"))
+        self.loadAction.setIcon(QIcon(":document-open"))
         self.loadAction.setEnabled(True)
         self.actions.append(self.loadAction)
         self.setAction = QAction("Set as &current", self)
         self.setAction.setStatusTip("Set folder as R working directory")
         self.setAction.setToolTip("Set folder as R working directory")
-        self.setAction.setIcon(QIcon(":folder-home.svg"))
+        self.setAction.setIcon(QIcon(":folder-home"))
         self.setAction.setEnabled(True)
         self.actions.append(self.setAction)
         self.rootChanged()
+        
+        hiddenAction = QAction("Toggle hidden files", self)
+        hiddenAction.setStatusTip("Show/hide hidden files and folders")
+        hiddenAction.setToolTip("Show/hide hidden files and folders")
+        hiddenAction.setIcon(QIcon(":stock_keyring"))
+        hiddenAction.setCheckable(True)
 
         self.connect(self.newAction, SIGNAL("triggered()"), self.newFolder)
         self.connect(self.upAction, SIGNAL("triggered()"), self.upFolder)
@@ -158,7 +175,7 @@ class DirectoryWidget(RWidget):
         self.connect(self.openAction, SIGNAL("triggered()"), self.openItem)
         self.connect(self.loadAction, SIGNAL("triggered()"), self.loadItem)
         self.connect(self.setAction, SIGNAL("triggered()"), self.setFolder)
-        self.connect(hiddenCheckbox, SIGNAL("stateChanged(int)"), self.toggleHidden)
+        self.connect(hiddenAction, SIGNAL("toggled(bool)"), self.toggleHidden)
         self.connect(self.listView, SIGNAL("activated(QModelIndex)"), self.cdFolder)
         self.connect(self.listView, SIGNAL("customContextMenuRequested(QPoint)"), self.customContext)
         self.connect(self.lineEdit, SIGNAL("returnPressed()"), self.gotoFolder)
@@ -172,34 +189,46 @@ class DirectoryWidget(RWidget):
         synchButton = QToolButton()
         synchButton.setDefaultAction(self.synchAction)
         synchButton.setAutoRaise(True)
+        setButton = QToolButton()
+        setButton.setDefaultAction(self.setAction)
+        setButton.setAutoRaise(True)
+        hiddenButton = QToolButton()
+        hiddenButton.setDefaultAction(hiddenAction)
+        hiddenButton.setAutoRaise(True)
 
         hbox = QHBoxLayout()
         hbox.addWidget(upButton)
         hbox.addWidget(synchButton)
         hbox.addWidget(newButton)
+        hbox.addWidget(setButton)
+        hbox.addWidget(hiddenButton)
         vbox = QVBoxLayout(self)
         vbox.addLayout(hbox)
         vbox.addWidget(self.lineEdit)
         vbox.addWidget(self.listView)
-        vbox.addWidget(hiddenCheckbox)
-        #vbox.addWidget(self.filterEdit)
+        vbox.addWidget(filterLabel)
+        vbox.addWidget(filterLineEdit)
 
-    def toggleHidden(self, state):
+    def toggleHidden(self, toggled):
         base = QDir.AllDirs|QDir.AllEntries|QDir.NoDotAndDotDot
-        if state == Qt.Checked:
+        if toggled:
             self.model.setFilter(base|QDir.Hidden)
         else:
             self.model.setFilter(base)
 
     def gotoFolder(self):
         text = self.lineEdit.text()
-        self.listView.setRootIndex(self.model.index(text, 0))
+        self.listView.setRootIndex(self.proxyModel.mapFromSource(self.model.index(text, 0)))
 
     def rootChanged(self):
-        self.lineEdit.setText(self.model.filePath(self.listView.rootIndex()))
+        index1 = self.listView.rootIndex()
+        index2 = self.proxyModel.mapToSource(index1)
+        self.lineEdit.setText(self.model.filePath(index2))
+        self.listView.setCurrentIndex(index1)
 
     def customContext(self, pos):
         index = self.listView.indexAt(pos)
+        index = self.proxyModel.mapToSource(index)
         if not index.isValid():
             self.rmAction.setEnabled(False)
             self.openAction.setEnabled(False)
@@ -223,11 +252,13 @@ class DirectoryWidget(RWidget):
 
     def openItem(self):
         index = self.listView.currentIndex()
+        index = self.proxyModel.mapToSource(index)
         self.emit(SIGNAL("openFileRequest(QString)"),
         self.model.filePath(index))
 
     def loadItem(self):
         index = self.listView.currentIndex()
+        index = self.proxyModel.mapToSource(index)
         self.emit(SIGNAL("loadFileRequest(QString)"),
         self.model.filePath(index))
 
@@ -236,10 +267,13 @@ class DirectoryWidget(RWidget):
             "New Folder", "Folder name:", QLineEdit.Normal,
             "new_folder")
         if ok:
-            self.model.mkdir(self.listView.rootIndex(), text)
+            index = self.listView.rootIndex()
+            index = self.proxyModel.mapToSource(index)
+            self.model.mkdir(index, text)
 
     def setFolder(self):
         index = self.listView.currentIndex()
+        index = self.proxyModel.mapToSource(index)
         commands = "setwd('%s')" % self.model.filePath(index)
         self.emitCommands(commands)
 
@@ -252,6 +286,7 @@ class DirectoryWidget(RWidget):
             QMessageBox.Yes|QMessageBox.Cancel)
         if not yes == QMessageBox.Yes:
             return
+        index = self.proxyModel.mapToSource(index)
         if self.model.isDir(index):
             result = self.model.rmdir(index)
         else:
@@ -261,7 +296,9 @@ class DirectoryWidget(RWidget):
             "Unable to delete %s!" % self.model.fileName(index))
 
     def upFolder(self):
-        self.listView.setRootIndex(self.model.parent(self.listView.rootIndex()))
+        index = self.listView.rootIndex()
+        index = self.proxyModel.parent(index)
+        self.listView.setRootIndex(index)
         self.rootChanged()
 
     def cdFolder(self):
@@ -269,14 +306,16 @@ class DirectoryWidget(RWidget):
         if len(indexes) < 1:
             return
         index = indexes[0]
-        if self.model.isDir(index):
+        if self.model.isDir(self.proxyModel.mapToSource(index)):
             self.listView.setRootIndex(index)
         self.rootChanged()
         self.listView.clearSelection()
 
     def synchFolder(self):
         text = robjects.r.getwd()[0]
-        self.listView.setRootIndex(self.model.index(text, 0))
+        index = self.model.index(text, 0)
+        index = self.proxyModel.mapFromSource(index)
+        self.listView.setRootIndex(index)
         self.rootChanged()
 
     # If possible, the QGIS version should also alow
@@ -315,18 +354,18 @@ class HistoryWidget(RWidget):
         self.copyAction = QAction("&Copy command(s)", self)
         self.copyAction.setStatusTip("Copy the selected command(s) to the clipboard")
         self.copyAction.setToolTip("Copy the selected command(s) to the clipboard")
-        self.copyAction.setIcon(QIcon(":edit-copy.svg"))
+        self.copyAction.setIcon(QIcon(":edit-copy"))
         self.copyAction.setEnabled(False)
 
         self.selectAction = QAction("Select &all", self)
         self.selectAction.setStatusTip("Select all commands")
         self.selectAction.setToolTip("Select all commands")
-        self.selectAction.setIcon(QIcon(":edit-select-all.svg"))
+        self.selectAction.setIcon(QIcon(":edit-select-all"))
 
         self.runAction = QAction("&Run command(s)", self)
         self.runAction.setStatusTip("Run the selected command(s) in the console")
         self.runAction.setToolTip("Run the selected command(s) in the console")
-        self.runAction.setIcon(QIcon(":utilities-terminal.svg"))
+        self.runAction.setIcon(QIcon(":utilities-terminal"))
         self.runAction.setEnabled(False)
 
         vbox = QVBoxLayout(self)
@@ -437,63 +476,63 @@ class WorkspaceWidget(RWidget):
         self.refreshAction = QAction("Re&fresh variables", self)
         self.refreshAction.setToolTip("Refresh environment browser")
         self.refreshAction.setWhatsThis("Refresh environment browser")
-        self.refreshAction.setIcon(QIcon(":view-refresh.svg"))
+        self.refreshAction.setIcon(QIcon(":view-refresh"))
         self.refreshAction.setEnabled(True)
         self.actions.append(self.refreshAction)
 
         self.loadAction = QAction("&Load data", self)
         self.loadAction.setToolTip("Load R variable(s) from file")
         self.loadAction.setWhatsThis("Load R variable(s) from file")
-        self.loadAction.setIcon(QIcon(":package-x-generic.svg"))
+        self.loadAction.setIcon(QIcon(":custom-open-data"))
         self.loadAction.setEnabled(True)
         self.actions.append(self.loadAction)
 
         self.exportAction = QAction("&Export to file", self)
         self.exportAction.setToolTip("Export data to file")
         self.exportAction.setWhatsThis("Export data to file")
-        self.exportAction.setIcon(QIcon(":document-import.svg"))
+        self.exportAction.setIcon(QIcon(":custom-document-export"))
         self.exportAction.setEnabled(False)
         self.actions.append(self.exportAction)
 
         self.saveAction = QAction("&Save variable", self)
         self.saveAction.setToolTip("Save R variable to file")
         self.saveAction.setWhatsThis("Save R variable to file")
-        self.saveAction.setIcon(QIcon(":document-save.svg"))
+        self.saveAction.setIcon(QIcon(":custom-save-data"))
         self.saveAction.setEnabled(False)
         self.actions.append(self.saveAction)
 
         self.methodAction = QAction("&Print available methods", self)
         self.methodAction.setToolTip("Print available methods for object class")
         self.methodAction.setWhatsThis("Print available methods for object class")
-        self.methodAction.setIcon(QIcon(":dialog-information.svg"))
+        self.methodAction.setIcon(QIcon(":document-properties"))
         self.methodAction.setEnabled(False)
         self.actions.append(self.methodAction)
 
         self.attributeAction = QAction("Print object &attributes", self)
         self.attributeAction.setToolTip("Print available attributes for object class")
         self.attributeAction.setWhatsThis("Print available attributes for object class")
-        self.attributeAction.setIcon(QIcon(":dialog-question.svg"))
+        self.attributeAction.setIcon(QIcon(":custom-tag"))
         self.attributeAction.setEnabled(False)
         self.actions.append(self.attributeAction)
 
         self.summaryAction = QAction("Print object Su&mmary", self)
         self.summaryAction.setToolTip("Print summary of object")
         self.summaryAction.setWhatsThis("Print summary of object")
-        self.summaryAction.setIcon(QIcon(":document-properties.svg"))
+        self.summaryAction.setIcon(QIcon(":custom-summary"))
         self.summaryAction.setEnabled(False)
         self.actions.append(self.summaryAction)
 
         self.plotAction = QAction("&Quick plot", self)
         self.plotAction.setToolTip("Create minimal plot for visualisation")
         self.plotAction.setWhatsThis("Create minimal plot for visualisation")
-        self.plotAction.setIcon(QIcon(":baobab.svg"))
+        self.plotAction.setIcon(QIcon(":gnome-fs-bookmark-missing"))
         self.plotAction.setEnabled(False)
         self.actions.append(self.plotAction)
 
         self.rmAction = QAction("&Remove", self)
         self.rmAction.setToolTip("Remove selected variable")
         self.rmAction.setWhatsThis("Removed selected variable")
-        self.rmAction.setIcon(QIcon(":edit-delete.svg"))
+        self.rmAction.setIcon(QIcon(":edit-delete"))
         self.rmAction.setEnabled(False)
         self.actions.append(self.rmAction)
 

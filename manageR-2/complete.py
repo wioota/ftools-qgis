@@ -27,7 +27,6 @@ def insideQuotes(linebuffer = "", end = -1):
     if end < 0:
         end = len(linebuffer)
     linebuffer = QString(linebuffer[0:end])
-    print linebuffer
     double = linebuffer.count("'")
     single = linebuffer.count('"')
     return ((double % 2) or (single % 2))

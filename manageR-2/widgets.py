@@ -5,7 +5,8 @@ import rpy2.robjects as robjects
 
 #PyQt imports
 from PyQt4.QtCore import (Qt, SIGNAL, SLOT, QStringList, QString, QDir, QSettings,
-                          QModelIndex, QObject, QCoreApplication, QEventLoop, QRegExp )
+                          QModelIndex, QObject, QCoreApplication, QEventLoop, 
+                          QRegExp, QVariant )
 from PyQt4.QtGui import (QTreeWidget, QAbstractItemView, QAction, QVBoxLayout,
                          QMenu, QWidget, QListView, QIcon, QLineEdit, QToolButton,
                          QHBoxLayout, QTreeWidgetItem, QFileSystemModel, QCheckBox,
@@ -15,6 +16,7 @@ from PyQt4.QtGui import (QTreeWidget, QAbstractItemView, QAction, QVBoxLayout,
 # local imports
 import resources, os, sys
 from environment import TreeModel, SortFilterProxyModel
+from manageR_updated import History
 
 class RWidget(QWidget):
 
@@ -436,6 +438,143 @@ class HistoryWidget(RWidget):
         self.commandList.model().data(
         index, Qt.DisplayRole))
         self.parent.setFocus(Qt.MouseFocusReason)
+        
+class GraphicsWidget(RWidget):         
+
+    def __init__(self, parent):
+        RWidget.__init__(self, parent)
+        self.parent = parent
+        self._hist = History(items=[])
+        self._currentPlot = QVariant(QString())
+        
+        self.callLineEdit = QLineEdit()
+        self.callLineEdit.setReadOnly(True)
+        self.callLineEdit.setToolTip("Commands to reproduce plot")
+        self.callLineEdit.setWhatsThis("Commands to reproduce plot")
+        actions = []
+
+#        playAction = QAction("Replay", self)
+#        playAction.setStatusTip("Replay selected plot")
+#        playAction.setToolTip("Replay selected plot")
+#        playAction.setIcon(QIcon(":edit-copy"))
+#        actions.append(playAction)
+        
+        firstAction = QAction("End", self)
+        firstAction.setStatusTip("Move to end of history")
+        firstAction.setToolTip("Move to end of history")
+        firstAction.setIcon(QIcon(":edit-copy"))
+        actions.append(firstAction)
+        
+        previousAction = QAction("Previous", self)
+        previousAction.setStatusTip("Move to previous plot")
+        previousAction.setToolTip("Move to previous plot")
+        previousAction.setIcon(QIcon(":edit-copy"))
+        actions.append(previousAction)
+
+        infoAction = QAction("Info", self)
+        infoAction.setStatusTip("Show plot info")
+        infoAction.setToolTip("Show plot info")
+        infoAction.setIcon(QIcon(":edit-copy"))
+        actions.append(infoAction)
+        
+        nextAction = QAction("Next", self)
+        nextAction.setStatusTip("Move to next plot")
+        nextAction.setToolTip("Move to next plot")
+        nextAction.setIcon(QIcon(":edit-copy"))
+        actions.append(nextAction)
+        
+        lastAction = QAction("Start", self)
+        lastAction.setStatusTip("Move to latest plot")
+        lastAction.setToolTip("Move to latest plot")
+        lastAction.setIcon(QIcon(":edit-copy"))
+        actions.append(lastAction)
+        actions.append(None)
+        
+        clearAction = QAction("Clear", self)
+        clearAction.setStatusTip("Clear plot history")
+        clearAction.setToolTip("Clear plot history")
+        clearAction.setIcon(QIcon(":edit-copy"))
+        actions.append(clearAction)
+        
+
+        vbox = QVBoxLayout()
+        hbox = QHBoxLayout()
+        for action in actions:
+            if not action is None:
+                button = QToolButton()
+                button.setDefaultAction(action)
+                button.setAutoRaise(True)
+                hbox.addWidget(button)
+            else:
+                hbox.addStretch()
+        vbox.addLayout(hbox)
+        vbox.addWidget(self.callLineEdit)
+        self.setLayout(vbox)
+
+        self.connect(firstAction, SIGNAL("triggered()"), self.first)
+        self.connect(previousAction, SIGNAL("triggered()"), self.previous)
+        self.connect(infoAction, SIGNAL("triggered()"), self.info)
+        self.connect(nextAction, SIGNAL("triggered()"), self.next)
+        self.connect(lastAction, SIGNAL("triggered()"), self.last)
+        self.connect(clearAction, SIGNAL("triggered()"), self.clear)
+        
+    def setHistory(self, history):
+        self._hist = history
+
+    def history(self):
+        return self._hist
+
+    def previous(self):
+        return self.navigateHistory(True)
+
+    def next(self):
+        return self.navigateHistory(False)
+
+    def navigateHistory(self, up=True):
+        if up:
+            self._currentPlot = self.history().previous()
+        else:
+            self._currentPlot = self.history().next()
+        if not self._currentPlot == QString():
+            self.callLineEdit.setText(self._currentPlot[1])
+        return self._currentPlot
+
+    def first(self):
+        temp = self.previous()
+        item = self._currentPlot
+        while not temp == QVariant(QString()):
+            item = temp
+            temp = self.previous()
+        self._currentPlot = item
+
+    def last(self):
+        temp = self.next()
+        item = self._currentPlot
+        while not temp == QVariant(QString()):
+            item = temp
+            temp = self.next()
+        self._currentPlot = item          
+
+    def info(self):
+        if self._currentPlot == QVariant(QString()):
+            return
+        plot = self._currentPlot
+        msgBox = QMessageBox()
+        msgBox.setText("Plot information")
+        msgBox.setInformativeText("Original device: %s, History position: %s, " % (plot[0], self.history().currentIndex())
+                                  +"Size: %s\n\nWould you like to replay the plot now?" % plot[1])
+        msgBox.setDetailedText("Original call:\n%s" % plot[2])
+        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Close)
+        msgBox.setDefaultButton(QMessageBox.Ok)
+        if msgBox.exec_() == QMessageBox.Ok:
+            print plot[3]
+
+    def clear(self):
+        self.setHistory(History(items=[]))
+        self.callLineEdit.setText(QString())
+        
+    def updateHistory(self, item):
+        self.history().update([item])
 
 class WorkspaceWidget(RWidget):
 

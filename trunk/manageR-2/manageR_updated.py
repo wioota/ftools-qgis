@@ -57,6 +57,12 @@ import rpy2
 import rpy2.robjects as robjects
 import rpy2.rlike.container as rlc
 
+def cleanup(saveact, status, runlast):
+    # cancel all attempts to quit R programmatically
+    print("Error: Exit from manageR not allowed, please use File > Quit")
+    return None
+rpy2.rinterface.set_cleanup(cleanup)
+
 try:
     from qgis.core import (QgsApplication, QgsMapLayer,QgsProviderRegistry,
                           QgsVectorLayer, QgsVectorDataProvider,QgsRasterLayer)
@@ -576,7 +582,6 @@ class MainWindow(QMainWindow):
 
     def timerEvent(self, e):
         try:
-            robjects.r("print('test')")
             robjects.rinterface.process_revents()
         except Exception, err:
             print str(err)
@@ -1752,7 +1757,14 @@ class RConsole(PlainTextEdit):
                 output = self.pipeEnd.recv()
         except EOFError:
             pass
-        self.printOutput(string)
+        string.replace('\xe2\x9c\x93', "")
+        string.replace('\xe2\x80\x98', "'")
+        string.replace('\xe2\x80\x99', "'")
+        string.replace("_", "")
+        if string.startsWith("R Help"):
+            SimpleTextDialog(self, string).show()
+        else:
+            self.printOutput(string)
         self.checkGraphics()
         return True
         
@@ -1800,10 +1812,6 @@ class RConsole(PlainTextEdit):
                     empty = False
                     self.textCursor().block().setUserData(
                         UserData(PlainTextEdit.OUTPUT))#, QString("Output")))
-                line.replace('\xe2\x9c\x93', "")
-                line.replace('\xe2\x80\x98', "'")
-                line.replace('\xe2\x80\x99', "'")
-                line.replace("_", "")
                 if not empty:
                     self.insertPlainText("%s\n" % line)
                 else:

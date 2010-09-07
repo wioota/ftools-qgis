@@ -809,6 +809,20 @@ class HtmlBrowser(QWidget):
 
     def setSource(self, url):
         self.viewer.setSource(url)
+        
+class SimpleTextDialog(QDialog):
+
+    def __init__(self, parent=None, text=""):
+        QDialog.__init__ (self, parent)
+        #initialise the display text edit
+        display = QTextBrowser(self)
+        display.setReadOnly(True)
+        #initialise grid layout for dialog
+        hbox = QHBoxLayout(self)
+        hbox.addWidget(display)
+        self.setWindowTitle("manageR - Help")
+        display.setPlainText(text)
+        self.resize(750, 400)
 
 class OutputCatcher(QObject):
 

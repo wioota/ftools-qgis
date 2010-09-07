@@ -473,7 +473,7 @@ class MainWindow(QMainWindow):
             self.main.editor().history().loadHistory()
         # manageR specific R variables/commands
         robjects.r(".manageRextras <- NULL")
-        robjects.r.setHook('plot.new', robjects.r('function(x) {.manageRextras$graphics <<- c(sys.calls()[[2]], dev.cur()); print(sys.calls())}'))
+        robjects.r.setHook('plot.new', robjects.r('function(x) .manageRgraphic <<- sys.calls()'))
 
     def updateIndicators(self):
         lines = self.main.editor().document().blockCount()
@@ -1726,17 +1726,15 @@ class RConsole(PlainTextEdit):
         return True
         
     def checkGraphics(self):
-        if not robjects.r['class'](robjects.r(".manageRextras$graphics"))[0] == "NULL":
-            test = robjects.r[".manageRextras"].rx("graphics").rx2(1)
-#            print test[0]
-            dev_id = test[1][0]
-            temp = robjects.r("sys.calls()").rx2(1)
-            print robjects.r.attributes(temp[0])
-            dev_call = robjects.r.attributes(test[0][1]).rx("srcref")[0][0]
+        graphic = robjects.r[".manageRgraphic"]
+        if not robjects.r['class'](graphic)[0] == "NULL":
+            dev_cur = robjects.r.get("dev.cur", mode="function")
+            dev_id = dev_cur()[0]
+            dev_call = unicode(graphic[1].r_repr())[5:-1]
             object_size = robjects.r.get("object.size", mode="function")
             dev_saved = robjects.r.recordPlot()
-            dev_size = object_size(dev_saved)
-            robjects.r(".manageRextras$graphics <- NULL")
+            dev_size = object_size(dev_saved)[0]
+            robjects.r(".manageRgraphic <- NULL")
             self.emit(SIGNAL("newPlotCreated(PyQt_PyObject)"), 
                 (dev_id, dev_size, dev_call, dev_saved))
 
@@ -2548,7 +2546,7 @@ class History(QAbstractListModel):
         self.__index = 0
 
     def update(self, items):
-        if not items.isEmpty():
+        if len(items) > 0:
             rows = len(items)#.count()
             position = self.rowCount()
             self.insertRows(position, rows, QModelIndex())

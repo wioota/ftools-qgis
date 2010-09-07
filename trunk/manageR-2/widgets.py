@@ -462,42 +462,41 @@ class GraphicsWidget(RWidget):
         firstAction = QAction("End", self)
         firstAction.setStatusTip("Move to end of history")
         firstAction.setToolTip("Move to end of history")
-        firstAction.setIcon(QIcon(":edit-copy"))
+        firstAction.setIcon(QIcon(":go-first"))
         actions.append(firstAction)
         
         previousAction = QAction("Previous", self)
         previousAction.setStatusTip("Move to previous plot")
         previousAction.setToolTip("Move to previous plot")
-        previousAction.setIcon(QIcon(":edit-copy"))
+        previousAction.setIcon(QIcon(":go-previous"))
         actions.append(previousAction)
 
         infoAction = QAction("Info", self)
         infoAction.setStatusTip("Show plot info")
         infoAction.setToolTip("Show plot info")
-        infoAction.setIcon(QIcon(":edit-copy"))
+        infoAction.setIcon(QIcon(":gtk-info"))
         actions.append(infoAction)
         
         nextAction = QAction("Next", self)
         nextAction.setStatusTip("Move to next plot")
         nextAction.setToolTip("Move to next plot")
-        nextAction.setIcon(QIcon(":edit-copy"))
+        nextAction.setIcon(QIcon(":go-next"))
         actions.append(nextAction)
         
         lastAction = QAction("Start", self)
         lastAction.setStatusTip("Move to latest plot")
         lastAction.setToolTip("Move to latest plot")
-        lastAction.setIcon(QIcon(":edit-copy"))
+        lastAction.setIcon(QIcon(":go-last"))
         actions.append(lastAction)
         actions.append(None)
         
         clearAction = QAction("Clear", self)
         clearAction.setStatusTip("Clear plot history")
         clearAction.setToolTip("Clear plot history")
-        clearAction.setIcon(QIcon(":edit-copy"))
+        clearAction.setIcon(QIcon(":edit-clear"))
         actions.append(clearAction)
         
 
-        vbox = QVBoxLayout()
         hbox = QHBoxLayout()
         for action in actions:
             if not action is None:
@@ -506,10 +505,8 @@ class GraphicsWidget(RWidget):
                 button.setAutoRaise(True)
                 hbox.addWidget(button)
             else:
-                hbox.addStretch()
-        vbox.addLayout(hbox)
-        vbox.addWidget(self.callLineEdit)
-        self.setLayout(vbox)
+                hbox.addWidget(self.callLineEdit)
+        self.setLayout(hbox)
 
         self.connect(firstAction, SIGNAL("triggered()"), self.first)
         self.connect(previousAction, SIGNAL("triggered()"), self.previous)
@@ -535,14 +532,15 @@ class GraphicsWidget(RWidget):
             self._currentPlot = self.history().previous()
         else:
             self._currentPlot = self.history().next()
-        if not self._currentPlot == QString():
-            self.callLineEdit.setText(self._currentPlot[1])
+        tmp = self._currentPlot.toPyObject()
+        if not tmp == QString():
+            self.callLineEdit.setText(tmp[2])
         return self._currentPlot
 
     def first(self):
         temp = self.previous()
         item = self._currentPlot
-        while not temp == QVariant(QString()):
+        while not isinstance(temp,QVariant):
             item = temp
             temp = self.previous()
         self._currentPlot = item
@@ -550,19 +548,22 @@ class GraphicsWidget(RWidget):
     def last(self):
         temp = self.next()
         item = self._currentPlot
-        while not temp == QVariant(QString()):
+        while not isinstance(temp,QVariant):
             item = temp
             temp = self.next()
         self._currentPlot = item          
 
     def info(self):
-        if self._currentPlot == QVariant(QString()):
+        plot = self._currentPlot.toPyObject()
+        if isinstance(plot,QString):
             return
-        plot = self._currentPlot
+        plot = self._currentPlot.toPyObject()
         msgBox = QMessageBox()
-        msgBox.setText("Plot information")
-        msgBox.setInformativeText("Original device: %s, History position: %s, " % (plot[0], self.history().currentIndex())
-                                  +"Size: %s\n\nWould you like to replay the plot now?" % plot[1])
+        msgBox.setText("Plot information:")
+        msgBox.setInformativeText("Original device: %s" % str(plot[0])
+                                  +"\nHistory position: %s" % str(self.history().currentIndex()+1)
+                                  +"\nSize: %s bytes" % str(plot[1])
+                                  +"\n\nWould you like to replay the plot now?")
         msgBox.setDetailedText("Original call:\n%s" % plot[2])
         msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Close)
         msgBox.setDefaultButton(QMessageBox.Ok)
@@ -575,6 +576,7 @@ class GraphicsWidget(RWidget):
         
     def updateHistory(self, item):
         self.history().update([item])
+        self.previous()        
 
 class WorkspaceWidget(RWidget):
 

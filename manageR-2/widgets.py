@@ -694,7 +694,7 @@ class WorkspaceWidget(RWidget):
         self.updateEnvironment()
 
     def mousePressEvent(self, event):
-        item = self.workspaceTree.itemAt(event.globalPos())
+        item = self.workspaceTree.indexAt(event.globalPos())
         if not item and event.button() == Qt.LeftButton:
             self.workspaceTree.clearSelection()
         RWidget.mousePressEvent(self, event)

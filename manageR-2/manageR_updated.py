@@ -576,9 +576,10 @@ class MainWindow(QMainWindow):
 
     def timerEvent(self, e):
         try:
+            robjects.r("print('test')")
             robjects.rinterface.process_revents()
-        except:
-            pass
+        except Exception, err:
+            print str(err)
 
     def libraryBrowser(self):
         browser = RLibraryBrowser(self, self.paths)

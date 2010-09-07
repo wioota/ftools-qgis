@@ -472,7 +472,7 @@ class MainWindow(QMainWindow):
                 filter = QString(".RData"), visible=False)
             self.main.editor().history().loadHistory()
         # manageR specific R variables/commands
-        robjects.r(".manageRextras <- NULL")
+        robjects.r(".manageRgraphic <- NULL")
         robjects.r.setHook('plot.new', robjects.r('function(x) .manageRgraphic <<- sys.calls()'))
 
     def updateIndicators(self):
@@ -489,7 +489,7 @@ class MainWindow(QMainWindow):
         if text.endsWith("("):
             text = text[0:-1]
         args = self.main.editor().functionArguments(text)
-        self.statusBar().showMessage(args)
+        self.statusBar().showMessage(text+args)
         
     def updatePlotsSetMenu(self):
         # TODO: Update this function to show the currently ACTIVE plot
@@ -1015,9 +1015,9 @@ class MainWindow(QMainWindow):
                             source.replace("\\", "/")
                             name = unicode(layer.name())
                             return converters.qOGRVectorDataFrame(source, name, keep=geom)
-                        robjects.r['print']("An error occured while attempting to "
-                        "speed up import by using 'RGDAL' package (%s)\n" 
-                        "Using internal conversion utilities instead...\n" % unicode(e))
+                        print "An error occured while attempting to "
+                        + "speed up import by using 'RGDAL' package (%s)\n" 
+                        + "Using internal conversion utilities instead...\n" % unicode(e)
                     return converters.qQGISVectorDataFrame(layer, geom)
                 except Exception, e:
                     QMessageBox.warning(self, "manageR - Import Error",
@@ -1318,11 +1318,11 @@ class PlainTextEdit(QPlainTextEdit):
             word = self.guessCurrentWord(cursor)
             if not word.isEmpty():
                 if word == "manageR":
-                    args = QString("manageR Rocks!")
+                    args = QString(" Rocks!")
                 else:
                     args = self.functionArguments(word).trimmed()
                 if not args.isEmpty():
-                    QToolTip.showText(e.globalPos(), args)
+                    QToolTip.showText(e.globalPos(), word+args)
         return QPlainTextEdit.event(self, e)
 
     def guessCurrentWord(self, cursor):
@@ -1338,6 +1338,26 @@ class PlainTextEdit(QPlainTextEdit):
         end = regend.indexIn(suffix)
         if end < 0: end = len(suffix)
         return line[start:len(prefix)+end].trimmed()
+        
+    def inFunction(self, cursor):
+        pos = cursor.position() - cursor.block().position()
+        cursor.movePosition(QTextCursor.StartOfLine, QTextCursor.KeepAnchor)
+        line = cursor.selectedText()
+        openBracket = line.count("(")
+        closeBracket = line.count(")")
+        wp = openBracket-closeBracket
+        if wp > 0: # probably inside function
+            index = line.lastIndexOf("(")
+            prefix = line[0:index]
+            suffix = line[index+1:]
+            regexp = QRegExp(r"[^\.\w]")
+            possible = list(prefix.split(regexp, QString.SkipEmptyParts))
+            if len(possible) > 0:
+                return True, QString(possible[-1])
+            else:
+                return False, QString()
+        else: # not inside function
+            return False, self.guessCurrentWord(cursor)
 
     def functionArguments(self, fun):
         try:
@@ -1348,7 +1368,7 @@ class PlainTextEdit(QPlainTextEdit):
                 start = regexp.lastIndexIn(args)
                 regexp = QRegExp(r"\)")
                 end = regexp.lastIndexIn(args)
-                args = args[start:end+1].replace("function ", fun)
+                args = args[start:end+1].replace("function ", "") # removed fun
             else:
                 args = args.replace("\n\n", "").remove("NULL")
         except:
@@ -1438,13 +1458,19 @@ class PlainTextEdit(QPlainTextEdit):
         return (command, pos1-pos2)
 
     def insertParameters(self):
-            cursor = self.textCursor()
-            word = self.guessCurrentWord(cursor)
-            if not word.isEmpty():
-                args = self.functionArguments(word).remove("\n")
-                if not args.isEmpty():
-                    self.setTextCursor(cursor)
-                    self.insertPlainText(args)
+        cursor = self.textCursor()
+        tmp = QTextCursor(cursor)
+        pos = cursor.position()
+        inside, word = self.inFunction(cursor)
+        if not inside:
+            tmp.movePosition(QTextCursor.EndOfWord)
+        if not word.isEmpty():
+            args = self.functionArguments(word).remove("\n")
+            if inside:
+                args = args[1:-1]
+            if not args.isEmpty():
+                self.setTextCursor(tmp)
+                self.insertPlainText(args)
 
     def suspendHighlighting(self):
         self.__suspended = True
@@ -1629,7 +1655,10 @@ class RConsole(PlainTextEdit):
         else:
             if e.key() == Qt.Key_C and (e.modifiers() == Qt.ControlModifier or \
                 e.modifiers() == Qt.MetaModifier):
-                self.cancel()
+                if not cursor.hasSelection():
+                    self.cancel()
+                else:
+                    PlainTextEdit.keyPressEvent(self, e)
             elif e.key() == Qt.Key_Backspace:
                 if not cursor.hasSelection() and cursor.atBlockStart():
                     return
@@ -1674,10 +1703,11 @@ class RConsole(PlainTextEdit):
         self.ensureCursorVisible()
         
     def insertFromMimeData(self, source):
-        cursor = self.textCursor()
-        cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
-        cursor.block().setUserData(UserData(PlainTextEdit.INPUT))
-        self.setTextCursor(cursor)
+        if not self.isCursorInEditionZone() and self.isAnchorInEditionZone():
+            cursor = self.textCursor()
+            cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
+            cursor.block().setUserData(UserData(PlainTextEdit.INPUT))
+            self.setTextCursor(cursor)
         PlainTextEdit.insertFromMimeData(self, source)
 
     def cancel(self):
@@ -1741,6 +1771,8 @@ class RConsole(PlainTextEdit):
     def acceptCommands(self, commands):
         mime = QMimeData()
         mime.setText(commands)
+        if not self.currentCommand(self.textCursor().block())[0].isEmpty():
+            self.cancel()
         self.insertFromMimeData(mime)
         self.insertPlainText("\n")
         self.entered()
@@ -1782,8 +1814,8 @@ class RConsole(PlainTextEdit):
         cursor = self.textCursor()
         if not cursor.hasSelection():
             cursor = self.cursorForPosition(e.pos())
-            self.setTextCursor(cursor)
         if e.button() == Qt.RightButton:
+            self.setTextCursor(cursor)
             norms = [[QIcon(":edit-select-all"),
                     "Select all", self.selectAll,
                     QKeySequence(QKeySequence.SelectAll)],

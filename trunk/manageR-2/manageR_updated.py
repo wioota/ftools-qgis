@@ -204,6 +204,16 @@ class MainWindow(QMainWindow):
             scratchPadDockWidget.setWidget(scratchPadWidget)
             self.addDockWidget(Qt.LeftDockWidgetArea, scratchPadDockWidget)
             widgets.append(scratchPadDockWidget)
+            
+            plotHistoryWidget = GraphicsWidget(self)
+            plotHistoryDockWidget = QDockWidget("Plot history", self)
+            plotHistoryDockWidget.setObjectName("plotHistoryDockWidget")
+            plotHistoryDockWidget.setAllowedAreas(Qt.TopDockWidgetArea|Qt.BottomDockWidgetArea)
+            plotHistoryDockWidget.setWidget(plotHistoryWidget)
+            self.addDockWidget(Qt.BottomDockWidgetArea, plotHistoryDockWidget)
+            widgets.append(plotHistoryDockWidget)
+            self.connect(self.main.editor(), SIGNAL("newPlotCreated(PyQt_PyObject)"),
+                plotHistoryWidget.updateHistory)
 
             self.tabifyDockWidget(historyDockWidget, workspaceDockWidget)
             self.tabifyDockWidget(scratchPadDockWidget, directoryDockWidget)
@@ -458,8 +468,12 @@ class MainWindow(QMainWindow):
         robjects.r.setwd(unicode(folder))
         robjects.r(unicode(commands))
         if load:
-            self.openWorkspace(path=QString(".RData"), filter = QString(".RData"), visible=False)
+            self.openWorkspace(path=QString(".RData"), 
+                filter = QString(".RData"), visible=False)
             self.main.editor().history().loadHistory()
+        # manageR specific R variables/commands
+        robjects.r(".manageRextras <- NULL")
+        robjects.r.setHook('plot.new', robjects.r('function(x) {.manageRextras$graphics <<- c(sys.calls()[[2]], dev.cur()); print(sys.calls())}'))
 
     def updateIndicators(self):
         lines = self.main.editor().document().blockCount()
@@ -1593,9 +1607,9 @@ class RConsole(PlainTextEdit):
         cursor.removeSelectedText()
         self.setTextCursor(cursor)
         if up:
-            self.insertPlainText(self.history().previous())
+            self.insertPlainText(self.history().previous().toString())
         else:
-            self.insertPlainText(self.history().next())
+            self.insertPlainText(self.history().next().toString())
 
     def setPrompt(self, newPrompt=">", altPrompt="+"):
         self.defaultPrompt = newPrompt
@@ -1708,7 +1722,23 @@ class RConsole(PlainTextEdit):
         except EOFError:
             pass
         self.printOutput(string)
+        self.checkGraphics()
         return True
+        
+    def checkGraphics(self):
+        if not robjects.r['class'](robjects.r(".manageRextras$graphics"))[0] == "NULL":
+            test = robjects.r[".manageRextras"].rx("graphics").rx2(1)
+#            print test[0]
+            dev_id = test[1][0]
+            temp = robjects.r("sys.calls()").rx2(1)
+            print robjects.r.attributes(temp[0])
+            dev_call = robjects.r.attributes(test[0][1]).rx("srcref")[0][0]
+            object_size = robjects.r.get("object.size", mode="function")
+            dev_saved = robjects.r.recordPlot()
+            dev_size = object_size(dev_saved)
+            robjects.r(".manageRextras$graphics <- NULL")
+            self.emit(SIGNAL("newPlotCreated(PyQt_PyObject)"), 
+                (dev_id, dev_size, dev_call, dev_saved))
 
     def acceptCommands(self, commands):
         mime = QMimeData()
@@ -2512,14 +2542,14 @@ class UserData(QTextBlockUserData):
 
 class History(QAbstractListModel):
 
-    def __init__(self, parent=None, items=QStringList()):
+    def __init__(self, parent=None, items=[]):
         QAbstractListModel.__init__(self, None)
         self.__HIST = items
         self.__index = 0
 
     def update(self, items):
         if not items.isEmpty():
-            rows = items.count()
+            rows = len(items)#.count()
             position = self.rowCount()
             self.insertRows(position, rows, QModelIndex())
             good = 0
@@ -2538,13 +2568,13 @@ class History(QAbstractListModel):
         return self.__HIST
 
     def rowCount(self, parent=QModelIndex()):
-        return self.__HIST.count()
+        return len(self.__HIST)
 
     def data(self, index, role):
         # index here is a QModelIndex
         if not index.isValid():
             return QVariant()
-        if index.row() >= self.__HIST.count():
+        if index.row() >= len(self.__HIST):#.count():
             return QVariant()
         if role == Qt.DisplayRole or role == Qt.EditRole:
             return self.__HIST[index.row()]
@@ -2558,7 +2588,8 @@ class History(QAbstractListModel):
 
     def setData(self, index, value, role):
         if index.isValid() and role == Qt.EditRole:
-            self.__HIST.replace(index.row(), value.toString())
+            self.__HIST.pop(index.row())
+            self.__HIST.insert(index.row(), value)#replace(index.row(), value)
             self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), index, index)
             return True
         return False
@@ -2573,7 +2604,7 @@ class History(QAbstractListModel):
     def removeRows(self, position, rows, parent):
         self.beginRemoveRows(QModelIndex(), position, position+rows-1)
         for row in range(rows):
-            self.__HIST.removeAt(position)
+            self.__HIST.pop(position)#removeAt(position)
         self.endRemoveRows()
         return True
 
@@ -2587,7 +2618,7 @@ class History(QAbstractListModel):
         if self.currentIndex() < self.rowCount() and self.rowCount() > 0:
             self.__index += 1
         if self.currentIndex() == self.rowCount():
-            return QString()
+            return QVariant(QString())
         else:
             return self.currentItem()
 
@@ -2595,7 +2626,7 @@ class History(QAbstractListModel):
         if  self.currentIndex() > 0 and self.rowCount() > 0:
             self.__index -= 1
         if self.currentIndex() == self.rowCount():
-            return QString()
+            return QVariant(QString())
         else:
             return self.currentItem()
 

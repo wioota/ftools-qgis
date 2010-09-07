@@ -603,6 +603,7 @@ class RHelpBrowser(QDialog):
                 searchString += "&concept=1"
             if self.exactCheckbox.isChecked():
                 searchString += "&exact=1"
+            self.htmlBrowser.home()
             self.htmlBrowser.setSource(QUrl(searchString))
 
 class RLibraryBrowser(QDialog):

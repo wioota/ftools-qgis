@@ -5,6 +5,7 @@
         <file alias="document-save.svg">icons/default/document-save.svg</file>
         <file alias="custom-tag.svg">icons/default/custom-tag.svg</file>
         <file alias="system-software-install.svg">icons/default/system-software-install.svg</file>
+        <file alias="edit-clear.svg">icons/default/edit-clear.svg</file>
         <file alias="go-home.svg">icons/default/go-home.svg</file>
         <file alias="gconf-editor.svg">icons/default/gconf-editor.svg</file>
         <file alias="custom-layer-import.svg">icons/default/custom-layer-import.svg</file>
@@ -28,6 +29,7 @@
         <file alias="custom-summary.svg">icons/default/custom-summary.svg</file>
         <file alias="bookmark-new.svg">icons/default/bookmark-new.svg</file>
         <file alias="format-indent-less.svg">icons/default/format-indent-less.svg</file>
+        <file alias="go-last.svg">icons/default/go-last.svg</file>
         <file alias="dialog-error.svg">icons/default/dialog-error.svg</file>
         <file alias="system-run.svg">icons/default/system-run.svg</file>
         <file alias="custom-document-export.svg">icons/default/custom-document-export.svg</file>
@@ -50,6 +52,7 @@
         <file alias="custom-vector.svg">icons/default/custom-vector.svg</file>
         <file alias="custom-data-frame.svg">icons/default/custom-data-frame.svg</file>
         <file alias="document-import.svg">icons/default/document-import.svg</file>
+        <file alias="go-first.svg">icons/default/go-first.svg</file>
         <file alias="dialog-apply.svg">icons/default/dialog-apply.svg</file>
         <file alias="go-next.svg">icons/default/go-next.svg</file>
         <file alias="extension.svg">icons/default/extension.svg</file>
@@ -61,6 +64,7 @@
         <file alias="custom-open-workspace.svg">icons/default/custom-open-workspace.svg</file>
         <file alias="edit-undo.svg">icons/default/edit-undo.svg</file>
         <file alias="preferences-system.svg">icons/default/preferences-system.svg</file>
+        <file alias="gtk-info.svg">icons/default/gtk-info.svg</file>
         <file alias="folder-home.svg">icons/default/folder-home.svg</file>
         <file alias="edit-find.svg">icons/default/edit-find.svg</file>
         <file alias="document-new.svg">icons/default/document-new.svg</file>

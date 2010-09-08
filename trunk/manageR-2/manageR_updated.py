@@ -1761,8 +1761,8 @@ class RConsole(PlainTextEdit):
         string.replace('\xe2\x80\x98', "'")
         string.replace('\xe2\x80\x99', "'")
         string.replace("_", "")
-        if string.startsWith("R Help"):
-            SimpleTextDialog(self, string).show()
+        if string.indexOf(QRegExp("R\s{1}(Help|Information)")) == 0:
+            SimpleTextDialog(self.parent(), string).show()
         else:
             self.printOutput(string)
         self.checkGraphics()

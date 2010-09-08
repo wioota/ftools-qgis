@@ -407,9 +407,11 @@ class HistoryWidget(RWidget):
         count = 1
         for index in selected:
             if count == len(selected):
-                commands.append(self.commandList.model().data(index, Qt.DisplayRole))
+                commands.append(self.commandList.model().data(index,
+                    Qt.DisplayRole).toString())
             else:
-                commands.append(self.commandList.model().data(index, Qt.DisplayRole)+"\n")
+                commands.append(self.commandList.model().data(index, 
+                    Qt.DisplayRole).toString()+"\n")
             count += 1
         clipboard = QApplication.clipboard()
         clipboard.setText(commands, QClipboard.Clipboard)
@@ -420,9 +422,11 @@ class HistoryWidget(RWidget):
         count = 1
         for index in selected:
             if count == len(selected):
-                commands.append(self.commandList.model().data(index, Qt.DisplayRole))
+                commands.append(self.commandList.model().data(index, 
+                    Qt.DisplayRole).toString())
             else:
-                commands.append(self.commandList.model().data(index, Qt.DisplayRole)+"\n")
+                commands.append(self.commandList.model().data(index, 
+                    Qt.DisplayRole).toString()+"\n")
             count += 1
         self.runCommands(commands)
 
@@ -434,9 +438,9 @@ class HistoryWidget(RWidget):
             self.emitCommands(commands)
 
     def doubleClicked(self, index):
-        self.runCommands(
-        self.commandList.model().data(
-        index, Qt.DisplayRole))
+        commands = self.commandList.model().data(
+        index, Qt.DisplayRole)
+        self.runCommands(commands.toString())
         self.parent.setFocus(Qt.MouseFocusReason)
         
 class GraphicsWidget(RWidget):         

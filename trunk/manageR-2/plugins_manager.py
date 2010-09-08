@@ -12,7 +12,8 @@ from plugins_dialog import (SpinBox, DoubleSpinBox, ComboBox, CheckBox, LineEdit
                             BoundingBoxBox, PlotTypeBox, TitlesBox, ParametersBox,
                             PluginDialog, Widget, VariableComboBox, GridCheckBox,
                             RadioGroupBox, GroupBox, RadioGroupBox, VBoxLayout,
-                            VariableTreeBox, GroupCheckBox)
+                            VariableTreeBox, GroupCheckBox, FileSaveLineEdit,
+                            FileOpenLineEdit)
 CURRENTDIR = unicode(os.path.abspath(os.path.dirname(__file__)))
 
 class ToolsCollection:

@@ -1115,6 +1115,7 @@ class FileOpenLineEdit(QWidget):
         horiz.addWidget(self.pathLineEdit)
         horiz.addWidget(button)
         self.connect(button, SIGNAL("clicked()"), self.browseToFolder)
+        self.setLayout(horiz)
 
     def browseToFolder(self):
         f = QFileDialog.getOpenFileName(
@@ -1151,6 +1152,7 @@ class FileSaveLineEdit(QWidget):
         horiz.addWidget(self.pathLineEdit)
         horiz.addWidget(button)
         self.connect(button, SIGNAL("clicked()"), self.browseToFolder)
+        self.setLayout(horiz)
 
     def browseToFolder(self):
         f = QFileDialog.getSaveFileName(

@@ -495,7 +495,8 @@ class MainWindow(QMainWindow):
         if text.endsWith("("):
             text = text[0:-1]
         args = self.main.editor().functionArguments(text)
-        self.statusBar().showMessage(text+args)
+        if len(args) > 0:
+            self.statusBar().showMessage(text+args)
         
     def updatePlotsSetMenu(self):
         # TODO: Update this function to show the currently ACTIVE plot
@@ -1411,10 +1412,11 @@ class PlainTextEdit(QPlainTextEdit):
                     extra = QString("Continue")
                 block.setUserData(UserData(PlainTextEdit.CONTINUE, extra))
                 return PlainTextEdit.CONTINUE # line continuation
-            err = err.split(":", QString.SkipEmptyParts)[1:].join(" ").prepend("Error:")
-            if tag:
-                extra = err
-            block.setUserData(UserData(PlainTextEdit.SYNTAX, extra))
+            err = err.split(":", QString.SkipEmptyParts)[1:].join(" ")
+            if err.startsWith("\n"):
+                err = err[1:]
+            err = err.prepend("Error:")
+            block.setUserData(UserData(PlainTextEdit.SYNTAX, err))
             return PlainTextEdit.SYNTAX # invalid syntax
         if debug:
             extra = QString("Input")
@@ -1553,7 +1555,9 @@ class REditor(PlainTextEdit):
         block = self.firstVisibleBlock()
         count = block.blockNumber()
         painter = QPainter(panel)
-        painter.fillRect(event.rect(), self.palette().base())
+        palette = self.parent().parent().palette()
+        color = palette.color(QPalette.Normal, QPalette.Window)
+        painter.fillRect(event.rect(), color)
 
         # Iterate over all visible text blocks in the document.
         while block.isValid():
@@ -1920,12 +1924,7 @@ class SidePanel(QWidget):
         if scroll:
             self.scroll(0, scroll)
         else:
-            # It would be nice to do
             self.update(0, rect.y(), self.width(), rect.height())
-            # But we can't because it will not remove the bold on the
-            # current line if word wrap is enabled and a new block is
-            # selected.
-            #self.update()
 
     def event(self, e):
         if e.type() == QEvent.ToolTip:
@@ -2215,8 +2214,6 @@ class CompletePopup(QObject):
         return False
 
     def showCompletion(self, choices):
-        if len(choices) < 1:
-            return
         if not self.timer is None:
             active = self.timer.isActive()
         else:
@@ -2232,7 +2229,7 @@ class CompletePopup(QObject):
                           QPalette.WindowText)
         self.popup.setUpdatesEnabled(False)
         self.popup.clear()
-        for i in sorted(choices):
+        for i in choices:
             item = QTreeWidgetItem(self.popup)
             #item.setText(0, i.split(":")[0].simplified())
             item.setText(0, i)
@@ -2294,6 +2291,11 @@ class CompletePopup(QObject):
             return
         self.move = len(token)
         comps = complete.completeToken(linebuffer, token, start, end)
+        comps.sort()
+        if len(comps) < 1:
+            return
+        elif len(comps) == 1 and comps[0] == token:
+            return
         self.showCompletion(comps)
 
     #def getCurrentWord(self):
@@ -2345,6 +2347,9 @@ class BaseFrame(QFrame):
         if console:
             hbox.setSpacing(0)
         else:
+#            palette = self.sidePanel.palette()
+#            palette.setBrush(QPalette.Base, palette.window())
+#            self.sidePanel.setPalette(palette)
             hbox.setSpacing(2)
         hbox.setMargin(0)
         vbox = QVBoxLayout(self)

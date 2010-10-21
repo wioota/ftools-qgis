@@ -36,8 +36,8 @@ manageR makes extensive use of rpy2 (Laurent Gautier) to communicate with R.
 
 # general python imports  
 import os, re, sys, platform, base64
-from xml.dom import minidom
 from multiprocessing import Process, Queue, Lock, Pipe
+from threading import Timer
 
 # PyQt imports
 from PyQt4.QtCore import *
@@ -48,6 +48,7 @@ from PyQt4.QtNetwork import QHttp
 import complete, resources, converters
 from widgets import *
 from browsers import *
+from rprocess import RProcess
 from config import ConfigDialog
 from plugins_manager import PluginManager
 from environment import TreeModel
@@ -58,10 +59,18 @@ import rpy2.robjects as robjects
 import rpy2.rlike.container as rlc
 
 def cleanup(saveact, status, runlast):
-    # cancel all attempts to quit R programmatically
+    # cancel all attempts to quit R from the console
     print("Error: Exit from manageR not allowed, please use File > Quit")
     return None
 rpy2.rinterface.set_cleanup(cleanup)
+
+def cleanString(string):
+    output = QString(string)
+    output.replace('\xe2\x9c\x93', "")
+    output.replace('\xe2\x80\x98', "'")
+    output.replace('\xe2\x80\x99', "'")
+    output.replace("_", "")
+    return output
 
 try:
     from qgis.core import (QgsApplication, QgsMapLayer,QgsProviderRegistry,
@@ -117,6 +126,8 @@ class MainWindow(QMainWindow):
                 size = QSettings().value("manageR/consolesize", QSize(800,500)).toSize()
                 self.resize(size)
                 self.move(pos)
+            self.connect(self.main.editor(), SIGNAL("commandComplete(QString)"),
+                self.statusBar().showMessage)
             self.main.editor().setCheckSyntax(False)
             self.main.editor().suspendHighlighting()
             data = QMimeData()
@@ -585,7 +596,7 @@ class MainWindow(QMainWindow):
         try:
             robjects.rinterface.process_revents()
         except Exception, err:
-            print str(err)
+            pass  
 
     def libraryBrowser(self):
         browser = RLibraryBrowser(self, self.paths)
@@ -605,7 +616,7 @@ class MainWindow(QMainWindow):
                 mirrorBrowser = RMirrorBrowser(self)
                 if not mirrorBrowser.exec_():
                     return
-        browser = RRepositoryBrowser(self)
+        browser = RRepositoryBrowser(PIPE, self)
         browser.exec_()
         
     def savePlot(self):
@@ -912,6 +923,8 @@ class MainWindow(QMainWindow):
                         robjects.r('dev.off()')
                     except:
                       pass
+                PIPE.send(None)
+                PROCESS.join()
             else:
                 reply = QMessageBox.question(self,
                             "editR - Unsaved Changes",
@@ -1413,10 +1426,13 @@ class PlainTextEdit(QPlainTextEdit):
                 block.setUserData(UserData(PlainTextEdit.CONTINUE, extra))
                 return PlainTextEdit.CONTINUE # line continuation
             err = err.split(":", QString.SkipEmptyParts)[1:].join(" ")
-            if err.startsWith("\n"):
+            if err.startsWith("<n"):
                 err = err[1:]
-            err = err.prepend("Error:")
-            block.setUserData(UserData(PlainTextEdit.SYNTAX, err))
+            err.prepend("Error:")
+            if tag:
+                extra = err
+            self.emit(SIGNAL("syntaxError(QString)"), err)
+            block.setUserData(UserData(PlainTextEdit.SYNTAX, extra))
             return PlainTextEdit.SYNTAX # invalid syntax
         if debug:
             extra = QString("Input")
@@ -1623,6 +1639,11 @@ class RConsole(PlainTextEdit):
         self.__HIST = History()
         self.__started = False
         self.__tabwidth = tabwidth
+        t = Timer(0.01, self.updateTest)
+        t.start()
+        self.connect(self, SIGNAL("showOutput(QString)"), self.printOutput)
+        self.connect(self, SIGNAL("showHelp(QString)"), self.help)
+        self.connect(self, SIGNAL("syntaxError(QString)"), self.printOutput)
 
     def setHistory(self, history):
         self.__HIST = history
@@ -1735,6 +1756,7 @@ class RConsole(PlainTextEdit):
             if not self.lastLine().isEmpty():
                 self.history().update(QStringList(self.lastLine()))
             if check == PlainTextEdit.INPUT:
+                self.parent().parent().statusBar().showMessage("Running...")
                 self.run(command)
             elif check == PlainTextEdit.SYNTAX and block.userData().hasExtra():
                 # we know this wont work, no point in trying!
@@ -1747,30 +1769,35 @@ class RConsole(PlainTextEdit):
             PlainTextEdit.cut(self)
 
     def run(self, command):
-        lock = Lock()
-        self.pipeStart, self.pipeEnd = Pipe()
-        try:
-            run(command, lock, self.pipeStart)
-        except:
-            return False
-        try:
-            output = self.pipeEnd.recv()
-            string = QString()
-            while not output is None:
-                string.append(QString(output))
-                output = self.pipeEnd.recv()
-        except EOFError:
-            pass
-        string.replace('\xe2\x9c\x93', "")
-        string.replace('\xe2\x80\x98', "'")
-        string.replace('\xe2\x80\x99', "'")
-        string.replace("_", "")
-        if string.indexOf(QRegExp("R\s{1}(Help|Information)")) == 0:
-            SimpleTextDialog(self.parent(), string).show()
-        else:
-            self.printOutput(string)
-        self.checkGraphics()
-        return True
+        PIPE.send(command)
+
+    def updateTest(self):
+        while 1:
+            try:
+                output = PIPE.recv()
+                if output is None:
+                    break
+            except EOFError:
+                pass
+            if isinstance(output, bool):
+                self.checkGraphics()
+                self.emit(SIGNAL("commandComplete(QString)"), "")
+                continue
+            output = cleanString(output)
+            if output.startsWith("R Help"):
+                while 1:
+                    temp = PIPE.recv()
+                    if isinstance(temp, bool):
+                        self.emit(SIGNAL("commandComplete(QString)"), "")
+                        break
+                    else:
+                        output.append(cleanString(temp))
+                self.emit(SIGNAL("showHelp(QString)"), output)
+            else:
+                self.emit(SIGNAL("showOutput(QString)"), output)
+        
+    def help(self, helpString):
+        SimpleTextDialog(self, helpString).show()
         
     def checkGraphics(self):
         graphic = robjects.r[".manageRgraphic"]
@@ -2700,7 +2727,7 @@ class History(QAbstractListModel):
         except:
             return False
         return True
-        
+
 class OutputWriter(QObject):
 
     def __init__(self, target):
@@ -2711,54 +2738,6 @@ class OutputWriter(QObject):
         mime = QMimeData()
         mime.setText(output)
         self.target(mime)
-
-class OutputCatcher(QObject):
-
-    def __init__(self, pipe):
-        QObject.__init__(self, None)
-        self.data = ""
-        self.pipe = pipe
-
-    def write(self, stuff):
-        #self.data += stuff
-        self.pipe.send(stuff)
-        sys.__stdout__.write(stuff)
-
-    def flush(self):
-        #stuff = "\n".join(self.data)
-        #sys.__stdout__.flush()
-        pass
-
-    def clear(self):
-        self.data = ''
-
-def run(command, lock, pipe):
-    sys.stdout = sys.stderr = OutputCatcher(pipe)
-    lock.acquire()
-    dub = robjects.r['[[']
-    r = robjects.r
-    try:
-        try_ = robjects.r.get("try", mode='function')
-        parse_ = robjects.r.get("parse", mode='function')
-        paste_ = robjects.r.get("paste", mode='function')
-        withVisible_ = robjects.r.get("withVisible", mode='function')
-        result = try_(parse_(text=paste_(unicode(command, "UTF-8"))), silent=True)
-        value, visible = try_(withVisible_(result[0]), silent=True)
-        iss4 = isinstance(value, robjects.methods.RS4)
-        if visible[0]:
-            if iss4:
-                print value
-            elif not str(value[0]) == "NULL":
-                print value
-    except Exception, err:
-        #print str(err)
-        pass
-    lock.release()
-    pipe.send(None)
-    sys.stdout = sys.__stdout__
-    sys.stderr = sys.__stderr__
-    pipe.close()
-
 
 HISTORY = History()
 
@@ -2774,6 +2753,15 @@ def main():
         QgsApplication.setPrefixPath('/usr/local', True)
         QgsApplication.initQgis()
     app.connect(app, SIGNAL('lastWindowClosed()'), app, SLOT('quit()'))
+    try:
+        global PIPE
+        global PROCESS
+        PIPE, OTHER = Pipe()
+        PROCESS = RProcess(OTHER)
+        PROCESS.start() # start the R process
+    except:
+        QMessageBox.warning(None, "manageR Error", "Unable to start R process... Exiting...")
+        sys.exit()
     window = MainWindow(parent=None, iface=None, console=True)
     window.show()
     sys.exit(app.exec_())

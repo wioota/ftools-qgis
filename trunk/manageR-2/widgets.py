@@ -6,13 +6,14 @@ import rpy2.robjects as robjects
 #PyQt imports
 from PyQt4.QtCore import (Qt, SIGNAL, SLOT, QStringList, QString, QDir, QSettings,
                           QModelIndex, QObject, QCoreApplication, QEventLoop, 
-                          QRegExp, QVariant )
+                          QRegExp, QVariant, QUrl)
 from PyQt4.QtGui import (QTreeWidget, QAbstractItemView, QAction, QVBoxLayout,
                          QMenu, QWidget, QListView, QIcon, QLineEdit, QToolButton,
                          QHBoxLayout, QTreeWidgetItem, QFileSystemModel, QCheckBox,
                          QTextEdit, QFileDialog, QDialog, QSpinBox, QLabel,
                          QApplication, QCursor, QInputDialog, QTreeView,QMessageBox,
-                         QSizePolicy, QFontMetrics, QSortFilterProxyModel)
+                         QSizePolicy, QFontMetrics, QSortFilterProxyModel, QDesktopServices
+                         )
 # local imports
 import resources, os, sys
 from environment import TreeModel, SortFilterProxyModel
@@ -162,6 +163,12 @@ class DirectoryWidget(RWidget):
         self.setAction.setIcon(QIcon(":folder-home"))
         self.setAction.setEnabled(True)
         self.actions.append(self.setAction)
+        self.loadExternal = QAction("Open &Externally", self)
+        self.loadExternal.setStatusTip("Load file in external application")
+        self.loadExternal.setToolTip("Load file in external application")
+        self.loadExternal.setIcon(QIcon(":folder-system"))
+        self.loadExternal.setEnabled(True)
+        self.actions.append(self.loadExternal)
         self.rootChanged()
         
         hiddenAction = QAction("Toggle hidden files", self)
@@ -176,6 +183,7 @@ class DirectoryWidget(RWidget):
         self.connect(self.rmAction, SIGNAL("triggered()"), self.rmItem)
         self.connect(self.openAction, SIGNAL("triggered()"), self.openItem)
         self.connect(self.loadAction, SIGNAL("triggered()"), self.loadItem)
+        self.connect(self.loadExternal, SIGNAL("triggered()"), self.externalItem)
         self.connect(self.setAction, SIGNAL("triggered()"), self.setFolder)
         self.connect(hiddenAction, SIGNAL("toggled(bool)"), self.toggleHidden)
         self.connect(self.listView, SIGNAL("activated(QModelIndex)"), self.cdFolder)
@@ -241,12 +249,15 @@ class DirectoryWidget(RWidget):
             if suffix in ("Rd","Rdata","RData"):
                 self.loadAction.setEnabled(True)
                 self.openAction.setEnabled(False)
+                self.loadExternal.setEnabled(False)
             elif suffix in ("txt","csv","R","r"):
                 self.openAction.setEnabled(True)
                 self.loadAction.setEnabled(False)
+                self.loadExternal.setEnabled(True)
             else:
                 self.loadAction.setEnabled(False)
                 self.openAction.setEnabled(False)
+                self.loadExternal.setEnabled(True)
         menu = QMenu(self)
         for action in self.actions:
             menu.addAction(action)
@@ -263,6 +274,11 @@ class DirectoryWidget(RWidget):
         index = self.proxyModel.mapToSource(index)
         self.emit(SIGNAL("loadFileRequest(QString)"),
         self.model.filePath(index))
+        
+    def externalItem(self):
+        index = self.listView.currentIndex()
+        index = self.proxyModel.mapToSource(index)
+        QDesktopServices.openUrl(QUrl(self.model.filePath(index)))
 
     def newFolder(self):
         text, ok = QInputDialog.getText(self,

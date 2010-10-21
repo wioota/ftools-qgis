@@ -13,7 +13,7 @@ from PyQt4.QtNetwork import QHttp
 
 import rpy2.robjects as robjects
 import sys, os, resources
-from multiprocessing import Process, Queue, Lock, Pipe
+from rprocess import OutputCatcher, RProcess
 
 class LayerImportBrowser(QDialog):
 
@@ -409,7 +409,7 @@ class RMirrorBrowser(QDialog):
 
 class RRepositoryBrowser(QDialog):
 
-    def __init__(self, parent=None):
+    def __init__(self, pipe, parent=None):
         QDialog.__init__(self, parent)
         mirror = robjects.r.getOption('repos')
         contrib_url = robjects.r.get('contrib.url', mode='function')
@@ -417,6 +417,7 @@ class RRepositoryBrowser(QDialog):
         self.setWindowTitle("manageR - Install R Packages")
         self.setWindowIcon(QIcon(":icon"))
         p = available_packages()
+        self.pipe = pipe
         self.names = QStringList(p.rownames)
         self.parent = parent
         self.packageList = QListWidget(self)
@@ -464,10 +465,11 @@ class RRepositoryBrowser(QDialog):
         elif button.text() == "Details <<":
             self.hideDetails()
             button.setText("Details >>")
-        elif self.buttonBox.standardButton(button) == QDialogButtonBox.Apply:
-            self.installPackages()
-        else:
-            self.reject()
+        if not self.started:
+            if self.buttonBox.standardButton(button) == QDialogButtonBox.Apply:
+                self.installPackages()
+            else:
+                self.reject()
 
     def showDetails(self):
         self.outputEdit.setVisible(True)
@@ -481,8 +483,8 @@ class RRepositoryBrowser(QDialog):
         firstItem = self.packageList.item(0)
         if firstItem.text().startsWith(text):
             self.packageList.setCurrentItem(firstItem)
-        else:
-            self.packageList.clearSelection()
+#        else:
+#            self.packageList.clearSelection()
 
     def currentPackages(self):
         return [unicode(item.text()) for item in self.packageList.selectedItems()]
@@ -498,32 +500,23 @@ class RRepositoryBrowser(QDialog):
         checked = self.dependCheckbox.isChecked()
         if checked: depends = "TRUE"
         else: depends = "FALSE"
-        lock = Lock()
-        self.pipeStart, self.pipeEnd = Pipe()
-        self.p = Process(target = run, args = (
-        "install.packages(c('%s'), dependencies=%s)" % (pkgs, depends),
-        lock, self.pipeStart))
-        self.p.start()
-        self.startTimer(30)
+        self.pipe.send("install.packages(c('%s'), dependencies=%s, repos=%s)" 
+            % (pkgs, depends, robjects.r.getOption("repos")))
         self.started = True
+        self.startTimer(30)
         return True
 
     def timerEvent(self, e):
         if self.started:
             try:
-                output = self.pipeEnd.recv()
-                if not output is None:
-                    self.printOutput(output)
+                output = self.pipe.recv()
+                if output is None:
+                    self.started=False
+                    self.killTimer(e.timerId())
                 else:
-                    self.p.join()
-                    #self.started = False
-                    #self.killTimer(e.timerId())
-                    #if self.closeCheckbox.isChecked():
-                        #self.reject()
+                    self.printOutput(output)
             except EOFError:
                 pass
-        #else:
-            #self.killTimer(e.timerId())
         QApplication.processEvents()
 
     def printOutput(self, output):
@@ -823,36 +816,3 @@ class SimpleTextDialog(QDialog):
         self.setWindowTitle("manageR - Help")
         display.setPlainText(text)
         self.resize(750, 400)
-
-class OutputCatcher(QObject):
-
-    def __init__(self, pipe):
-        QObject.__init__(self, None)
-        self.data = ""
-        self.pipe = pipe
-
-    def write(self, stuff):
-        #self.data += stuff
-        self.pipe.send(stuff)
-        sys.__stdout__.write(stuff)
-
-    def flush(self):
-        #stuff = "\n".join(self.data)
-        #sys.__stdout__.flush()
-        pass
-
-    def clear(self):
-        self.data = ''
-
-def run(command, lock, pipe):
-    sys.stdout = sys.stderr = OutputCatcher(pipe)
-    lock.acquire()
-    try:
-        robjects.r(unicode(command))
-    except robjects.rinterface.RRuntimeError, err:
-        pass
-    lock.release()
-    pipe.send(None)
-    sys.stdout = sys.__stdout__
-    sys.stderr = sys.__stderr__
-    pipe.close()

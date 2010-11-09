@@ -3,6 +3,7 @@ from multiprocessing import Process, Pipe
 import rpy2.robjects as robs
 import rpy2.rinterface as rint
 from threading import Timer
+from PyQt4.QtCore import QObject, SIGNAL
 
 class OutputCatcher:
     def __init__(self, pipe):
@@ -43,15 +44,11 @@ class RProcess(Process):
                 iss4 = isinstance(value, robs.methods.RS4)
                 if visible[0]:
                     if iss4:
-#                        self.pipe.send(unicode(value))
                         print value
-                    elif str(value).count('NULL'):
+                    elif str(value).count('NULL') < 1:
                         print value
-#                        self.pipe.send(unicode(value))
-            except Exception, err:
-#                self.pipe.send(unicode(err))
-#                print str(err)
-                pass
+            except Exception, value:
+                print str(value)
             time.sleep(0.03)
             self.pipe.send(True)
 

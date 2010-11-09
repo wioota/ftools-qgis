@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#NOTE: figure out why sending commands from the widgets doesn't obey the
-# suspended highlighting?
 
 LICENSE = '''manageR - Interface to the R statistical programming language
 
@@ -1426,7 +1424,8 @@ class PlainTextEdit(QPlainTextEdit):
                 block.setUserData(UserData(PlainTextEdit.CONTINUE, extra))
                 return PlainTextEdit.CONTINUE # line continuation
             err = err.split(":", QString.SkipEmptyParts)[1:].join(" ")
-            if err.startsWith("<n"):
+            print err
+            if err.startsWith("\n"):
                 err = err[1:]
             err.prepend("Error:")
             if tag:
@@ -1769,6 +1768,8 @@ class RConsole(PlainTextEdit):
             PlainTextEdit.cut(self)
 
     def run(self, command):
+        if len(command) < 1:
+           return
         PIPE.send(command)
 
     def updateTest(self):
@@ -1824,29 +1825,44 @@ class RConsole(PlainTextEdit):
     def printOutput(self, output):
         error = False
         empty = False
-        if len(output) > 0:
-            for line in output.split("\n", QString.SkipEmptyParts):
-                if line.startsWith("Error") or error:
-                    if not error:
-                        error = True
-                        self.emit(SIGNAL("errorOutput()"))
-                        line = line.split(":", QString.SkipEmptyParts)[1:].join("").trimmed()
-                        empty = line.isEmpty()
-                        line.prepend("Error: ")
-                    else:
-                        line = line.trimmed()
-                        empty = False
-                    self.textCursor().block().setUserData(
-                        UserData(PlainTextEdit.ERROR))#, QString("Error")))
+        regexp = QRegExp(r'\n')
+        count = 0
+        pos = regexp.indexIn(output, 0)
+        oldpos = 0
+        while not pos == -1:
+            count += 1
+            pos += regexp.matchedLength()
+            line = output[oldpos:pos]
+            oldpos = pos
+            pos = regexp.indexIn(output, pos)
+            if line.startsWith("Error") or error:
+                if not error:
+                    error = True
+                    self.emit(SIGNAL("errorOutput()"))
+                    line = line.split(":", QString.SkipEmptyParts)[1:].join("").trimmed()
+                    empty = line.isEmpty()
+                    line.prepend("Error: ")
                 else:
-                    self.suspendHighlighting()
+                    line = line.trimmed()
                     empty = False
-                    self.textCursor().block().setUserData(
-                        UserData(PlainTextEdit.OUTPUT))#, QString("Output")))
-                if not empty:
-                    self.insertPlainText("%s\n" % line)
-                else:
-                    self.insertPlainText(line)
+                self.textCursor().block().setUserData(
+                    UserData(PlainTextEdit.ERROR))#, QString("Error")))
+            else:
+                self.suspendHighlighting()
+                empty = False
+                self.textCursor().block().setUserData(
+                    UserData(PlainTextEdit.OUTPUT))#, QString("Output")))
+            if not empty:
+                self.insertPlainText("%s" % line)
+            else:
+                self.insertPlainText(line)
+        if oldpos == 0 and pos < 0:
+        # this will happen when print is entered on the console
+        # in this case, each individual item is printed one at a time...
+            self.suspendHighlighting()
+            self.textCursor().block().setUserData(
+                UserData(PlainTextEdit.OUTPUT))#, QString("Output")))
+            self.insertPlainText(output)
         self.resumeHighlighting()
         self.ensureCursorVisible()
 

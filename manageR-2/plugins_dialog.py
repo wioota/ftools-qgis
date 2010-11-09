@@ -679,7 +679,7 @@ class VariableComboBox(QWidget):
         hbox.addWidget(self.comboBox)
         self.setLayout(hbox)
         self.changeSelectedText(None)
-        
+
     def changeSelectedText(self, index):
         item = self.treeView.currentIndex()
         if not item.isValid():
